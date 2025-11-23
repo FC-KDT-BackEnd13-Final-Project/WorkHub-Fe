@@ -1,27 +1,27 @@
+import { Routes, Route } from "react-router-dom";
+import { Main } from "./components/Main";
 import { Navigation } from "./components/Navigation";
-import { HeroSection } from "./components/HeroSection";
-import { AboutSection } from "./components/AboutSection";
-import { SkillsSection } from "./components/SkillsSection";
-import { ProjectsSection } from "./components/ProjectsSection";
-import { ExperienceSection } from "./components/ExperienceSection";
-import { ContactSection } from "./components/ContactSection";
-import { Footer } from "./components/Footer";
+import { Dashboard } from "./components/Dashboard";
 import { Toaster } from "./components/ui/sonner";
 
 export default function App() {
   return (
     <div className="min-h-screen bg-background text-foreground">
-      <Navigation />
-      <main>
-        <HeroSection />
-        <AboutSection />
-        <SkillsSection />
-        <ProjectsSection />
-        <ExperienceSection />
-        <ContactSection />
-      </main>
-      <Footer />
+      <Routes>
+        <Route path="/" element={<LandingPage />} />
+        <Route path="/Dashboard" element={<Dashboard />} />
+      </Routes>
       <Toaster />
     </div>
+  );
+}
+
+function LandingPage() {
+  return (
+    <>
+      <Navigation />
+      <div className="p-8 border-b" aria-hidden />
+      <Main />
+    </>
   );
 }

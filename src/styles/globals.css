@@ -18,6 +18,10 @@
   --accent-foreground: #030213;
   --destructive: #d4183d;
   --destructive-foreground: #ffffff;
+  --point-color: #1076e2;
+  --login-button-text-color: #000000;
+  --logincard: #ffffff;
+  --logincard-foreground: oklch(0.145 0 0);
   --border: rgba(0, 0, 0, 0.1);
   --input: transparent;
   --input-background: #f3f3f5;
@@ -39,6 +43,30 @@
   --sidebar-accent-foreground: oklch(0.205 0 0);
   --sidebar-border: oklch(0.922 0 0);
   --sidebar-ring: oklch(0.708 0 0);
+}
+
+.login-theme {
+  --background: var(--logincard);
+  --foreground: var(--logincard-foreground);
+  --card: var(--logincard);
+  --card-foreground: var(--logincard-foreground);
+  --popover: var(--logincard);
+  --popover-foreground: var(--logincard-foreground);
+  --primary: var(--point-color);
+  --primary-foreground: oklch(1 0 0);
+  --secondary: color-mix(in oklab, var(--logincard-foreground) 8%, white);
+  --secondary-foreground: var(--logincard-foreground);
+  --muted: color-mix(in oklab, var(--logincard-foreground) 6%, white);
+  --muted-foreground: color-mix(in oklab, var(--logincard-foreground) 50%, transparent);
+  --accent: color-mix(in oklab, var(--point-color) 10%, white);
+  --accent-foreground: var(--logincard-foreground);
+  --destructive: #d4183d;
+  --destructive-foreground: #ffffff;
+  --border: rgba(0, 0, 0, 0.08);
+  --input: transparent;
+  --input-background: color-mix(in oklab, white 90%, var(--logincard-foreground) 10%);
+  --switch-background: color-mix(in oklab, #cbced4 70%, white);
+  --ring: color-mix(in oklab, var(--point-color) 80%, black);
 }
 
 .dark {
@@ -76,6 +104,10 @@
   --sidebar-accent-foreground: oklch(0.985 0 0);
   --sidebar-border: oklch(0.269 0 0);
   --sidebar-ring: oklch(0.439 0 0);
+  --point-color: #1076e2;
+  --logincard: #ffffff;
+  --logincard-foreground: oklch(0.145 0 0);
+  --login-button-text-color: #ffffff;
 }
 
 @theme inline {
@@ -180,6 +212,36 @@
       font-size: var(--text-base);
       font-weight: var(--font-weight-normal);
       line-height: 1.5;
+    }
+  }
+
+  .login-typography {
+    h1 {
+      font-size: 2rem;
+      font-weight: 600;
+      line-height: 1.3;
+      color: var(--logincard-foreground);
+    }
+
+    h2 {
+      font-size: 1.5rem;
+      font-weight: 500;
+      line-height: 1.4;
+      color: var(--logincard-foreground);
+    }
+
+    p {
+      font-size: 1rem;
+      color: color-mix(in oklab, var(--logincard-foreground) 65%, transparent);
+    }
+
+    label {
+      font-weight: 600;
+      color: color-mix(in oklab, var(--logincard-foreground) 80%, transparent);
+    }
+
+    button {
+      font-weight: 600;
     }
   }
 }
