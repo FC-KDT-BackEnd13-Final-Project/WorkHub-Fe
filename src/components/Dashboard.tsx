@@ -1,21 +1,27 @@
 import { useMemo, useState } from "react";
+import { Routes, Route, useLocation, useNavigate } from "react-router-dom";
 import {
-  AlarmClock,
+  Activity,
+  AlertTriangle,
   BarChart3,
+  Bell,
   BellRing,
-  Calendar,
-  CheckCircle,
+  Briefcase,
+  CalendarClock,
+  CheckCircle2,
+  ChevronDown,
   ChevronRight,
-  Flame,
+  FileText,
+  FolderKanban,
+  Layers3,
   LineChart,
-  ListChecks,
-  MessageCircle,
-  Pencil,
+  Menu,
+  MessageSquare,
   Plus,
-  Settings,
-  ShieldCheck,
-  Sparkles,
+  Settings as SettingsIcon,
+  Target,
   Users,
+  X,
 } from "lucide-react";
 
 import { Avatar, AvatarFallback } from "./ui/avatar";
@@ -26,459 +32,594 @@ import { Input } from "./ui/input";
 import { Progress } from "./ui/progress";
 import { ScrollArea } from "./ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
+import { Separator } from "./ui/separator";
 import { cn } from "./ui/utils";
+import { ProjectsListView } from "./ProjectsListView";
+import { ProjectCreateDialog } from "./ProjectCreateDialog";
 
-const navItems = [
-  { id: "overview", label: "프로젝트 개요" },
-  { id: "schedule", label: "캘린더" },
-  { id: "tasks", label: "업무" },
-  { id: "files", label: "자원" },
-  { id: "team", label: "팀" },
+const navigationItems = [
+  { id: "overview", label: "대시보드", icon: Layers3 },
+  { id: "projects", label: "프로젝트", icon: FolderKanban },
+  { id: "tasks", label: "업무", icon: Briefcase },
+  { id: "teams", label: "팀", icon: Users },
+  { id: "resources", label: "자원", icon: Activity },
+  { id: "insights", label: "리포트", icon: LineChart },
+  { id: "notifications", label: "알림", icon: Bell },
+  { id: "settings", label: "설정", icon: SettingsIcon },
 ] as const;
 
-const summaryCards = [
-  {
-    label: "이번 주 마감",
-    value: 6,
-    subtext: "+2 신규 요청",
-    icon: AlarmClock,
-    accent: "from-sky-500/15 via-sky-500/25 to-sky-500/5",
-  },
-  {
-    label: "진행 중 프로젝트",
-    value: 4,
-    subtext: "연체 1건",
-    icon: LineChart,
-    accent: "from-indigo-500/15 via-indigo-500/25 to-indigo-500/5",
-  },
-  {
-    label: "승인 대기",
-    value: 3,
-    subtext: "UI 개선안, 계정 요청",
-    icon: ShieldCheck,
-    accent: "from-emerald-500/15 via-emerald-500/25 to-emerald-500/5",
-  },
-] as const;
+const summaryMetrics = [
+  { title: "진행 중 프로젝트", value: 12, delta: "+2 this week", accent: "text-slate-900 dark:text-white" },
+  { title: "이번 주 마감", value: 8, delta: "3 긴급", accent: "text-rose-600 dark:text-rose-200" },
+  { title: "리소스 가용률", value: "72%", delta: "정상", accent: "text-emerald-600 dark:text-emerald-200" },
+  { title: "고객 만족도", value: "4.6/5", delta: "지난달 대비 +0.2", accent: "text-indigo-600 dark:text-indigo-200" },
+];
 
-const projectPipelines = [
+const executionStats = [
   {
-    name: "모바일 뱅킹 UX 리뉴얼",
-    company: "코어뱅크",
-    progress: 82,
-    owner: "김지은",
-    status: "디자인 QA",
-    priority: "긴급",
+    name: "스마트홈 고도화",
+    pm: "김지은",
+    stage: "QA 진행",
+    completion: 76,
+    budget: "63% 사용",
+    risk: "낮음",
   },
   {
-    name: "웨어러블 헬스 앱",
-    company: "핏앤굿",
-    progress: 56,
-    owner: "박건희",
-    status: "개발 진행",
-    priority: "보통",
+    name: "헬스케어 앱",
+    pm: "박건희",
+    stage: "개발",
+    completion: 54,
+    budget: "38% 사용",
+    risk: "주의",
   },
   {
-    name: "클라우드 관제 대시보드",
-    company: "알파시큐어",
-    progress: 34,
-    owner: "최연서",
-    status: "요구사항 확정",
-    priority: "주의",
+    name: "클라우드 관제",
+    pm: "최연서",
+    stage: "요구사항 확정",
+    completion: 31,
+    budget: "22% 사용",
+    risk: "낮음",
   },
-] as const;
+];
 
-const taskColumns = {
-  today: [
-    { title: "디자인 QA", project: "모바일 뱅킹", assignee: "김지은" },
-    { title: "데이터 연동 체크", project: "헬스 앱", assignee: "박건희" },
-  ],
-  review: [
-    { title: "화면 흐름 승인", project: "헬스 앱", assignee: "김지은" },
-    { title: "보안 문서 검토", project: "클라우드 관제", assignee: "최연서" },
-  ],
-  blocked: [{ title: "하자 처리 내역 회신", project: "스마트홈", assignee: "이윤영" }],
-} as const;
+const healthSignals = [
+  { label: "디자인 QA", owner: "Design", due: "11/30", status: "대기", level: "warning" },
+  { label: "데이터 마이그레이션", owner: "Backend", due: "12/02", status: "진행", level: "critical" },
+  { label: "고객 승인", owner: "CS", due: "12/05", status: "검토", level: "normal" },
+];
 
-const timelineItems = [
+const timelineUpdates = [
   {
-    title: "UI 승인 요청",
-    body: "고객 검토 완료, 최종 승인이 필요합니다.",
-    time: "10:30",
-    badge: "긴급",
+    title: "모바일 뱅킹 2.1 배포 완료",
+    body: "테스트 자동화 128건 성공 · 롤백 없음",
+    actor: "DevOps",
+    time: "1시간 전",
   },
   {
-    title: "하자 처리 내역 업데이트",
-    body: "스마트홈 12차 배포 이후 수리 완료 보고",
-    time: "09:10",
-    badge: "업데이트",
+    title: "헬스케어 앱 디자인 승인",
+    body: "고객사 파트너가 신규 온보딩 플로우 승인",
+    actor: "Design",
+    time: "3시간 전",
   },
   {
-    title: "신규 프로젝트 킥오프",
-    body: "웨어러블 헬스 앱 2차 범위 확정 회의",
+    title: "스마트홈 결함 리포트",
+    body: "하자 처리 SLA 2건 완료, 1건 보류",
+    actor: "CS",
     time: "어제",
   },
-] as const;
+];
 
-const teamMembers = [
-  { name: "김지은", role: "PM", initial: "J", workload: 78 },
-  { name: "박건희", role: "UX Lead", initial: "G", workload: 64 },
-  { name: "최연서", role: "Frontend", initial: "Y", workload: 51 },
-  { name: "이윤영", role: "CS", initial: "Y", workload: 46 },
-] as const;
+const backlogItems = [
+  { title: "신규 고객 온보딩 모듈", severity: "긴급", owner: "Frontend", eta: "3일" },
+  { title: "데이터 아카이브 정책", severity: "보통", owner: "Infra", eta: "7일" },
+  { title: "모바일 푸시 개인화", severity: "낮음", owner: "Product", eta: "14일" },
+];
 
-const files = [
-  { title: "02_UI-flow_v5.fig", project: "모바일 뱅킹", size: "4.2MB" },
-  { title: "handover-checklist.xlsx", project: "클라우드 관제", size: "1.1MB" },
-  { title: "client-brief.pdf", project: "웨어러블 헬스", size: "850KB" },
-] as const;
+const capacityMatrix = [
+  { team: "Design", allocated: 82, available: 18 },
+  { team: "Frontend", allocated: 74, available: 26 },
+  { team: "Backend", allocated: 91, available: 9 },
+  { team: "QA", allocated: 63, available: 37 },
+];
+
+const riskRegister = [
+  {
+    title: "클라우드 비용 변동",
+    impact: "Medium",
+    owner: "Infra",
+    action: "커밋 할인 재협상",
+  },
+  {
+    title: "요구사항 변경",
+    impact: "High",
+    owner: "PMO",
+    action: "고객 워크숍 일정 조율",
+  },
+  {
+    title: "외부 벤더 지연",
+    impact: "Medium",
+    owner: "Ops",
+    action: "대체 공급사 검토",
+  },
+];
 
 export function Dashboard() {
-  const [activeNav, setActiveNav] = useState<(typeof navItems)[number]["id"]>("overview");
-  const [search, setSearch] = useState("");
+  const [currentView, setCurrentView] = useState<(typeof navigationItems)[number]["id"]>("overview");
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
 
-  const filteredProjects = useMemo(() => {
-    if (!search.trim()) return projectPipelines;
-    return projectPipelines.filter((project) =>
-      project.name.toLowerCase().includes(search.toLowerCase()),
-    );
-  }, [search]);
+  const handleOpenCreateDialog = () => setIsCreateDialogOpen(true);
+
+  const placeholder = () => (
+    <Card>
+      <CardHeader>
+        <CardTitle>{navigationItems.find((item) => item.id === currentView)?.label}</CardTitle>
+        <CardDescription>이 섹션은 아직 작성되지 않았습니다. 필요한 요구 사항을 알려주시면 구성해 드릴게요.</CardDescription>
+      </CardHeader>
+    </Card>
+  );
+
+  const renderView = () => {
+    switch (currentView) {
+      case "overview":
+        return <OverviewBoard onOpenCreateDialog={handleOpenCreateDialog} />;
+      case "projects":
+        return <ProjectsListView onOpenCreateDialog={handleOpenCreateDialog} />;
+      default:
+        return placeholder();
+    }
+  };
 
   return (
-    <div className="h-screen bg-slate-50 text-slate-900">
-      <div className="mx-auto flex h-full max-w-7xl flex-col gap-6 px-4 py-6 sm:px-6 lg:px-8">
-        <header className="flex flex-col gap-4 rounded-3xl bg-white/80 p-6 shadow-sm ring-1 ring-slate-100 backdrop-blur">
-          <div className="flex flex-wrap items-center gap-3">
-            <Badge variant="outline" className="border-slate-200 text-xs uppercase tracking-wide">
-              Workhub 2.0
-            </Badge>
-            <div className="ms-auto flex items-center gap-3">
-              <Button variant="ghost" className="gap-2 px-3">
-                <Calendar className="h-4 w-4" />
-                오늘 일정
-              </Button>
-              <Button variant="outline" size="icon" className="rounded-full border-slate-200">
-                <BellRing className="h-4 w-4" />
-              </Button>
-              <Avatar className="h-9 w-9 border border-slate-200">
-                <AvatarFallback>JH</AvatarFallback>
-              </Avatar>
-            </div>
-          </div>
-          <div className="flex flex-wrap items-end gap-6">
-            <div>
-              <p className="text-sm text-muted-foreground">2024년 11월 28일 목요일</p>
-              <h1 className="text-3xl font-semibold">워크플로 허브</h1>
-            </div>
-            <div className="flex flex-1 flex-wrap gap-3 md:justify-end">
-              <Input
-                placeholder="프로젝트 검색"
-                value={search}
-                onChange={(event) => setSearch(event.target.value)}
-                className="w-full min-w-[240px] border-slate-200 md:w-64"
-              />
-              <Button>
-                <Plus className="mr-2 h-4 w-4" />
-                새 프로젝트
-              </Button>
-            </div>
-          </div>
-          <nav className="flex flex-wrap gap-2">
-            {navItems.map((item) => (
-              <Button
-                key={item.id}
-                variant={activeNav === item.id ? "secondary" : "ghost"}
-                className={cn(
-                  "rounded-full px-4 text-sm",
-                  activeNav === item.id ? "bg-slate-900 text-white" : "text-slate-500",
-                )}
-                onClick={() => setActiveNav(item.id)}
-              >
-                {item.label}
-              </Button>
-            ))}
-          </nav>
-        </header>
-
-        <div className="grid flex-1 grid-rows-1 gap-6 lg:grid-cols-[1.15fr_0.85fr]">
-          <ScrollArea className="h-full rounded-3xl bg-white/80 p-6 shadow-sm ring-1 ring-slate-100 backdrop-blur">
-            <div className="flex flex-col gap-6">
-              <HeroBanner />
-
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                {summaryCards.map((card) => (
-                  <Card key={card.label} className="border-none bg-gradient-to-br shadow-sm" style={{}}>
-                    <div className={cn("rounded-2xl bg-gradient-to-br p-1", card.accent)}>
-                      <Card className="border-none bg-white/90">
-                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                          <CardTitle className="text-sm font-medium text-slate-500">{card.label}</CardTitle>
-                          <card.icon className="h-4 w-4 text-slate-400" />
-                        </CardHeader>
-                        <CardContent>
-                          <div className="text-3xl font-semibold">{card.value}</div>
-                          <p className="mt-2 text-sm text-slate-500">{card.subtext}</p>
-                        </CardContent>
-                      </Card>
-                    </div>
-                  </Card>
-                ))}
-              </div>
-
-              <Card className="border-none bg-slate-900 text-white">
-                <CardHeader className="flex flex-row items-center justify-between">
-                  <div>
-                    <CardTitle className="text-lg font-medium">프로젝트 파이프라인</CardTitle>
-                    <CardDescription className="text-white/60">
-                      고객사와 진행 단계를 한 눈에 확인하세요.
-                    </CardDescription>
-                  </div>
-                  <Button variant="secondary" className="gap-2 rounded-full bg-white/10 text-white hover:bg-white/20">
-                    전체 보기
-                    <ChevronRight className="h-4 w-4" />
-                  </Button>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  {filteredProjects.map((project) => (
-                    <div
-                      key={project.name}
-                      className="rounded-2xl border border-white/10 bg-white/5 p-4 transition hover:border-white/30"
-                    >
-                      <div className="flex flex-wrap items-center gap-3">
-                        <div>
-                          <p className="text-sm text-white/70">{project.company}</p>
-                          <p className="text-base font-medium">{project.name}</p>
-                        </div>
-                        <Badge variant="secondary" className="ms-auto rounded-full bg-white/10 text-white">
-                          {project.status}
-                        </Badge>
-                      </div>
-                      <div className="mt-4 flex flex-wrap items-center gap-4">
-                        <div className="min-w-[120px] flex-1">
-                          <Progress value={project.progress} className="h-1.5 bg-white/20" />
-                        </div>
-                        <p className="text-sm text-white/70">{project.progress}%</p>
-                        <div className="flex items-center gap-2 text-sm text-white/70">
-                          <Users className="h-4 w-4" />
-                          {project.owner}
-                        </div>
-                        <Badge
-                          className={cn(
-                            "rounded-full px-3 text-xs",
-                            project.priority === "긴급"
-                              ? "bg-rose-500/20 text-rose-100"
-                              : project.priority === "주의"
-                                ? "bg-amber-400/30 text-amber-100"
-                                : "bg-emerald-400/30 text-emerald-100",
-                          )}
-                        >
-                          {project.priority}
-                        </Badge>
-                      </div>
-                    </div>
-                  ))}
-                </CardContent>
-              </Card>
-
-              <Tabs defaultValue="today" className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h2 className="text-lg font-semibold">업무 현황</h2>
-                    <p className="text-sm text-muted-foreground">팀 요청과 승인 대기 건을 추적하세요.</p>
-                  </div>
-                  <TabsList className="bg-slate-100">
-                    <TabsTrigger value="today">오늘</TabsTrigger>
-                    <TabsTrigger value="review">검토 요청</TabsTrigger>
-                    <TabsTrigger value="blocked">보류</TabsTrigger>
-                  </TabsList>
-                </div>
-
-                {Object.entries(taskColumns).map(([column, tasks]) => (
-                  <TabsContent key={column} value={column} className="space-y-3">
-                    {tasks.map((task) => (
-                      <Card key={`${column}-${task.title}`} className="border-slate-200">
-                        <CardContent className="flex items-center gap-4 p-4">
-                          <div className="rounded-full bg-slate-900/5 p-2">
-                            <ListChecks className="h-4 w-4 text-slate-700" />
-                          </div>
-                          <div className="flex-1">
-                            <p className="font-medium">{task.title}</p>
-                            <p className="text-sm text-muted-foreground">{task.project}</p>
-                          </div>
-                          <Badge variant="outline" className="rounded-full">{task.assignee}</Badge>
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </TabsContent>
-                ))}
-              </Tabs>
-
-              <Card className="border-slate-200">
-                <CardHeader className="flex flex-row items-center justify-between">
-                  <div>
-                    <CardTitle>팀 집중도</CardTitle>
-                    <CardDescription>누가 어느 업무에 집중하고 있는지 살펴보세요.</CardDescription>
-                  </div>
-                  <Button variant="ghost" className="gap-2 px-3">
-                    <Pencil className="h-4 w-4" />
-                    역할 조정
-                  </Button>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  {teamMembers.map((member) => (
-                    <div key={member.name} className="flex items-center gap-4">
-                      <Avatar className="h-10 w-10 border border-slate-200">
-                        <AvatarFallback>{member.initial}</AvatarFallback>
-                      </Avatar>
-                      <div className="flex-1">
-                        <div className="flex items-center justify-between">
-                          <p className="font-medium">{member.name}</p>
-                          <span className="text-sm text-muted-foreground">{member.workload}%</span>
-                        </div>
-                        <Progress value={member.workload} className="h-2" />
-                        <p className="text-sm text-muted-foreground">{member.role}</p>
-                      </div>
-                    </div>
-                  ))}
-                </CardContent>
-              </Card>
-            </div>
-          </ScrollArea>
-
-          <div className="flex h-full flex-col gap-6">
-            <Card className="flex flex-1 flex-col border-none bg-white/80 shadow-sm ring-1 ring-slate-100">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Sparkles className="h-4 w-4 text-amber-500" />
-                  실시간 타임라인
-                </CardTitle>
-                <CardDescription>고객 커뮤니케이션과 활동 로그</CardDescription>
-              </CardHeader>
-              <CardContent className="flex-1 space-y-4">
-                {timelineItems.map((item, index) => (
-                  <div key={item.title} className="flex gap-3">
-                    <div className="flex flex-col items-center">
-                      <div className="h-2 w-2 rounded-full bg-slate-900" />
-                      {index !== timelineItems.length - 1 && <div className="h-full w-px bg-slate-200" />}
-                    </div>
-                    <div className="flex-1 rounded-2xl border border-slate-100 bg-slate-50/70 p-4">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <p className="font-medium">{item.title}</p>
-                        {item.badge && (
-                          <Badge className="rounded-full bg-rose-100 text-rose-600" variant="secondary">
-                            {item.badge}
-                          </Badge>
-                        )}
-                        <span className="ms-auto text-xs text-muted-foreground">{item.time}</span>
-                      </div>
-                      <p className="mt-2 text-sm text-muted-foreground">{item.body}</p>
-                    </div>
-                  </div>
-                ))}
-              </CardContent>
-            </Card>
-
-            <Card className="border-none bg-slate-900 text-white shadow-lg">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Flame className="h-4 w-4 text-rose-200" />
-                  집중 케어
-                </CardTitle>
-                <CardDescription className="text-white/60">고객 이슈 및 보류 건 요약</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="rounded-2xl bg-white/5 p-4">
-                  <div className="flex items-center gap-3">
-                    <div className="rounded-full bg-rose-500/20 p-2">
-                      <MessageCircle className="h-4 w-4 text-rose-200" />
-                    </div>
-                    <div>
-                      <p className="font-medium">스마트홈 고객</p>
-                      <p className="text-sm text-white/70">하자 처리 답변 지연, 오늘 중 회신 필요</p>
-                    </div>
-                  </div>
-                </div>
-                <div className="rounded-2xl border border-white/10 p-4 text-sm text-white/80">
-                  고객 지원 SLA 4시간 남았습니다. 필요 시 CS팀에 바로 연결하세요.
-                </div>
-                <Button className="w-full gap-2 bg-white text-slate-900 hover:bg-slate-100">
-                  <CheckCircle className="h-4 w-4" />
-                  해결 완료로 표시
-                </Button>
-              </CardContent>
-            </Card>
-
-            <Card className="border-none bg-white/80 shadow-sm ring-1 ring-slate-100">
-              <CardHeader className="flex flex-row items-center justify-between">
-                <div>
-                  <CardTitle>공유된 파일</CardTitle>
-                  <CardDescription>마지막으로 업데이트된 자료</CardDescription>
-                </div>
-                <Button variant="ghost" size="icon">
-                  <Settings className="h-4 w-4" />
-                </Button>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {files.map((file) => (
-                  <div
-                    key={file.title}
-                    className="flex items-center gap-3 rounded-2xl border border-slate-100 p-3"
-                  >
-                    <div className="rounded-xl bg-slate-900/5 p-3">
-                      <BarChart3 className="h-4 w-4 text-slate-600" />
-                    </div>
-                    <div className="flex-1">
-                      <p className="font-medium">{file.title}</p>
-                      <p className="text-sm text-muted-foreground">{file.project}</p>
-                    </div>
-                    <span className="text-sm text-muted-foreground">{file.size}</span>
-                  </div>
-                ))}
-              </CardContent>
-            </Card>
-          </div>
-        </div>
+    <div className="flex min-h-screen bg-slate-50 text-slate-900">
+      <DashboardSidebar currentView={currentView} onViewChange={setCurrentView} />
+      <div className="flex w-full flex-col">
+        <div className="px-6 pt-6" />
+        <ScrollArea className="flex-1">
+          <div className="w-full space-y-8 px-6 py-8">{renderView()}</div>
+        </ScrollArea>
       </div>
+      <ProjectCreateDialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen} />
     </div>
   );
 }
 
-function HeroBanner() {
+function OverviewBoard({ onOpenCreateDialog }: { onOpenCreateDialog: () => void }) {
+  const [search, setSearch] = useState("");
+
   return (
-    <Card className="border-none bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 text-white">
-      <CardContent className="flex flex-col gap-6 p-6 md:flex-row md:items-center">
+    <div className="space-y-8">
+      <section className="flex flex-col gap-6 rounded-3xl bg-gradient-to-br from-slate-100 via-white to-slate-100 p-8 text-slate-900 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 dark:text-white">
         <div className="space-y-3">
-          <Badge className="rounded-full bg-white/10 text-xs font-medium uppercase tracking-wide text-white/80">
-            End-to-End Workflow
+          <Badge className="rounded-full bg-slate-900/10 px-4 py-1 text-xs uppercase tracking-wide text-slate-800 dark:bg-white/15 dark:text-white/80">
+            Enterprise Delivery
           </Badge>
-          <h2 className="text-2xl font-semibold leading-tight md:text-3xl">
-            계약부터 하자보수까지,
-            <br />
-            하나의 화면에서 흐름을 유지하세요.
-          </h2>
-          <p className="text-sm text-white/80">
-            프로젝트 히스토리, 승인 내역, 커뮤니케이션을 단일 콘솔에서 확인하고 공유하세요.
+          <h2 className="text-3xl font-semibold leading-tight">프로젝트 전 과정을 한 화면에서 관리하세요.</h2>
+          <p className="text-sm text-slate-700 dark:text-white/80">
+            계약, 실행, QA, 하자보수까지 연결된 워크플로우를 확인하고 리스크를 선제적으로 관리합니다.
           </p>
-          <div className="flex flex-wrap gap-2">
-            <Badge className="rounded-full bg-white/15 px-3 text-white">권한 기반 뷰</Badge>
-            <Badge className="rounded-full bg-white/15 px-3 text-white">자동 리마인더</Badge>
-            <Badge className="rounded-full bg-white/15 px-3 text-white">실시간 로그</Badge>
-          </div>
         </div>
-        <div className="ms-auto flex min-w-[220px] flex-col gap-4 rounded-2xl border border-white/10 bg-white/5 p-4">
-          <div>
-            <p className="text-sm text-white/70">이번 주 속도</p>
-            <p className="text-3xl font-semibold">87%</p>
-          </div>
-          <div>
-            <p className="text-sm text-white/70">하자 처리 완료율</p>
-            <Progress value={72} className="h-2 bg-white/20" />
-            <p className="mt-1 text-sm text-white/70">지난주 대비 +6%</p>
-          </div>
-          <Button variant="secondary" className="gap-2 rounded-full bg-white text-slate-900 hover:bg-slate-100">
-            <ListChecks className="h-4 w-4" />
-            전체 업무 보기
-          </Button>
+        <div className="flex flex-wrap gap-4">
+          {summaryMetrics.map((metric) => (
+            <Card key={metric.title} className="min-w-[220px] border border-slate-200 bg-white text-slate-900 backdrop-blur dark:border-none dark:bg-white/10 dark:text-white">
+              <CardHeader className="space-y-1">
+                <CardDescription className="text-xs uppercase tracking-wide text-muted-foreground dark:text-white/70">
+                  {metric.title}
+                </CardDescription>
+                <CardTitle className={cn("text-2xl font-semibold", metric.accent)}>{metric.value}</CardTitle>
+                <p className="text-sm text-muted-foreground dark:text-white/70">{metric.delta}</p>
+              </CardHeader>
+            </Card>
+          ))}
         </div>
+      </section>
+
+      <section className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
+        <Card className="border-none bg-white shadow-sm ring-1 ring-slate-100">
+          <CardHeader className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+            <div>
+              <CardTitle>실행 중인 프로그램</CardTitle>
+              <CardDescription>우선순위가 높은 프로젝트의 건강 상태</CardDescription>
+            </div>
+            <div className="flex gap-2">
+              <Input
+                placeholder="프로젝트 검색"
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                className="w-48"
+              />
+              <Button variant="outline" className="gap-2" onClick={onOpenCreateDialog}>
+                <Plus className="h-4 w-4" /> 새 프로젝트
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {executionStats
+              .filter((stat) => stat.name.toLowerCase().includes(search.toLowerCase()))
+              .map((stat) => (
+                <div key={stat.name} className="rounded-2xl border border-slate-100 p-4">
+                  <div className="flex flex-wrap items-center gap-3">
+                    <div>
+                      <p className="text-base font-semibold text-slate-900">{stat.name}</p>
+                      <p className="text-sm text-muted-foreground">PM {stat.pm} · {stat.stage}</p>
+                    </div>
+                    <Badge variant="outline" className="ms-auto text-xs">
+                      {stat.budget}
+                    </Badge>
+                  </div>
+                  <div className="mt-4">
+                    <div className="flex items-center justify-between text-xs text-muted-foreground">
+                      <span>진척률</span>
+                      <span>{stat.completion}%</span>
+                    </div>
+                    <Progress value={stat.completion} className="mt-1" />
+                  </div>
+                  <div className="mt-3 flex items-center justify-between text-sm">
+                    <Badge
+                      className={cn(
+                        "rounded-full px-3",
+                        stat.risk === "주의" ? "bg-amber-100 text-amber-700" : "bg-emerald-100 text-emerald-700",
+                      )}
+                    >
+                      리스크 {stat.risk}
+                    </Badge>
+                    <Button variant="ghost" size="sm" className="gap-1 text-slate-600">
+                      상세 보기 <ChevronRight className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              ))}
+          </CardContent>
+        </Card>
+
+        <Card className="border-none bg-white shadow-sm ring-1 ring-slate-100">
+          <CardHeader>
+            <CardTitle>헬스 신호</CardTitle>
+            <CardDescription>대응이 필요한 지표를 추적하세요</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {healthSignals.map((signal) => (
+              <div key={signal.label} className="rounded-2xl border border-slate-100 px-4 py-3">
+                <div className="flex items-center gap-3">
+                  <div
+                    className={cn(
+                      "flex h-8 w-8 items-center justify-center rounded-full",
+                      signal.level === "critical"
+                        ? "bg-rose-100 text-rose-600"
+                        : signal.level === "warning"
+                          ? "bg-amber-100 text-amber-600"
+                          : "bg-emerald-100 text-emerald-600",
+                    )}
+                  >
+                    <AlertTriangle className="h-4 w-4" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="font-medium text-slate-900">{signal.label}</p>
+                    <p className="text-sm text-muted-foreground">담당: {signal.owner}</p>
+                  </div>
+                  <Badge variant="secondary">{signal.due}</Badge>
+                </div>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      </section>
+
+      <section className="grid gap-6 lg:grid-cols-2">
+        <Card className="border border-slate-200">
+          <CardHeader>
+            <CardTitle>실시간 타임라인</CardTitle>
+            <CardDescription>최근 활동과 고객 피드백</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {timelineUpdates.map((update, index) => (
+              <div key={update.title} className="flex gap-3">
+                <div className="flex flex-col items-center">
+                  <div className="h-2 w-2 rounded-full bg-slate-900" />
+                  {index !== timelineUpdates.length - 1 && <div className="h-full w-px bg-slate-200" />}
+                </div>
+                <div className="flex-1 rounded-2xl border border-slate-100 p-4">
+                  <div className="flex items-center justify-between">
+                    <p className="font-medium text-slate-900">{update.title}</p>
+                    <Badge variant="outline" className="text-xs">
+                      {update.actor}
+                    </Badge>
+                  </div>
+                  <p className="mt-1 text-sm text-muted-foreground">{update.body}</p>
+                  <p className="mt-2 text-xs text-slate-500">{update.time}</p>
+                </div>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+
+        <Card className="border border-slate-200">
+          <CardHeader>
+            <CardTitle>팀 작업 대기열</CardTitle>
+            <CardDescription>중요도가 높은 요청을 우선 처리하세요</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {backlogItems.map((item) => (
+              <div key={item.title} className="flex items-center justify-between rounded-xl border border-slate-100 px-4 py-3">
+                <div>
+                  <p className="font-medium text-slate-900">{item.title}</p>
+                  <p className="text-sm text-muted-foreground">담당: {item.owner}</p>
+                </div>
+                <div className="text-right">
+                  <Badge
+                    className={cn(
+                      "mb-1 rounded-full",
+                      item.severity === "긴급"
+                        ? "bg-rose-100 text-rose-600"
+                        : item.severity === "보통"
+                          ? "bg-amber-100 text-amber-600"
+                          : "bg-emerald-100 text-emerald-600",
+                    )}
+                  >
+                    {item.severity}
+                  </Badge>
+                  <p className="text-xs text-muted-foreground">ETA {item.eta}</p>
+                </div>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      </section>
+
+      <section className="grid gap-6 lg:grid-cols-2">
+        <Card className="border border-slate-200">
+          <CardHeader>
+            <CardTitle>리스크 레지스터</CardTitle>
+            <CardDescription>선제적 대응이 필요한 항목</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {riskRegister.map((risk) => (
+              <div key={risk.title} className="rounded-xl border border-slate-100 px-4 py-3">
+                <div className="flex items-center justify-between">
+                  <p className="font-medium text-slate-900">{risk.title}</p>
+                  <Badge variant="outline">{risk.impact}</Badge>
+                </div>
+                <p className="text-sm text-muted-foreground">Owner: {risk.owner}</p>
+                <p className="text-sm text-slate-700">Action: {risk.action}</p>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+
+        <Card className="border border-slate-200">
+          <CardHeader>
+            <CardTitle>리소스 사용량</CardTitle>
+            <CardDescription>팀별 투입/가용 비율</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {capacityMatrix.map((team) => (
+              <div key={team.team} className="space-y-1">
+                <div className="flex items-center justify-between text-sm">
+                  <span>{team.team}</span>
+                  <span className="text-muted-foreground">가용 {team.available}%</span>
+                </div>
+                <Progress value={team.allocated} className="h-2" />
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      </section>
+    </div>
+  );
+}
+
+function TasksSection() {
+  return (
+    <Card className="border border-slate-200">
+      <CardHeader>
+        <CardTitle>업무 현황</CardTitle>
+        <CardDescription>팀 요청과 승인 대기 건을 추적하세요.</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <Tabs defaultValue="today" className="space-y-4">
+          <TabsList className="bg-slate-100">
+            <TabsTrigger value="today">오늘</TabsTrigger>
+            <TabsTrigger value="review">검토 요청</TabsTrigger>
+            <TabsTrigger value="blocked">보류</TabsTrigger>
+          </TabsList>
+          {Object.entries(taskColumns).map(([column, tasks]) => (
+            <TabsContent key={column} value={column} className="space-y-3">
+              {tasks.map((task) => (
+                <Card key={`${column}-${task.title}`} className="border-slate-200">
+                  <CardContent className="flex items-center gap-4 p-4">
+                    <div className="rounded-full bg-slate-900/5 p-2">
+                      <ListChecks className="h-4 w-4 text-slate-700" />
+                    </div>
+                    <div className="flex-1">
+                      <p className="font-medium">{task.title}</p>
+                      <p className="text-sm text-muted-foreground">{task.project}</p>
+                    </div>
+                    <Badge variant="outline" className="rounded-full">
+                      {task.assignee}
+                    </Badge>
+                  </CardContent>
+                </Card>
+              ))}
+            </TabsContent>
+          ))}
+        </Tabs>
       </CardContent>
     </Card>
+  );
+}
+
+function FilesSection() {
+  return (
+    <Card className="border-none bg-white/80 shadow-sm ring-1 ring-slate-100">
+      <CardHeader className="flex flex-row items-center justify-between">
+        <div>
+          <CardTitle>공유된 파일</CardTitle>
+          <CardDescription>마지막으로 업데이트된 자료</CardDescription>
+        </div>
+        <Button variant="ghost" size="icon">
+          <FileText className="h-4 w-4" />
+        </Button>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {files.map((file) => (
+          <div key={file.title} className="flex items-center gap-3 rounded-2xl border border-slate-100 p-3">
+            <div className="rounded-xl bg-slate-900/5 p-3">
+              <BarChart3 className="h-4 w-4 text-slate-600" />
+            </div>
+            <div className="flex-1">
+              <p className="font-medium">{file.title}</p>
+              <p className="text-sm text-muted-foreground">{file.project}</p>
+            </div>
+            <span className="text-sm text-muted-foreground">{file.size}</span>
+          </div>
+        ))}
+      </CardContent>
+    </Card>
+  );
+}
+
+function TeamSection() {
+  return (
+    <Card className="border border-slate-200">
+      <CardHeader>
+        <CardTitle>팀 집중도</CardTitle>
+        <CardDescription>구성원별 업무 상태</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {teamMembers.map((member) => (
+          <div key={member.name} className="flex items-center gap-4">
+            <Avatar className="h-10 w-10">
+              <AvatarFallback>{member.initial}</AvatarFallback>
+            </Avatar>
+            <div className="flex-1">
+              <div className="flex items-center justify-between">
+                <p className="font-medium">{member.name}</p>
+                <span className="text-sm text-muted-foreground">{member.workload}%</span>
+              </div>
+              <Progress value={member.workload} className="h-2" />
+              <p className="text-sm text-muted-foreground">{member.role}</p>
+            </div>
+          </div>
+        ))}
+      </CardContent>
+    </Card>
+  );
+}
+
+function PlaceholderSection({ title }: { title: string }) {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>{title}</CardTitle>
+        <CardDescription>추가 요구 사항에 맞춰 템플릿을 확장할 수 있습니다.</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <p className="text-sm text-muted-foreground">
+          필요한 API, 데이터 연결, UI 구성을 말씀해 주세요.
+        </p>
+      </CardContent>
+    </Card>
+  );
+}
+
+function DashboardSidebar({
+  currentView,
+  onViewChange,
+}: {
+  currentView: string;
+  onViewChange: (view: (typeof navigationItems)[number]["id"]) => void;
+}) {
+  const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isMobileOpen, setIsMobileOpen] = useState(false);
+  const mainItems = navigationItems.slice(0, 6);
+  const bottomItems = navigationItems.slice(6);
+
+  const SidebarContent = () => (
+    <div className="flex h-full flex-col bg-card">
+      <div className="border-b p-4">
+        <div className="flex items-center justify-between">
+          {!isCollapsed && (
+            <div className="flex items-center gap-2">
+              <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary text-sm font-bold text-primary-foreground">
+                  Logo
+              </div>
+              <div>
+                <h2 className="font-semibold">김지은</h2>
+                <p className="text-xs text-muted-foreground">Work Hub</p>
+              </div>
+            </div>
+          )}
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" size="icon" className="hidden md:flex" onClick={() => setIsCollapsed((prev) => !prev)}>
+              <Menu className="h-4 w-4" />
+            </Button>
+            <Button variant="ghost" size="icon" className="md:hidden" onClick={() => setIsMobileOpen(false)}>
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+      </div>
+      <nav className="flex-1 space-y-2 p-4">
+        {mainItems.map((item) => (
+          <Button
+            key={item.id}
+            variant={currentView === item.id ? "secondary" : "ghost"}
+            className={cn("w-full justify-start", isCollapsed && "justify-center px-2")}
+            onClick={() => {
+              onViewChange(item.id);
+              setIsMobileOpen(false);
+            }}
+          >
+            <item.icon className={cn("h-4 w-4", !isCollapsed && "mr-3")} />
+            {!isCollapsed && <span>{item.label}</span>}
+          </Button>
+        ))}
+      </nav>
+      <div className="border-t p-4 space-y-2">
+        {bottomItems.map((item) => (
+          <Button
+            key={item.id}
+            variant={currentView === item.id ? "secondary" : "ghost"}
+            className={cn("w-full justify-start", isCollapsed && "justify-center px-2")}
+            onClick={() => {
+              onViewChange(item.id);
+              setIsMobileOpen(false);
+            }}
+          >
+            <item.icon className={cn("h-4 w-4", !isCollapsed && "mr-3")} />
+            {!isCollapsed && <span>{item.label}</span>}
+          </Button>
+        ))}
+      </div>
+    </div>
+  );
+
+  return (
+    <>
+      <Button
+        variant="ghost"
+        size="icon"
+        className="fixed left-4 top-4 z-40 md:hidden"
+        onClick={() => setIsMobileOpen(true)}
+      >
+        <Menu className="h-4 w-4" />
+      </Button>
+      {isMobileOpen && <div className="fixed inset-0 z-40 bg-black/50 md:hidden" onClick={() => setIsMobileOpen(false)} />}
+      <div
+        className={cn(
+          "hidden h-full flex-col border-r border-slate-200 bg-card transition-all duration-300 md:flex",
+          isCollapsed ? "w-16" : "w-[240px]",
+        )}
+      >
+        <SidebarContent />
+      </div>
+      <div
+        className={cn(
+          "fixed inset-y-0 left-0 z-50 w-64 border-r border-slate-200 bg-card transition-transform duration-300 md:hidden",
+          isMobileOpen ? "translate-x-0" : "-translate-x-full",
+        )}
+      >
+        <SidebarContent />
+      </div>
+    </>
   );
 }

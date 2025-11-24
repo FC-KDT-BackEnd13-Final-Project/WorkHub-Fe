@@ -1,4 +1,5 @@
 import { useState, useEffect, ReactNode } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import { Button } from "./ui/button";
 import { Moon, Sun, Menu, X } from "lucide-react";
 
@@ -10,6 +11,8 @@ interface NavigationProps {
 export function Navigation({ onOpenSidebar, mobileMenuContent }: NavigationProps = {}) {
   const [isDark, setIsDark] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const location = useLocation();
+  const navigate = useNavigate();
 
   useEffect(() => {
     const isDarkMode = document.documentElement.classList.contains('dark');
@@ -25,6 +28,15 @@ export function Navigation({ onOpenSidebar, mobileMenuContent }: NavigationProps
   const scrollToSection = (sectionId: string) => {
     document.getElementById(sectionId)?.scrollIntoView({ behavior: 'smooth' });
     setIsMobileMenuOpen(false);
+  };
+
+  const handleNavClick = (sectionId: string) => {
+    if (location.pathname !== "/") {
+      navigate(`/#${sectionId}`);
+      setIsMobileMenuOpen(false);
+      return;
+    }
+    scrollToSection(sectionId);
   };
 
   const navItems = [
@@ -60,7 +72,7 @@ export function Navigation({ onOpenSidebar, mobileMenuContent }: NavigationProps
             {navItems.map((item) => (
               <button
                 key={item.id}
-                onClick={() => scrollToSection(item.id)}
+                onClick={() => handleNavClick(item.id)}
                 className="text-muted-foreground hover:text-foreground transition-colors"
               >
                 {item.label}
@@ -98,7 +110,7 @@ export function Navigation({ onOpenSidebar, mobileMenuContent }: NavigationProps
                 {navItems.map((item) => (
                   <button
                     key={item.id}
-                    onClick={() => scrollToSection(item.id)}
+                    onClick={() => handleNavClick(item.id)}
                     className="text-left text-muted-foreground hover:text-foreground transition-colors"
                   >
                     {item.label}
