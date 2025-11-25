@@ -4,6 +4,7 @@ import { Navigation } from "./components/Navigation";
 import { Dashboard } from "./components/Dashboard";
 import { Toaster } from "./components/ui/sonner";
 import { useEffect } from "react";
+import App2 from "./App2";
 
 export default function App() {
   return (
@@ -13,6 +14,7 @@ export default function App() {
       <Routes>
         <Route path="/" element={<LandingPage />} />
         <Route path="/Dashboard/*" element={<Dashboard />} />
+        <Route path="/projectdetail/new" element={<App2 />} />
       </Routes>
       <Toaster />
     </div>
