@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { motion } from "motion/react";
 import { toast } from "sonner@2.0.3";
-import { useNavigate } from "react-router-dom";
 import {
   ArrowDown,
   Building2,
@@ -23,7 +22,6 @@ import logoImage from "../../image/logo.png";
 
 export function Main() {
   const [isLoginOpen, setIsLoginOpen] = useState(false);
-  const navigate = useNavigate();
 
   useEffect(() => {
     if (!isLoginOpen) return;
@@ -55,7 +53,6 @@ export function Main() {
             <LoginScreen
               onSuccess={() => {
                 setIsLoginOpen(false);
-                navigate("/Dashboard");
               }}
             />
           </div>

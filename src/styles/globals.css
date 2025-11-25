@@ -70,10 +70,6 @@
   --ring: color-mix(in oklab, var(--point-color) 80%, black);
 }
 
-/* Dashboard-specific theme overrides */
-.dashboard-theme { /* inherits root vars */ }
-.dashboard-theme.dark { /* inherits .dark vars */ }
-
 .dark {
   --background: oklch(0.145 0 0);
   --foreground: oklch(0.985 0 0);
@@ -160,151 +156,12 @@
   body {
     @apply bg-background text-foreground;
   }
-
-  .dashboard-theme {
-    @apply bg-background text-foreground;
-    background-attachment: fixed;
-    font-size: var(--font-size);
-  }
-
-  .dashboard-theme * {
-    @apply border-border outline-ring/50;
-  }
-
-  .dashboard-theme ::-webkit-scrollbar {
-    width: 8px;
-    height: 8px;
-  }
-
-  .dashboard-theme ::-webkit-scrollbar-track {
-    @apply bg-muted/30;
-    border-radius: 4px;
-  }
-
-  .dashboard-theme ::-webkit-scrollbar-thumb {
-    @apply bg-muted-foreground/30;
-    border-radius: 4px;
-  }
-
-  .dashboard-theme ::-webkit-scrollbar-thumb:hover {
-    @apply bg-muted-foreground/50;
-  }
-
-  .dashboard-theme .transition-all {
-    transition: all 0.2s ease-in-out;
-  }
-
-  .dashboard-theme .glass {
-    backdrop-filter: blur(16px) saturate(180%);
-    background-color: rgba(255, 255, 255, 0.75);
-    border: 1px solid rgba(255, 255, 255, 0.125);
-  }
-
-  .dashboard-theme.dark .glass {
-    background-color: rgba(0, 0, 0, 0.6);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-  }
-
-  .dashboard-theme .gradient-animation {
-    background: linear-gradient(-45deg, #667eea, #764ba2, #f093fb, #f5576c);
-    background-size: 400% 400%;
-    animation: gradient 15s ease infinite;
-  }
-
-  @keyframes gradient {
-    0% {
-      background-position: 0% 50%;
-    }
-    50% {
-      background-position: 100% 50%;
-    }
-    100% {
-      background-position: 0% 50%;
-    }
-  }
-
-  @keyframes float {
-    0%,
-    100% {
-      transform: translateY(0px);
-    }
-    50% {
-      transform: translateY(-10px);
-    }
-  }
-
-  .dashboard-theme .float {
-    animation: float 6s ease-in-out infinite;
-  }
-
-  .dashboard-theme .card-hover {
-    transition: all 0.3s ease;
-  }
-
-  .dashboard-theme .card-hover:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
-  }
-
-  .dashboard-theme.dark .card-hover:hover {
-    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
-  }
 }
 
 /**
- * Base typography scoped to dashboard and login themes.
+ * Base typography scoped to the login theme.
  */
 @layer base {
-  .dashboard-theme :where(:not(:has([class*=" text-"]), :not(:has([class^="text-"])))) {
-    h1 {
-      font-size: var(--text-2xl);
-      font-weight: var(--font-weight-medium);
-      line-height: 1.5;
-    }
-
-    h2 {
-      font-size: var(--text-xl);
-      font-weight: var(--font-weight-medium);
-      line-height: 1.5;
-    }
-
-    h3 {
-      font-size: var(--text-lg);
-      font-weight: var(--font-weight-medium);
-      line-height: 1.5;
-    }
-
-    h4 {
-      font-size: var(--text-base);
-      font-weight: var(--font-weight-medium);
-      line-height: 1.5;
-    }
-
-    p {
-      font-size: var(--text-base);
-      font-weight: var(--font-weight-normal);
-      line-height: 1.5;
-    }
-
-    label {
-      font-size: var(--text-base);
-      font-weight: var(--font-weight-medium);
-      line-height: 1.5;
-    }
-
-    button {
-      font-size: var(--text-base);
-      font-weight: var(--font-weight-medium);
-      line-height: 1.5;
-    }
-
-    input {
-      font-size: var(--text-base);
-      font-weight: var(--font-weight-normal);
-      line-height: 1.5;
-    }
-  }
-
   .login-typography {
     h1 {
       font-size: 2rem;
