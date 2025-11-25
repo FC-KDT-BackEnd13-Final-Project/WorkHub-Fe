@@ -20,7 +20,11 @@ import { ImageWithFallback } from "./figma/ImageWithFallback";
 import { LoginScreen } from "./Login";
 import logoImage from "../../image/logo.png";
 
-export function Main() {
+interface MainProps {
+  onLoginSuccess?: () => void;
+}
+
+export function Main({ onLoginSuccess }: MainProps) {
   const [isLoginOpen, setIsLoginOpen] = useState(false);
 
   useEffect(() => {
@@ -53,6 +57,7 @@ export function Main() {
             <LoginScreen
               onSuccess={() => {
                 setIsLoginOpen(false);
+                onLoginSuccess?.();
               }}
             />
           </div>
