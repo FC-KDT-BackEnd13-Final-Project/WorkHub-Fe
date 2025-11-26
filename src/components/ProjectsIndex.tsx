@@ -246,7 +246,7 @@ export function ProjectsIndex() {
           <Card
             key={project.id}
             className="cursor-pointer rounded-2xl border border-white/70 bg-white/90 shadow-sm backdrop-blur transition-shadow hover:shadow-lg"
-            onClick={() => navigate(`/projects/${project.id}/nodes/${project.id}-overview`)}
+            onClick={() => navigate(`/projects/${project.id}/nodes`)}
           >
             <CardHeader className="space-y-2">
               <div className="flex items-center justify-between">

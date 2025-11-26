@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { LayoutDashboard, FolderOpen, Users, Bell, Settings, Menu, X, UserRound } from "lucide-react";
 import { cn } from "./ui/utils";
 import { Button } from "./ui/button";
@@ -14,6 +14,7 @@ const navigationItems = [
 
 export function Sidebar() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
   const [profileImageUrl, setProfileImageUrl] = useState<string | null>(null);
@@ -59,25 +60,30 @@ export function Sidebar() {
         </div>
       </div>
       <nav className="flex-1 space-y-4 p-6">
-        {navigationItems.map((item) => (
-          <Button
-            key={item.label}
-            variant={item.label === "Dashboard" ? "secondary" : "ghost"}
-            className={cn(
-              "flex w-full items-center gap-3 text-sm transition-all",
-              collapsed && !isMobile ? "justify-center px-2" : "justify-start",
-            )}
-            onClick={() => item.path && navigate(item.path)}
-          >
-            <item.icon className="h-4 w-4" />
-            {!collapsed && (
-              <>
-                <span className="flex-1 text-left font-normal">{item.label}</span>
-                {item.badge && <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-normal">{item.badge}</span>}
-              </>
-            )}
-          </Button>
-        ))}
+        {navigationItems.map((item) => {
+          const isActive = item.path ? location.pathname.startsWith(item.path) : false;
+          return (
+            <Button
+              key={item.label}
+              variant="ghost"
+              className={cn(
+                "flex w-full items-center gap-3 text-sm transition-all",
+                collapsed && !isMobile ? "justify-center px-2" : "justify-start",
+                isActive && "text-white",
+              )}
+              style={isActive ? { backgroundColor: "var(--point-color)" } : undefined}
+              onClick={() => item.path && navigate(item.path)}
+            >
+              <item.icon className="h-4 w-4" />
+              {!collapsed && (
+                <>
+                  <span className="flex-1 text-left font-normal">{item.label}</span>
+                  {item.badge && <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-normal">{item.badge}</span>}
+                </>
+              )}
+            </Button>
+          );
+        })}
       </nav>
       <div className="p-6">
         <Button

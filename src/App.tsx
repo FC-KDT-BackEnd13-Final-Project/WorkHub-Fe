@@ -5,6 +5,7 @@ import { Navigation } from "./components/Navigation";
 import { Dashboard } from "./components/Dashboard";
 import { ProjectsIndex } from "./components/ProjectsIndex";
 import { ProjectNodesBoard } from "./components/ProjectNodesBoard";
+import { ProjectNodeDetail } from "./components/ProjectNodeDetail";
 import { CustomerMenu2 } from "./components/CustomerMenu2";
 import { CustomerForm2 } from "./components/CustomerForm2";
 import { CustomerReport2 } from "./components/CustomerReport2";
@@ -44,8 +45,16 @@ export default function App() {
               element={isAuthenticated ? <ProjectsIndex /> : <Navigate to="/" replace />}
             />
             <Route
-              path="/projects/:projectId/nodes/:nodeId"
+              path="/projects/:projectId/nodes"
               element={isAuthenticated ? <ProjectNodesBoard /> : <Navigate to="/" replace />}
+            />
+            <Route
+              path="/projects/:projectId/nodes/:nodeId"
+              element={isAuthenticated ? <ProjectNodeDetail /> : <Navigate to="/" replace />}
+            />
+            <Route
+              path="/projects/:projectId/nodes/:nodeId/post"
+              element={isAuthenticated ? <ProjectNodeDetail /> : <Navigate to="/" replace />}
             />
             <Route
               path="/projectdetail"
