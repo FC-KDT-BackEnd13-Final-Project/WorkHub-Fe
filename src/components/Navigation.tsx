@@ -63,7 +63,7 @@ export function Navigation({ onOpenSidebar, mobileMenuContent }: NavigationProps
             {/*  </Button>*/}
             {/*)}*/}
             <div className="text-xl font-medium">
-              <span className="text-primary">Work</span>
+              <span className="text-foreground">Work</span>
               <span style={{ color: "var(--point-color)" }}>Hub</span>
             </div>
           </div>
