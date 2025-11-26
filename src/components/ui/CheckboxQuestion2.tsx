@@ -49,7 +49,7 @@ export function CheckboxQuestion2({
             <input
                 value={titleValue}
                 onChange={(e) => onTitleChange(e.target.value)}
-                className="w-full px-3 py-2 rounded-md border bg-muted text-sm"
+                className="w-full px-3 py-2 rounded-md border text-sm"
                 placeholder="제목을 입력하세요"
             />
 
