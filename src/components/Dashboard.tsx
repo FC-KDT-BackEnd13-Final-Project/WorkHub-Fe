@@ -18,15 +18,12 @@ const projects = [
 
 export function Dashboard() {
   return (
-    <div className="space-y-6">
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#1076E2] via-[#0F62C7] to-[#0B4AA0] pt-10">
-        <div className="absolute inset-0 bg-gradient-to-r from-[#1076E2]/85 via-[#0F62C7]/85 to-[#0B4AA0]/85" />
-        <div className="relative space-y-4 p-8 text-black">
-          <h1 className="text-3xl font-semibold tracking-tight">Dashboard</h1>
-          <p className="text-blue-50">
-            Keep an eye on live metrics: total projects, completed tasks, and today’s wins at a glance.
-          </p>
-        </div>
+    <div className="space-y-6 pb-12">
+      <div className="rounded-2xl bg-white p-6 shadow-sm">
+        <h1 className="text-3xl font-semibold tracking-tight">Dashboard</h1>
+        <p className="mt-2 text-muted-foreground">
+          Keep an eye on live metrics: total projects, completed tasks, and today’s wins at a glance.
+        </p>
       </div>
       <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
         {stats.map((stat) => (

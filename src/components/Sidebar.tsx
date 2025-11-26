@@ -1,17 +1,19 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { LayoutDashboard, FolderOpen, Users, Bell, Settings, Menu, X, UserRound } from "lucide-react";
 import { cn } from "./ui/utils";
 import { Button } from "./ui/button";
 
 const navigationItems = [
-  { label: "Dashboard", icon: LayoutDashboard },
-  { label: "Projects", icon: FolderOpen },
-  { label: "Team", icon: Users },
-  { label: "Notifications", icon: Bell, badge: "5" },
-  { label: "Settings", icon: Settings },
+  { label: "Dashboard", icon: LayoutDashboard, path: "/dashboard" },
+  { label: "Projects", icon: FolderOpen, path: "/projects" },
+  { label: "Team", icon: Users, path: "/projectdetail" },
+  { label: "Notifications", icon: Bell, badge: "5", path: "/projectdetail/post" },
+  { label: "Settings", icon: Settings, path: "/projectdetail/new" },
 ];
 
 export function Sidebar() {
+  const navigate = useNavigate();
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
   const [profileImageUrl, setProfileImageUrl] = useState<string | null>(null);
@@ -65,6 +67,7 @@ export function Sidebar() {
               "flex w-full items-center gap-3 text-sm transition-all",
               collapsed && !isMobile ? "justify-center px-2" : "justify-start",
             )}
+            onClick={() => item.path && navigate(item.path)}
           >
             <item.icon className="h-4 w-4" />
             {!collapsed && (

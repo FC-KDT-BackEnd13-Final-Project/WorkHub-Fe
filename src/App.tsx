@@ -3,6 +3,8 @@ import { useEffect, useState } from "react";
 import { Main } from "./components/Main";
 import { Navigation } from "./components/Navigation";
 import { Dashboard } from "./components/Dashboard";
+import { ProjectsIndex } from "./components/ProjectsIndex";
+import { ProjectNodesBoard } from "./components/ProjectNodesBoard";
 import { CustomerMenu2 } from "./components/CustomerMenu2";
 import { CustomerForm2 } from "./components/CustomerForm2";
 import { CustomerReport2 } from "./components/CustomerReport2";
@@ -38,7 +40,19 @@ export default function App() {
               element={isAuthenticated ? <Dashboard /> : <Navigate to="/" replace />}
             />
             <Route
+              path="/projects"
+              element={isAuthenticated ? <ProjectsIndex /> : <Navigate to="/" replace />}
+            />
+            <Route
+              path="/projects/:projectId/nodes/:nodeId"
+              element={isAuthenticated ? <ProjectNodesBoard /> : <Navigate to="/" replace />}
+            />
+            <Route
               path="/projectdetail"
+              element={isAuthenticated ? <ProjectDetailPage type="report" /> : <Navigate to="/" replace />}
+            />
+            <Route
+              path="/projectdetail/:projectId"
               element={isAuthenticated ? <ProjectDetailPage type="report" /> : <Navigate to="/" replace />}
             />
             <Route
