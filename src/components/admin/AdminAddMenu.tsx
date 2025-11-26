@@ -9,7 +9,7 @@ interface AdminAddMenuProps {
 
 export function AdminAddMenu({ activeTab, onTabChange }: AdminAddMenuProps) {
   return (
-    <div className="mb-6  pt-6 rounded-2xl bg-white shadow-sm">
+    <div className="mb-6 pt-6 rounded-2xl bg-white shadow-sm">
       <Card className="rounded-2xl bg-transparent shadow-none">
         <CardContent className="flex flex-wrap justify-center gap-2 px-6 pt-6 pb-4">
           <Button

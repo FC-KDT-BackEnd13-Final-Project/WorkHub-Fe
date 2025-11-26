@@ -1,5 +1,5 @@
-import { useNavigate, useParams } from "react-router-dom";
 import { useEffect, useState } from "react";
+import { useNavigate, useParams } from "react-router-dom";
 import { AdminAddMenu } from "./AdminAddMenu";
 import { AdminAddUser } from "./AdminAddUser";
 import { AdminAddCompany } from "./AdminAddCompany";
@@ -9,7 +9,9 @@ type Tab = "user" | "company";
 export function AdminUserCreate() {
   const params = useParams<{ type?: string }>();
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<Tab>(params.type === "company" ? "company" : "user");
+  const [activeTab, setActiveTab] = useState<Tab>(
+    params.type === "company" ? "company" : "user",
+  );
 
   useEffect(() => {
     setActiveTab(params.type === "company" ? "company" : "user");

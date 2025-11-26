@@ -17,6 +17,10 @@ import { AdminUserSuccess } from "./components/admin/AdminUserSuccess";
 import { AdminUserDetail } from "./components/admin/AdminUserDetail";
 import { AdminHistory } from "./components/admin/AdminHistory";
 import { AdminPasswordReset } from "./components/admin/AdminPasswordReset";
+import { AdminUserHistory } from "./components/admin/AdminUserHistory";
+import { AdminUserProjects } from "./components/admin/AdminUserProjects";
+import { NotificationsPage } from "./pages/NotificationsPage";
+import { SettingsPage } from "./pages/SettingsPage";
 
 export default function App() {
   const navigate = useNavigate();
@@ -45,6 +49,10 @@ export default function App() {
             <Route
               path="/dashboard"
               element={isAuthenticated ? <Dashboard /> : <Navigate to="/" replace />}
+            />
+            <Route
+              path="/notifications"
+              element={isAuthenticated ? <NotificationsPage /> : <Navigate to="/" replace />}
             />
             <Route
               path="/projects"
@@ -81,6 +89,18 @@ export default function App() {
             <Route
               path="/admin/users/:userId"
               element={isAuthenticated ? <AdminUserDetail /> : <Navigate to="/" replace />}
+            />
+            <Route
+              path="/admin/users/:userId/history"
+              element={isAuthenticated ? <AdminUserHistory /> : <Navigate to="/" replace />}
+            />
+            <Route
+              path="/admin/users/:userId/projects"
+              element={isAuthenticated ? <AdminUserProjects /> : <Navigate to="/" replace />}
+            />
+            <Route
+              path="/settings"
+              element={isAuthenticated ? <SettingsPage /> : <Navigate to="/" replace />}
             />
             <Route
               path="/admin/history"
