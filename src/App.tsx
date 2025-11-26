@@ -1,4 +1,4 @@
-import { Routes, Route, useLocation, Navigate, useNavigate } from "react-router-dom";
+import { Routes, Route, useLocation, Navigate, useNavigate, Outlet } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { Main } from "./components/Main";
 import { Navigation } from "./components/Navigation";
@@ -6,6 +6,7 @@ import { Dashboard } from "./components/Dashboard";
 import { CustomerMenu2 } from "./components/CustomerMenu2";
 import { CustomerForm2 } from "./components/CustomerForm2";
 import { CustomerReport2 } from "./components/CustomerReport2";
+import { Sidebar } from "./components/Sidebar";
 import { Toaster } from "./components/ui/sonner";
 
 export default function App() {
@@ -31,40 +32,24 @@ export default function App() {
       <div className="pt-16">
         <Routes>
           <Route path="/" element={<LandingPage onLoginSuccess={handleLoginSuccess} />} />
-          <Route
-            path="/dashboard"
-            element={isAuthenticated ? <Dashboard /> : <Navigate to="/" replace />}
-          />
-          <Route
-            path="/projectdetail"
-            element={
-              isAuthenticated ? (
-                <ProjectDetailPage type="report" />
-              ) : (
-                <Navigate to="/" replace />
-              )
-            }
-          />
-          <Route
-            path="/projectdetail/new"
-            element={
-              isAuthenticated ? (
-                <ProjectDetailPage type="form" />
-              ) : (
-                <Navigate to="/" replace />
-              )
-            }
-          />
-          <Route
-            path="/projectdetail/post"
-            element={
-              isAuthenticated ? (
-                <ProjectDetailPage type="report" />
-              ) : (
-                <Navigate to="/" replace />
-              )
-            }
-          />
+          <Route element={<SidebarLayout />}>
+            <Route
+              path="/dashboard"
+              element={isAuthenticated ? <Dashboard /> : <Navigate to="/" replace />}
+            />
+            <Route
+              path="/projectdetail"
+              element={isAuthenticated ? <ProjectDetailPage type="report" /> : <Navigate to="/" replace />}
+            />
+            <Route
+              path="/projectdetail/new"
+              element={isAuthenticated ? <ProjectDetailPage type="form" /> : <Navigate to="/" replace />}
+            />
+            <Route
+              path="/projectdetail/post"
+              element={isAuthenticated ? <ProjectDetailPage type="report" /> : <Navigate to="/" replace />}
+            />
+          </Route>
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </div>
@@ -94,16 +79,30 @@ function LandingPage({ onLoginSuccess }: { onLoginSuccess?: () => void }) {
 function ProjectDetailPage({ type }: { type: "form" | "report" }) {
   const [activeTab, setActiveTab] = useState<"form" | "report">(type);
 
-  return (
-    <div className="pt-8 pb-12">
-      <div className="mx-auto flex max-w-6xl flex-col gap-6 px-4 sm:px-6 lg:px-8 md:flex-row">
-        <aside className="md:w-64 md:sticky md:top-20">
-          <CustomerMenu2 activeTab={activeTab} onTabChange={setActiveTab} />
-        </aside>
-        <div className="flex-1">
-          {activeTab === "form" ? <CustomerForm2 /> : <CustomerReport2 />}
+    return (
+        <div className="pt-8 pb-12">
+            <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
+                <div className="mb-6 pt-6">
+                    <CustomerMenu2 activeTab={activeTab} onTabChange={setActiveTab} />
+                </div>
+
+                <div>
+                    {activeTab === "form" ? <CustomerForm2 /> : <CustomerReport2 />}
+                </div>
+            </div>
         </div>
-      </div>
+    );
+}
+
+function SidebarLayout() {
+  return (
+    <div className="flex min-h-[calc(100vh-4rem)] bg-[#f8fafc]">
+      <Sidebar />
+      <main className="flex-1 overflow-auto px-4 sm:px-6 lg:px-8">
+        <div className="mx-auto max-w-7xl">
+          <Outlet />
+        </div>
+      </main>
     </div>
   );
 }

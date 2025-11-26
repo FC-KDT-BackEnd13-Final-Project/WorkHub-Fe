@@ -1,104 +1,87 @@
-import { useState } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
-import {
-  Bell,
-  FolderOpen,
-  LayoutDashboard,
-  LogOut,
-  Settings,
-  Users,
-  Menu,
-  X,
-  ChevronLeft,
-  ChevronRight,
-} from "lucide-react";
-import { Button } from "./ui/button";
-import { Badge } from "./ui/badge";
+import { useEffect, useState } from "react";
+import { LayoutDashboard, FolderOpen, Users, Bell, Settings, Menu, X, UserRound } from "lucide-react";
 import { cn } from "./ui/utils";
-import profileImage from "../../image/Jieun.jpg";
+import { Button } from "./ui/button";
 
 const navigationItems = [
-  { id: "dashboard", label: "Dashboard", icon: LayoutDashboard, path: "/dashboard" },
-  { id: "projects", label: "Projects", icon: FolderOpen, path: "/projects", badge: "24" },
-  { id: "team", label: "Team", icon: Users, path: "/team" },
-  { id: "notifications", label: "Notifications", icon: Bell, path: "/notifications", badge: "5" },
-  { id: "settings", label: "Settings", icon: Settings, path: "/settings" },
+  { label: "Dashboard", icon: LayoutDashboard },
+  { label: "Projects", icon: FolderOpen },
+  { label: "Team", icon: Users },
+  { label: "Notifications", icon: Bell, badge: "5" },
+  { label: "Settings", icon: Settings },
 ];
 
-interface SidebarProps {
-  collapsed: boolean;
-  onToggle: () => void;
-}
-
-export function Sidebar({ collapsed, onToggle }: SidebarProps) {
+export function Sidebar() {
   const [isMobileOpen, setIsMobileOpen] = useState(false);
-  const navigate = useNavigate();
-  const location = useLocation();
+  const [collapsed, setCollapsed] = useState(false);
+  const [profileImageUrl, setProfileImageUrl] = useState<string | null>(null);
 
-  const handleNavigate = (path: string) => {
-    navigate(path);
-    setIsMobileOpen(false);
-  };
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const stored = window.localStorage.getItem("userProfileImage");
+    if (stored) {
+      setProfileImageUrl(stored);
+    }
+  }, []);
 
   const SidebarContent = ({ isMobile }: { isMobile?: boolean }) => (
     <div className="flex h-full flex-col">
-      <div className="border-b p-4">
+      <div className="p-4">
         <div className="flex items-center justify-between">
           {!collapsed && (
-            <div className="flex items-center gap-2">
-              <div className="relative">
-                <img src={profileImage} alt="김지은" className="h-12 w-12 rounded-full object-cover" />
-              </div>
+            <div className="flex items-center gap-6">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white">
+                {profileImageUrl ? (
+                  <img src={profileImageUrl} alt="사용자 프로필" className="h-10 w-10 rounded-lg object-cover" />
+                ) : (
+                  <UserRound className="h-10 w-10 text-muted-foreground" />
+                )}
+             </div>
               <div>
-                <p className="font-semibold text-base">김지은</p>
+                <p className="font-semibold">김지은</p>
                 <p className="text-xs text-muted-foreground">Work Hub</p>
               </div>
             </div>
           )}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-6">
             {isMobile ? (
               <Button variant="ghost" size="icon" onClick={() => setIsMobileOpen(false)}>
-                <X className="h-4 w-4" aria-hidden />
+                <X className="h-4 w-4" />
               </Button>
             ) : (
-              <Button variant="ghost" size="icon" onClick={onToggle}>
-                {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
+              <Button variant="ghost" size="icon" onClick={() => setCollapsed((prev) => !prev)}>
+                <Menu className="h-4 w-4" />
               </Button>
             )}
           </div>
         </div>
       </div>
-
-      <nav className="flex-1 space-y-2 p-4">
+      <nav className="flex-1 space-y-4 p-6">
         {navigationItems.map((item) => (
           <Button
-            key={item.id}
-            variant={location.pathname === item.path ? "secondary" : "ghost"}
-            className={cn("w-full justify-start text-[15px] font-medium", collapsed && !isMobile && "justify-center px-2")}
-            onClick={() => handleNavigate(item.path)}
+            key={item.label}
+            variant={item.label === "Dashboard" ? "secondary" : "ghost"}
+            className={cn(
+              "flex w-full items-center gap-3 text-sm transition-all",
+              collapsed && !isMobile ? "justify-center px-2" : "justify-start",
+            )}
           >
-            <item.icon className={cn("h-4 w-4", !collapsed && "mr-3")} aria-hidden />
+            <item.icon className="h-4 w-4" />
             {!collapsed && (
               <>
-                <span className="flex-1 text-left">{item.label}</span>
-                {item.badge && (
-                  <Badge variant="secondary" className="ml-auto">
-                    {item.badge}
-                  </Badge>
-                )}
+                <span className="flex-1 text-left font-normal">{item.label}</span>
+                {item.badge && <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-normal">{item.badge}</span>}
               </>
             )}
           </Button>
         ))}
       </nav>
-
-      <div className="border-t p-4">
+      <div className="p-6">
         <Button
-          variant="outline"
-          className={cn("w-full justify-center text-sm", collapsed && !isMobile && "px-2")}
+          variant="ghost"
+          className={cn("w-full justify-center text-sm text-muted-foreground hover:text-foreground", collapsed && !isMobile && "px-2")}
         >
-          <LogOut className="h-4 w-4" aria-hidden />
-          {!collapsed && <span className="ml-2">Logout</span>}
+          {!collapsed ? "Logout" : "⎋"}
         </Button>
       </div>
     </div>
@@ -109,33 +92,26 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
       <Button
         variant="ghost"
         size="icon"
+        className="fixed left-4 top-24 z-50 md:hidden"
         onClick={() => setIsMobileOpen(true)}
-        className="fixed left-4 top-[100px] z-50 md:hidden"
-        aria-label="Open sidebar"
       >
-        <Menu className="h-4 w-4" aria-hidden />
+        <Menu className="h-4 w-4" />
       </Button>
-
-      {isMobileOpen && (
-        <div className="fixed inset-0 z-40 bg-black/50 md:hidden" onClick={() => setIsMobileOpen(false)} aria-hidden />
-      )}
-
-      <div
+      <aside
         className={cn(
-          "hidden md:flex sticky top-16 h-[calc(100vh-4rem)] flex-col border-r bg-white shadow-sm transition-all duration-300",
-          collapsed ? "md:w-16" : "md:w-1/3",
+          "hidden md:flex flex-col border-r bg-white shadow-sm transition-[width] duration-200",
+          collapsed ? "w-16" : "w-64",
         )}
       >
         <SidebarContent />
-      </div>
-
+      </aside>
       <div
         className={cn(
-          "fixed inset-y-0 left-0 z-50 w-full bg-white border-r transform transition-transform duration-300 md:hidden",
+          "fixed inset-y-0 left-0 z-50 w-64 transform border-r bg-white transition-transform duration-300 md:hidden",
           isMobileOpen ? "translate-x-0" : "-translate-x-full",
         )}
       >
-        <SidebarContent isMobile />
+        <SidebarContent />
       </div>
     </>
   );
