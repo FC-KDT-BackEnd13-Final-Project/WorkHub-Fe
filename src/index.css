@@ -902,6 +902,16 @@
     background-color: var(--primary);
   }
 
+  .bg-primary\/5 {
+    background-color: var(--primary);
+  }
+
+  @supports (color: color-mix(in lab, red, red)) {
+    .bg-primary\/5 {
+      background-color: color-mix(in oklab, var(--primary) 5%, transparent);
+    }
+  }
+
   .bg-primary\/10 {
     background-color: var(--primary);
   }
@@ -914,6 +924,16 @@
 
   .bg-secondary {
     background-color: var(--secondary);
+  }
+
+  .border-primary\/30 {
+    border-color: var(--primary);
+  }
+
+  @supports (color: color-mix(in lab, red, red)) {
+    .border-primary\/30 {
+      border-color: color-mix(in oklab, var(--primary) 30%, transparent);
+    }
   }
 
   .bg-gradient-to-br {
@@ -2084,5 +2104,11 @@ html {
   50% {
     animation-timing-function: cubic-bezier(0, 0, .2, 1);
     transform: none;
+  }
+}
+
+@layer utilities {
+  .min-h-0 {
+    min-height: 0;
   }
 }

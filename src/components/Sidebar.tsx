@@ -1,15 +1,17 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { LayoutDashboard, FolderOpen, Users, Bell, Settings, Menu, X, UserRound } from "lucide-react";
 import { cn } from "./ui/utils";
 import { Button } from "./ui/button";
+import { initialNotifications } from "../data/notifications";
+import { companyUsers } from "./admin/userData";
 
 const navigationItems = [
   { label: "Dashboard", icon: LayoutDashboard, path: "/dashboard" },
   { label: "Projects", icon: FolderOpen, path: "/projects" },
   { label: "Users", icon: Users, path: "/admin/users" },
-  { label: "Notifications", icon: Bell, badge: "5", path: "/projectdetail/post" },
-  { label: "Settings", icon: Settings, path: "/projectdetail/new" },
+  { label: "Notifications", icon: Bell, badge: "5", path: "/notifications" },
+  { label: "Settings", icon: Settings, path: "/settings" },
 ];
 
 export function Sidebar() {
@@ -18,6 +20,15 @@ export function Sidebar() {
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
   const [profileImageUrl, setProfileImageUrl] = useState<string | null>(null);
+  const [notificationCount, setNotificationCount] = useState(
+    initialNotifications.filter((notification) => !notification.read).length,
+  );
+
+  const activeProjectCount = useMemo(() => {
+    return companyUsers
+      .flatMap((user) => user.projects ?? [])
+      .filter((project) => project.status === "In Progress").length;
+  }, []);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -25,6 +36,32 @@ export function Sidebar() {
     if (stored) {
       setProfileImageUrl(stored);
     }
+
+    const storedCount = window.localStorage.getItem("workhubUnreadNotificationCount");
+    if (storedCount !== null) {
+      setNotificationCount(Number(storedCount));
+    }
+
+    const handleNotificationUpdate = (event: Event) => {
+      const customEvent = event as CustomEvent<number>;
+      if (typeof customEvent.detail === "number") {
+        setNotificationCount(customEvent.detail);
+      }
+    };
+
+    const handleStorage = (event: StorageEvent) => {
+      if (event.key === "workhubUnreadNotificationCount" && event.newValue !== null) {
+        setNotificationCount(Number(event.newValue));
+      }
+    };
+
+    window.addEventListener("workhub:notifications", handleNotificationUpdate as EventListener);
+    window.addEventListener("storage", handleStorage);
+
+    return () => {
+      window.removeEventListener("workhub:notifications", handleNotificationUpdate as EventListener);
+      window.removeEventListener("storage", handleStorage);
+    };
   }, []);
 
   const SidebarContent = ({ isMobile }: { isMobile?: boolean }) => (
@@ -62,6 +99,15 @@ export function Sidebar() {
       <nav className="flex-1 space-y-4 p-6">
         {navigationItems.map((item) => {
           const isActive = item.path ? location.pathname.startsWith(item.path) : false;
+          const badgeValue = (() => {
+            if (item.label === "Notifications" && notificationCount > 0) {
+              return String(notificationCount);
+            }
+            if (item.label === "Projects" && activeProjectCount > 0) {
+              return String(activeProjectCount);
+            }
+            return item.badge;
+          })();
           return (
             <Button
               key={item.label}
@@ -78,7 +124,9 @@ export function Sidebar() {
               {!collapsed && (
                 <>
                   <span className="flex-1 text-left font-normal">{item.label}</span>
-                  {item.badge && <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-normal">{item.badge}</span>}
+                  {badgeValue ? (
+                    <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-normal">{badgeValue}</span>
+                  ) : null}
                 </>
               )}
             </Button>
