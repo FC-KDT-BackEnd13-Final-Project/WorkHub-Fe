@@ -7,7 +7,7 @@ import { Button } from "./ui/button";
 const navigationItems = [
   { label: "Dashboard", icon: LayoutDashboard, path: "/dashboard" },
   { label: "Projects", icon: FolderOpen, path: "/projects" },
-  { label: "Team", icon: Users, path: "/projectdetail" },
+  { label: "Users", icon: Users, path: "/admin/users" },
   { label: "Notifications", icon: Bell, badge: "5", path: "/projectdetail/post" },
   { label: "Settings", icon: Settings, path: "/projectdetail/new" },
 ];

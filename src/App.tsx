@@ -11,6 +11,12 @@ import { CustomerForm2 } from "./components/CustomerForm2";
 import { CustomerReport2 } from "./components/CustomerReport2";
 import { Sidebar } from "./components/Sidebar";
 import { Toaster } from "./components/ui/sonner";
+import { AdminUsers } from "./components/admin/AdminUsers";
+import { AdminUserCreate } from "./components/admin/AdminUserCreate";
+import { AdminUserSuccess } from "./components/admin/AdminUserSuccess";
+import { AdminUserDetail } from "./components/admin/AdminUserDetail";
+import { AdminHistory } from "./components/admin/AdminHistory";
+import { AdminPasswordReset } from "./components/admin/AdminPasswordReset";
 
 export default function App() {
   const navigate = useNavigate();
@@ -55,6 +61,34 @@ export default function App() {
             <Route
               path="/projects/:projectId/nodes/:nodeId/post"
               element={isAuthenticated ? <ProjectNodeDetail /> : <Navigate to="/" replace />}
+            />
+            <Route
+              path="/admin/users"
+              element={isAuthenticated ? <AdminUsers /> : <Navigate to="/" replace />}
+            />
+            <Route
+              path="/admin/users/add"
+              element={isAuthenticated ? <AdminUserCreate /> : <Navigate to="/" replace />}
+            />
+            <Route
+              path="/admin/users/add/:type"
+              element={isAuthenticated ? <AdminUserCreate /> : <Navigate to="/" replace />}
+            />
+            <Route
+              path="/admin/users/add/success"
+              element={isAuthenticated ? <AdminUserSuccess /> : <Navigate to="/" replace />}
+            />
+            <Route
+              path="/admin/users/:userId"
+              element={isAuthenticated ? <AdminUserDetail /> : <Navigate to="/" replace />}
+            />
+            <Route
+              path="/admin/history"
+              element={isAuthenticated ? <AdminHistory /> : <Navigate to="/" replace />}
+            />
+            <Route
+              path="/admin/password"
+              element={isAuthenticated ? <AdminPasswordReset /> : <Navigate to="/" replace />}
             />
             <Route
               path="/projectdetail"
