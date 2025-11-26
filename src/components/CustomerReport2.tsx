@@ -100,8 +100,10 @@ export function CustomerReport2() {
   const [searchTerm, setSearchTerm] = useState("");
   const [customers] = useState<Customer[]>(mockCustomers);
 
+  // 검색 필터
   const filteredCustomers = customers.filter((customer) => {
-    const term = searchTerm.toLowerCase();
+    const term = searchTerm.toLowerCase().trim();
+    if (!term) return true;
     return (
         customer.customerName.toLowerCase().includes(term) ||
         customer.title.toLowerCase().includes(term) ||
@@ -109,7 +111,21 @@ export function CustomerReport2() {
     );
   });
 
-  const rows = filteredCustomers.length > 0 ? filteredCustomers : customers;
+  // 페이징 상태
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 5;
+
+  const totalPages = Math.max(
+      1,
+      Math.ceil(filteredCustomers.length / itemsPerPage)
+  );
+
+  const indexOfLastItem = currentPage * itemsPerPage;
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+  const paginatedRows = filteredCustomers.slice(
+      indexOfFirstItem,
+      indexOfLastItem
+  );
 
   return (
       <div className="w-full max-w-[1800px] mx-auto p-6 space-y-6">
@@ -120,10 +136,13 @@ export function CustomerReport2() {
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground h-4 w-4" />
               <Input2
                   id="search"
-                  style={{ paddingLeft: "2.5rem"}}
+                  style={{ paddingLeft: "2.5rem" }}
                   placeholder="검색어를 입력하세요."
                   value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
+                  onChange={(e) => {
+                    setSearchTerm(e.target.value);
+                    setCurrentPage(1); // 검색어 바뀌면 1페이지로 리셋
+                  }}
                   className="pl-10"
               />
             </div>
@@ -153,16 +172,19 @@ export function CustomerReport2() {
                 </TableHeader>
 
                 <TableBody>
-                  {rows.map((customer, index) => (
+                  {paginatedRows.map((customer, index) => (
                       <TableRow key={customer.id}>
-                        {/* No */}
+                        {/* No (전체 인덱스 유지) */}
                         <TableCell className="px-6 py-2 whitespace-nowrap">
-                          {index + 1}
+                          {indexOfFirstItem + index + 1}
                         </TableCell>
 
                         {/* 작성자 */}
                         <TableCell className="px-3 py-2 whitespace-nowrap">
-                          <div className="w-[80px] truncate" title={customer.customerName}>
+                          <div
+                              className="w-[80px] truncate"
+                              title={customer.customerName}
+                          >
                             {customer.customerName}
                           </div>
                         </TableCell>
@@ -206,12 +228,16 @@ export function CustomerReport2() {
 
                         {/* 생성일 */}
                         <TableCell className="px-3 py-2 whitespace-nowrap">
-                          {new Date(customer.createdDate).toLocaleDateString("ko-KR")}
+                          {new Date(customer.createdDate).toLocaleDateString(
+                              "ko-KR"
+                          )}
                         </TableCell>
 
                         {/* 수정일 */}
                         <TableCell className="px-3 py-2 whitespace-nowrap">
-                          {new Date(customer.updatedDate).toLocaleDateString("ko-KR")}
+                          {new Date(customer.updatedDate).toLocaleDateString(
+                              "ko-KR"
+                          )}
                         </TableCell>
 
                         {/* 해시태그 */}
@@ -226,6 +252,42 @@ export function CustomerReport2() {
           </CardContent>
         </Card2>
 
+        {/* 페이징 영역 */}
+        {filteredCustomers.length > 0 && (
+            <div className="flex items-center justify-center gap-2">
+              <Button2
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
+                  disabled={currentPage === 1}
+              >
+                {"<"}
+              </Button2>
+
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                  <Button2
+                      key={page}
+                      variant={page === currentPage ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setCurrentPage(page)}
+                  >
+                    {page}
+                  </Button2>
+              ))}
+
+              <Button2
+                  variant="outline"
+                  size="sm"
+                  onClick={() =>
+                      setCurrentPage((p) => Math.min(p + 1, totalPages))
+                  }
+                  disabled={currentPage === totalPages}
+              >
+                {">"}
+              </Button2>
+            </div>
+        )}
+
         {/* Empty State */}
         {filteredCustomers.length === 0 && searchTerm && (
             <Card2>
@@ -235,7 +297,10 @@ export function CustomerReport2() {
                   <p>"{searchTerm}" 에 대한 검색 결과가 없습니다.</p>
                   <Button2
                       variant="outline"
-                      onClick={() => setSearchTerm("")}
+                      onClick={() => {
+                        setSearchTerm("");
+                        setCurrentPage(1);
+                      }}
                       className="mt-2"
                   >
                     전체 데이터 보기

@@ -1710,6 +1710,7 @@
 
 html {
   font-size: var(--font-size);
+  overflow-y: scroll;
 }
 
 @property --tw-translate-x {
