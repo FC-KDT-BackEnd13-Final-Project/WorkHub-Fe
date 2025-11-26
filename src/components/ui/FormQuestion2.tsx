@@ -80,14 +80,14 @@ export function FormQuestion2({ resetSignal }: FormQuestionProps) {
                     <button
                         type="button"
                         onClick={handleAddGroup}
-                        className="h-6 w-6 rounded-md border bg-muted text-xs flex items-center justify-center hover:bg-muted/80"
+                        className="h-6 w-6 rounded-md border text-xs flex items-center justify-center hover:bg-muted/80"
                     >
                         +
                     </button>
                     <button
                         type="button"
                         onClick={handleRemoveGroup}
-                        className="h-6 w-6 rounded-md border bg-muted text-xs flex items-center justify-center hover:bg-muted/80"
+                        className="h-6 w-6 rounded-md border text-xs flex items-center justify-center hover:bg-muted/80"
                     >
                         -
                     </button>
