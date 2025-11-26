@@ -12,6 +12,7 @@ import { Search } from "lucide-react";
 import { Input2 } from "./ui/input2";
 import { Button2 } from "./ui/button2";
 import { Badge2 } from "./ui/badge2";
+import { RichTextDemo } from "./RichTextDemo";
 
 interface Customer {
   id: string;
@@ -94,11 +95,62 @@ const mockCustomers: Customer[] = [
     updatedDate: "2025-11-21",
     hashtag: "publishing",
   },
+  {
+    id: "7",
+    customerName: "abcd",
+    type: "question",
+    title: "제목입니다.",
+    content: "내용입니다.",
+    createdDate: "2025-11-20",
+    updatedDate: "2025-11-21",
+    hashtag: "publishing",
+  },
+  {
+    id: "8",
+    customerName: "abcd",
+    type: "question",
+    title: "제목입니다.",
+    content: "내용입니다.",
+    createdDate: "2025-11-20",
+    updatedDate: "2025-11-21",
+    hashtag: "publishing",
+  },
+  {
+    id: "9",
+    customerName: "abcd",
+    type: "question",
+    title: "제목입니다.",
+    content: "내용입니다.",
+    createdDate: "2025-11-20",
+    updatedDate: "2025-11-21",
+    hashtag: "publishing",
+  },
+  {
+    id: "10",
+    customerName: "abcd",
+    type: "question",
+    title: "제목입니다.",
+    content: "내용입니다.",
+    createdDate: "2025-11-20",
+    updatedDate: "2025-11-21",
+    hashtag: "publishing",
+  },
+  {
+    id: "11",
+    customerName: "abcde",
+    type: "question",
+    title: "제목입니다!",
+    content: "내용입니다.",
+    createdDate: "2025-11-20",
+    updatedDate: "2025-11-21",
+    hashtag: "publishing",
+  },
 ];
 
 export function CustomerReport2() {
   const [searchTerm, setSearchTerm] = useState("");
   const [customers] = useState<Customer[]>(mockCustomers);
+  const [isWriting, setIsWriting] = useState(false);
 
   // 검색 필터
   const filteredCustomers = customers.filter((customer) => {
@@ -113,7 +165,7 @@ export function CustomerReport2() {
 
   // 페이징 상태
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 5;
+  const itemsPerPage = 10;
 
   const totalPages = Math.max(
       1,
@@ -126,6 +178,27 @@ export function CustomerReport2() {
       indexOfFirstItem,
       indexOfLastItem
   );
+
+  if (isWriting) {
+    return (
+        <div className="w-full max-w-[1800px] mx-auto p-6 space-y-6">
+          <div className="flex flex-col gap-4">
+            <RichTextDemo
+                actionButtons={
+                    <div className="flex items-center gap-2">
+                      <Button2 variant="outline" onClick={() => setIsWriting(false)}>
+                        취소
+                      </Button2>
+                      <Button2 onClick={() => setIsWriting(false)}>
+                        등록
+                      </Button2>
+                    </div>
+                }
+            />
+          </div>
+        </div>
+    );
+  }
 
   return (
       <div className="w-full max-w-[1800px] mx-auto p-6 space-y-6">
@@ -149,7 +222,7 @@ export function CustomerReport2() {
           </div>
           <div className="flex gap-2">
             <Button2 className="flex items-center gap-2">검색</Button2>
-            <Button2 className="flex items-center gap-2">글쓰기</Button2>
+            <Button2 className="flex items-center gap-2" onClick={() => setIsWriting(true)}>글쓰기</Button2>
           </div>
         </div>
 
