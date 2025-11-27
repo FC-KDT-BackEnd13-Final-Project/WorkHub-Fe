@@ -13,6 +13,8 @@ interface ChecklistGroup {
     evidences: Record<string, File[]>;
     comment: string;        // 카드 전체에 대한 코멘트
     isCommentOpen: boolean; // 코멘트 창 열림/닫힘 상태
+    status: "pending" | "approved" | "hold";
+    locked: boolean;
 }
 
 // ✅ CustomerForm에서 내려주는 prop 타입 추가
@@ -29,6 +31,8 @@ const createChecklistGroup = (id: number): ChecklistGroup => ({
     evidences: {},
     comment: "",
     isCommentOpen: false,
+    status: "pending",
+    locked: false,
 });
 
 export function FormQuestion2({ resetSignal }: FormQuestionProps) {
@@ -151,7 +155,7 @@ export function FormQuestion2({ resetSignal }: FormQuestionProps) {
                             />
 
                             {/* 하단: 말풍선 버튼 + 코멘트 영역 */}
-                            <div className="mt-4 mb-2 flex justify-end w-full">
+                            <div className="mt-2 mb-2 flex items-center justify-between w-full gap-4">
                                 <button
                                     type="button"
                                     onClick={() => toggleComment(groupIndex)}
@@ -160,6 +164,54 @@ export function FormQuestion2({ resetSignal }: FormQuestionProps) {
                                 >
                                     <MessagesSquare className="h-4 w-4 text-muted-foreground" />
                                 </button>
+                                <div className="flex items-center gap-1 ml-auto">
+                                    <button
+                                        type="button"
+                                        className={`h-9 px-4 text-sm flex items-center justify-center rounded-md border transition-colors ${
+                                            group.status === "approved"
+                                                ? "bg-primary text-primary-foreground border-primary"
+                                                : "border-border bg-background text-foreground hover:bg-muted"
+                                        } ${group.locked ? "cursor-not-allowed opacity-70" : ""}`}
+                                        onClick={() => {
+                                            if (group.locked) return;
+                                            const confirmed = window.confirm("‘동의’로 확정하시겠습니까?\n" +
+                                                "확정 후에는 상태를 변경할 수 없습니다.");
+                                            if (!confirmed) return;
+                                            setGroups((prev) =>
+                                                prev.map((g, i) =>
+                                                    i === groupIndex
+                                                        ? { ...g, status: "approved", locked: true }
+                                                        : g,
+                                                ),
+                                            );
+                                        }}
+                                    >
+                                        동의
+                                    </button>
+                                    <button
+                                        type="button"
+                                        className={`h-9 px-4 text-sm flex items-center justify-center rounded-md border transition-colors ${
+                                            group.status === "hold"
+                                                ? "bg-primary text-primary-foreground border-primary"
+                                                : "border-border bg-background text-foreground hover:bg-muted"
+                                        } ${group.locked ? "cursor-not-allowed opacity-70" : ""}`}
+                                        onClick={() => {
+                                            if (group.locked) return;
+                                            const confirmed = window.confirm("‘보류’로 확정하시겠습니까?\n" +
+                                                "확정 후에는 상태를 변경할 수 없습니다.");
+                                            if (!confirmed) return;
+                                            setGroups((prev) =>
+                                                prev.map((g, i) =>
+                                                    i === groupIndex
+                                                        ? { ...g, status: "hold", locked: true }
+                                                        : g,
+                                                ),
+                                            );
+                                        }}
+                                    >
+                                        보류
+                                    </button>
+                                </div>
                             </div>
 
                             {group.isCommentOpen && (
