@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react"; // ✅ useEffect 추가
+import { useState, useEffect } from "react";
 import { Card2, CardContent } from "./card2";
 import { Label2 } from "./label2";
 import { CheckboxQuestion2 } from "./CheckboxQuestion2";
@@ -11,13 +11,13 @@ interface ChecklistGroup {
     rules: string[];
     selectedIndexes: number[];
     evidences: Record<string, File[]>;
-    comment: string;        // 카드 전체에 대한 코멘트
-    isCommentOpen: boolean; // 코멘트 창 열림/닫힘 상태
+    comment: string;
+    isCommentOpen: boolean;
     status: "pending" | "approved" | "hold";
     locked: boolean;
 }
 
-// ✅ CustomerForm에서 내려주는 prop 타입 추가
+// CustomerForm에서 내려주는 prop 타입 추가
 interface FormQuestionProps {
     resetSignal: number;
 }
@@ -41,7 +41,7 @@ export function FormQuestion2({ resetSignal }: FormQuestionProps) {
         createChecklistGroup(1),
     ]);
 
-    // ✅ resetSignal이 바뀔 때마다 상태 초기화
+    // resetSignal이 바뀔 때마다 상태 초기화
     useEffect(() => {
         setGroups([createChecklistGroup(1)]); // 카드 하나만, 완전 초기 상태로
     }, [resetSignal]);
@@ -76,10 +76,12 @@ export function FormQuestion2({ resetSignal }: FormQuestionProps) {
         <div>
             {/* 상단 제목 + 카드 전체 추가/삭제 버튼 */}
             <div className="flex items-center justify-between mb-2">
+                {/* 상단 제목 */}
                 <Label2 className="flex items-center gap-1 text-sm font-medium">
                     체크리스트
                 </Label2>
 
+                {/* 카드 전체 추가/삭제 버튼 */}
                 <div className="flex items-center gap-1">
                     <button
                         type="button"
@@ -106,7 +108,7 @@ export function FormQuestion2({ resetSignal }: FormQuestionProps) {
                         className="border border-border/60 shadow-none bg-muted/40"
                     >
                         <CardContent className="pt-4">
-                            {/* 체크리스트 본문 */}
+                            {/* 체크리스트 본문(CheckboxQuestion2 불러옴) */}
                             <CheckboxQuestion2
                                 titleValue={group.title}
                                 onTitleChange={(value) =>
@@ -154,8 +156,9 @@ export function FormQuestion2({ resetSignal }: FormQuestionProps) {
                                 }
                             />
 
-                            {/* 하단: 말풍선 버튼 + 코멘트 영역 */}
+                            {/* 하단 버튼 + 코멘트 영역 */}
                             <div className="mt-2 mb-2 flex items-center justify-between w-full gap-4">
+                                {/* 말풍선 버튼 */}
                                 <button
                                     type="button"
                                     onClick={() => toggleComment(groupIndex)}
@@ -164,6 +167,8 @@ export function FormQuestion2({ resetSignal }: FormQuestionProps) {
                                 >
                                     <MessagesSquare className="h-4 w-4 text-muted-foreground" />
                                 </button>
+
+                                {/* 동의 버튼 */}
                                 <div className="flex items-center gap-1 ml-auto">
                                     <button
                                         type="button"
@@ -188,6 +193,8 @@ export function FormQuestion2({ resetSignal }: FormQuestionProps) {
                                     >
                                         동의
                                     </button>
+
+                                    {/* 보류 버튼 */}
                                     <button
                                         type="button"
                                         className={`h-9 px-4 text-sm flex items-center justify-center rounded-md border transition-colors ${
@@ -216,6 +223,7 @@ export function FormQuestion2({ resetSignal }: FormQuestionProps) {
 
                             {group.isCommentOpen && (
                                 <div className="mt-3 pb-6">
+                                    {/* 코멘트 입력 창 */}
                                     <Textarea2
                                         value={group.comment}
                                         onChange={(e) =>

@@ -1,4 +1,3 @@
-// src/components/ui/EvidenceUpload2.tsx
 import { useState, useRef, type ChangeEvent } from "react";
 import { Button2 } from "./button2";
 import { Input2 } from "./input2";
@@ -21,7 +20,7 @@ export function EvidenceUpload2({
     const [fileList, setFileList] = useState<File[]>(files || []);
     const fileInputRef = useRef<HTMLInputElement | null>(null);
 
-    // 🔗 링크 목록
+    // 링크 목록
     const [linkList, setLinkList] = useState<string[]>([]);
     const [isAddingLink, setIsAddingLink] = useState(false);
     const [linkInput, setLinkInput] = useState("");
@@ -78,8 +77,9 @@ export function EvidenceUpload2({
                 id={`file-${id}`}
             />
 
-            {/* 업로드 / 링크 버튼들 */}
+            {/* 파일, 링크 업로드 */}
             <div className="mb-5 flex flex-wrap items-center gap-2">
+                {/* 파일 선택 */}
                 <Button2
                     type="button"
                     variant="outline"
@@ -91,6 +91,7 @@ export function EvidenceUpload2({
                     파일 선택
                 </Button2>
 
+                {/* 링크 삽입 */}
                 <Button2
                     type="button"
                     variant="outline"
@@ -113,6 +114,7 @@ export function EvidenceUpload2({
                         onChange={(e) => setLinkInput(e.target.value)}
                         className="flex-1 h-8 text-sm"
                     />
+                    {/* 추가 버튼 */}
                     <Button2
                         type="button"
                         size="sm"
@@ -121,6 +123,8 @@ export function EvidenceUpload2({
                     >
                         추가
                     </Button2>
+
+                    {/* 취소 버튼 */}
                     <Button2
                         type="button"
                         variant="ghost"
@@ -146,6 +150,8 @@ export function EvidenceUpload2({
                             className="flex justify-between items-center p-2 border rounded-md bg-white shadow-sm"
                         >
                             <span className="text-sm">{file.name}</span>
+
+                            {/* 삭제 버튼 */}
                             <Button2
                                 type="button"
                                 size="sm"
@@ -172,6 +178,8 @@ export function EvidenceUpload2({
                             >
                                 {url}
                             </a>
+
+                            {/* 삭제 버튼 */}
                             <Button2
                                 type="button"
                                 size="sm"

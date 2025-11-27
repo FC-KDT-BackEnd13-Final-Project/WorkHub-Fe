@@ -1,5 +1,3 @@
-"use client";
-
 import { useForm } from "react-hook-form";
 import { Card2, CardContent, CardHeader, CardTitle } from "./ui/card2";
 import { Input2 } from "./ui/input2";
@@ -10,11 +8,11 @@ import { FormQuestion2 } from "./ui/FormQuestion2";
 import { useState } from "react";
 
 interface CustomerFormData {
-  customerName: string;
+  Name: string;
   mobile: string;
-  startDate: string;   // 시작일
-  endDate: string;     // 종료일
-  request: string;     // 요청사항
+  startDate: string;
+  endDate: string;
+  request: string;
 }
 
 export function CustomerForm2() {
@@ -45,25 +43,27 @@ export function CustomerForm2() {
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-              {/* Row 1: Name + Mobile */}
+              {/* Row 1: 작성자 + 전화번호 */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* 작성자 */}
                 <div className="space-y-2">
-                  <Label2 htmlFor="customerName">작성자</Label2>
+                  <Label2 htmlFor="Name">작성자</Label2>
                   <Input2
-                      id="customerName"
+                      id="Name"
                       placeholder="이름"
-                      {...register("customerName", {
+                      {...register("Name", {
                         required: "이름은 필수입니다."
                       })}
-                      className={errors.customerName ? "border-destructive" : ""}
+                      className={errors.Name ? "border-destructive" : ""}
                   />
-                  {errors.customerName && (
+                  {errors.Name && (
                       <p className="text-sm text-destructive">
-                        {errors.customerName.message}
+                        {errors.Name.message}
                       </p>
                   )}
                 </div>
 
+                {/* 전화번호 */}
                 <div className="space-y-2">
                   <Label2 htmlFor="mobile">전화번호</Label2>
                   <Input2
@@ -87,7 +87,7 @@ export function CustomerForm2() {
                 </div>
               </div>
 
-              {/* Row 2: Start Date + End Date */}
+              {/* Row 2: 시작일 + 종료일 */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {/* 시작일 */}
                 <div className="space-y-2">
@@ -145,14 +145,20 @@ export function CustomerForm2() {
                 )}
               </div>
 
-              {/* Row 4 */}
+              {/* Row 4: 체크리스트 */}
               <FormQuestion2 resetSignal ={questionResetKey} />
 
-              {/* Submit Buttons */}
+              {/* submit: Save + Reset 버튼 */}
               <div className="flex flex-col sm:flex-row gap-3 pt-6 pb-6 border-t">
-                <Button2 type="submit" className="flex-1">
+                {/* Save */}
+                <Button2
+                    type="submit"
+                    className="flex-1"
+                >
                   Save
                 </Button2>
+
+                {/* Reset */}
                 <Button2
                     type="button"
                     variant="outline"

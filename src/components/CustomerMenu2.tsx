@@ -13,6 +13,8 @@ export function CustomerMenu2({ activeTab, onTabChange }: NavigationProps) {
       <Card2 className="mb-6 pb-6">
         <CardContent className="pt-6">
           <div className="flex gap-2 justify-center">
+
+            {/* Create Project Checklist */}
           <Button2
             variant={activeTab === "form" ? "default" : "outline"}
             onClick={() => onTabChange("form")}
@@ -21,6 +23,8 @@ export function CustomerMenu2({ activeTab, onTabChange }: NavigationProps) {
             <ClipboardList className="h-4 w-4" />
             Create Project Checklist
           </Button2>
+
+            {/* Project Board */}
           <Button2
             variant={activeTab === "report" ? "default" : "outline"}
             onClick={() => onTabChange("report")}
