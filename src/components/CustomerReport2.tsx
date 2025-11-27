@@ -179,6 +179,7 @@ export function CustomerReport2() {
       indexOfLastItem
   );
 
+  // isWriting 상태가 true일 때 글쓰기 UI 보여주기 위해 RichTextDemo 리턴
   if (isWriting) {
     return (
         <div className="w-full max-w-[1800px] mx-auto p-6 space-y-6">
@@ -204,6 +205,7 @@ export function CustomerReport2() {
       <div className="w-full max-w-[1800px] mx-auto p-6 space-y-6">
         {/* Header */}
         <div className="flex flex-col sm:flex-row gap-4 items-end">
+          {/* 검색어 창 */}
           <div className="flex-1">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground h-4 w-4" />
@@ -220,13 +222,14 @@ export function CustomerReport2() {
               />
             </div>
           </div>
+          {/* 검색, 글쓰기 버튼 */}
           <div className="flex gap-2">
             <Button2 className="flex items-center gap-2">검색</Button2>
             <Button2 className="flex items-center gap-2" onClick={() => setIsWriting(true)}>글쓰기</Button2>
           </div>
         </div>
 
-        {/* Data Table2 */}
+        {/* 게시판 목록 */}
         <Card2>
           <CardContent className="p-0">
             <div className="w-full">
