@@ -206,97 +206,105 @@ export function ProjectNodesBoard() {
             ))}
           </SelectContent>
         </Select>
-        <Dialog open={isCreateNodeOpen} onOpenChange={setIsCreateNodeOpen}>
-          <DialogTrigger asChild>
-            <Button className="md:w-auto">+ New Workflow</Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>New Workflow Node</DialogTitle>
-              <DialogDescription>새로운 단계를 생성하고 담당자와 일정을 공유하세요.</DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="node-title">단계명</Label>
-                <Input
-                  id="node-title"
-                  value={newNode.title}
-                  onChange={(event) => setNewNode((prev) => ({ ...prev, title: event.target.value }))}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="node-description">요약</Label>
-                <Textarea
-                  id="node-description"
-                  value={newNode.description}
-                  onChange={(event) => setNewNode((prev) => ({ ...prev, description: event.target.value }))}
-                  rows={3}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="node-tags">해시태그 (쉼표로 구분)</Label>
-                <div className="relative">
-                  <Hash className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+        <div className="flex items-center gap-2">
+          <Dialog open={isCreateNodeOpen} onOpenChange={setIsCreateNodeOpen}>
+            <DialogTrigger asChild>
+              <Button className="h-9 px-4 text-sm">+ New Workflow</Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>New Workflow Node</DialogTitle>
+                <DialogDescription>새로운 단계를 생성하고 담당자와 일정을 공유하세요.</DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="node-title">단계명</Label>
                   <Input
-                    id="node-tags"
-                    value={newNode.tags}
-                    onChange={(event) => setNewNode((prev) => ({ ...prev, tags: event.target.value }))}
-                    className="pl-9"
-                    placeholder="#Design, #API"
+                    id="node-title"
+                    value={newNode.title}
+                    onChange={(event) => setNewNode((prev) => ({ ...prev, title: event.target.value }))}
                   />
                 </div>
-              </div>
-              <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
-                  <Label htmlFor="node-priority">우선순위</Label>
-                  <Select
-                    value={newNode.priority}
-                    onValueChange={(value) => setNewNode((prev) => ({ ...prev, priority: value as Priority }))}
-                  >
-                    <SelectTrigger id="node-priority">
-                      <SelectValue placeholder="Priority" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {priorityOptions.map((option) => (
-                        <SelectItem key={option} value={option}>
-                          {option}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <Label htmlFor="node-description">요약</Label>
+                  <Textarea
+                    id="node-description"
+                    value={newNode.description}
+                    onChange={(event) => setNewNode((prev) => ({ ...prev, description: event.target.value }))}
+                    rows={3}
+                  />
                 </div>
-                <div className="grid gap-2 sm:grid-cols-2">
-                  <div className="space-y-2">
-                    <Label htmlFor="node-start">시작일</Label>
+                <div className="space-y-2">
+                  <Label htmlFor="node-tags">해시태그 (쉼표로 구분)</Label>
+                  <div className="relative">
+                    <Hash className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                     <Input
-                      id="node-start"
-                      type="date"
-                      value={newNode.startDate}
-                      onChange={(event) => setNewNode((prev) => ({ ...prev, startDate: event.target.value }))}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="node-end">종료일</Label>
-                    <Input
-                      id="node-end"
-                      type="date"
-                      value={newNode.endDate}
-                      onChange={(event) => setNewNode((prev) => ({ ...prev, endDate: event.target.value }))}
+                      id="node-tags"
+                      value={newNode.tags}
+                      onChange={(event) => setNewNode((prev) => ({ ...prev, tags: event.target.value }))}
+                      className="pl-9"
+                      placeholder="#Design, #API"
                     />
                   </div>
                 </div>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="node-priority">우선순위</Label>
+                    <Select
+                      value={newNode.priority}
+                      onValueChange={(value) => setNewNode((prev) => ({ ...prev, priority: value as Priority }))}
+                    >
+                      <SelectTrigger id="node-priority">
+                        <SelectValue placeholder="Priority" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {priorityOptions.map((option) => (
+                          <SelectItem key={option} value={option}>
+                            {option}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label htmlFor="node-start">시작일</Label>
+                      <Input
+                        id="node-start"
+                        type="date"
+                        value={newNode.startDate}
+                        onChange={(event) => setNewNode((prev) => ({ ...prev, startDate: event.target.value }))}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="node-end">종료일</Label>
+                      <Input
+                        id="node-end"
+                        type="date"
+                        value={newNode.endDate}
+                        onChange={(event) => setNewNode((prev) => ({ ...prev, endDate: event.target.value }))}
+                      />
+                    </div>
+                  </div>
+                </div>
+                <DialogFooter>
+                  <Button variant="outline" onClick={() => setIsCreateNodeOpen(false)}>
+                    Cancel
+                  </Button>
+                  <Button onClick={handleCreateNode}>Create</Button>
+                </DialogFooter>
               </div>
-            </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setIsCreateNodeOpen(false)}>
-                Cancel
-              </Button>
-              <Button onClick={handleCreateNode}>Create</Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+            </DialogContent>
+          </Dialog>
+          <Button
+            variant="outline"
+            className="h-9 px-4 text-sm"
+            onClick={() => navigate(`/projects/${projectId ?? "project"}/nodes/support`)}
+          >
+            CS 문의
+          </Button>
+        </div>
       </div>
-
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-3">
         {filteredNodes.map((node) => (
           <Card

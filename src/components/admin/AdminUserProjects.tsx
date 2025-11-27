@@ -56,7 +56,7 @@ export function AdminUserProjects() {
             Full project list currently owned by {user.name}.
           </p>
         </div>
-        <div className="grid gap-4 pt-4 max-h-[640px] overflow-y-auto pr-1 md:grid-cols-2">
+        <div className="grid gap-4 pt-4 max-h-[640px] overflow-y-auto pr-1">
           {user.projects.map((project) => (
             <div
               key={project.id}

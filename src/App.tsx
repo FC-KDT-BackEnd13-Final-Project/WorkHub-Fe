@@ -20,6 +20,7 @@ import { AdminPasswordReset } from "./components/admin/AdminPasswordReset";
 import { AdminUserHistory } from "./components/admin/AdminUserHistory";
 import { AdminUserProjects } from "./components/admin/AdminUserProjects";
 import { NotificationsPage } from "./pages/NotificationsPage";
+import { SupportPage } from "./pages/SupportPage";
 import { SettingsPage } from "./pages/SettingsPage";
 
 export default function App() {
@@ -97,6 +98,10 @@ export default function App() {
             <Route
               path="/admin/users/:userId/projects"
               element={isAuthenticated ? <AdminUserProjects /> : <Navigate to="/" replace />}
+            />
+            <Route
+              path="/projects/:projectId/nodes/support"
+              element={isAuthenticated ? <SupportPage /> : <Navigate to="/" replace />}
             />
             <Route
               path="/settings"
