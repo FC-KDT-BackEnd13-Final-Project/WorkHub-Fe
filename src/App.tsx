@@ -64,6 +64,10 @@ export default function App() {
               element={isAuthenticated ? <ProjectNodesBoard /> : <Navigate to="/" replace />}
             />
             <Route
+              path="/projects/:projectId/nodesnew"
+              element={isAuthenticated ? <ProjectNodesBoard /> : <Navigate to="/" replace />}
+            />
+            <Route
               path="/projects/:projectId/nodes/:nodeId"
               element={isAuthenticated ? <ProjectNodeDetail /> : <Navigate to="/" replace />}
             />
