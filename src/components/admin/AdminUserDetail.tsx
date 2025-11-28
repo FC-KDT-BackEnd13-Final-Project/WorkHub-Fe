@@ -1,12 +1,12 @@
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "../ui/dialog";
 import { Input } from "../ui/input";
 import { Label } from "../ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 import { MessageSquare, Upload, CheckCircle, LogIn } from "lucide-react";
 import { companyUsers, activityHistory } from "./userData";
 
@@ -24,7 +24,37 @@ export function AdminUserDetail() {
   const user = useMemo(() => companyUsers.find((item) => item.id === userId), [userId]);
 
   const [actionModal, setActionModal] = useState<"role" | "password" | "remove" | null>(null);
-  const closeModal = () => setActionModal(null);
+  const [selectedRole, setSelectedRole] = useState(user?.role || "User"); // Default to current role or 'User'
+
+  // State for Initialize Password modal steps
+  const [passwordResetStep, setPasswordResetStep] = useState(1);
+  const [authCode, setAuthCode] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+
+  const closeModal = useCallback(() => {
+    setActionModal(null);
+    setPasswordResetStep(1); // Reset step when modal closes
+    setAuthCode("");
+    setNewPassword("");
+    setConfirmPassword("");
+  }, []);
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        closeModal();
+      }
+    };
+
+    if (actionModal) { // Only add listener if any modal is open
+      window.addEventListener("keydown", handleKeyDown);
+    }
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [actionModal, closeModal]);
 
   const [showAllProjects] = useState(false);
   const canViewAllProjects = (user?.projects.length ?? 0) >= 4;
@@ -188,100 +218,211 @@ export function AdminUserDetail() {
 
         <div className="flex items-center gap-3">
           <Button
-            variant="outline"
-            className="h-10 min-w-[120px] px-3 text-xs"
+            variant="secondary"
+            className="h-9 min-w-[120px] px-3 py-1 text-sm rounded-md border border-border"
             onClick={() => setActionModal("role")}
           >
             Change Role
           </Button>
           <Button
             variant="secondary"
-            className="h-10 min-w-[120px] px-3 text-xs"
+            className="h-9 min-w-[120px] px-3 py-1 text-sm rounded-md border border-border"
             onClick={() => setActionModal("password")}
           >
             Initialize Password
           </Button>
           <Button
             variant="destructive"
-            className="h-10 min-w-[120px] px-3 text-xs"
+            className="h-9 min-w-[120px] px-3 py-1 text-sm rounded-md border border-border"
             onClick={() => setActionModal("remove")}
           >
             Remove User
           </Button>
       </div>
 
-      <Dialog open={actionModal === "role"} onOpenChange={(open) => (!open ? closeModal() : null)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Change Role</DialogTitle>
-            <DialogDescription>
-              Update workspace role and permissions for {user.name}.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 pt-2">
-            <div className="space-y-2">
-              <Label htmlFor="new-role">New Role</Label>
-              <Input id="new-role" placeholder="e.g. Admin, Manager" />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="role-notes">Notes</Label>
-              <Input id="role-notes" placeholder="Optional notes for audit log" />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={closeModal}>
-              Cancel
-            </Button>
-            <Button>Save</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={actionModal === "password"} onOpenChange={(open) => (!open ? closeModal() : null)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Initialize Password</DialogTitle>
-            <DialogDescription>Send a password reset link to {user.email}.</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 pt-2">
-            <div className="space-y-2">
-              <Label htmlFor="password-user">User</Label>
-              <Input id="password-user" value={user.name} disabled />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="password-email">Email</Label>
-              <Input id="password-email" value={user.email} disabled />
+      {/* Change Role Modal */}
+      {actionModal === "role" && (
+        <div className="fixed inset-0 z-50">
+          <div className="min-h-screen flex items-center justify-center">
+            <div className="w-full" style={{ maxWidth: "var(--login-card-max-width, 42rem)" }}>
+              <Card className="login-theme border border-border shadow-lg">
+                <CardHeader className="space-y-2 pb-6">
+                  <h2 className="text-xl text-center">Change User Role</h2>
+                  <p className="text-sm text-muted-foreground text-center">
+                    Update workspace role and permissions for {user.name}.
+                  </p>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="new-role" className="text-gray-700">New Role</Label>
+                      <Select value={selectedRole} onValueChange={setSelectedRole}>
+                        <SelectTrigger
+                          id="new-role"
+                          className="h-9 rounded-md border border-border bg-input-background px-3 py-1 focus:bg-white focus:border-primary transition-colors"
+                        >
+                          <SelectValue placeholder="Select a role" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Admin">Admin</SelectItem>
+                          <SelectItem value="Client">Client</SelectItem>
+                          <SelectItem value="Developer">Developer</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  <div className="mt-6 pt-6 flex justify-between gap-2">
+                    <Button variant="secondary" className="w-1/2" onClick={closeModal}>
+                      Cancel
+                    </Button>
+                    <Button className="w-1/2">Save Changes</Button>
+                  </div>
+                </CardContent>
+              </Card>
             </div>
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={closeModal}>
-              Cancel
-            </Button>
-            <Button onClick={() => navigate("/admin/password")}>Continue</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        </div>
+      )}
 
-      <Dialog open={actionModal === "remove"} onOpenChange={(open) => (!open ? closeModal() : null)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Remove User</DialogTitle>
-            <DialogDescription>
-              This will revoke {user.name}&rsquo;s access to WorkHub.
-            </DialogDescription>
-          </DialogHeader>
-          <p className="text-sm text-muted-foreground">
-            Make sure you have exported any required data before removing this member. This action can be
-            undone by re-inviting them later.
-          </p>
-          <DialogFooter>
-            <Button variant="outline" onClick={closeModal}>
-              Cancel
-            </Button>
-            <Button variant="destructive">Remove</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* Initialize Password Modal */}
+      {actionModal === "password" && (
+        <div className="fixed inset-0 z-50">
+          <div className="min-h-screen flex items-center justify-center">
+            <div className="w-full" style={{ maxWidth: "var(--login-card-max-width, 42rem)" }}>
+              <Card className="login-theme border border-border shadow-lg">
+                <CardHeader className="space-y-2 pb-6">
+                  {passwordResetStep === 1 && (
+                    <>
+                      <h2 className="text-xl text-center">Initialize Password</h2>
+                      <p className="text-sm text-muted-foreground text-center">
+                        Send a password reset link to {user.email}.
+                      </p>
+                    </>
+                  )}
+                  {passwordResetStep === 2 && (
+                    <>
+                      <h2 className="text-xl text-center">Verify Code</h2>
+                      <p className="text-sm text-muted-foreground text-center">
+                        Enter the authentication code sent to {user.email}.
+                      </p>
+                    </>
+                  )}
+                  {passwordResetStep === 3 && (
+                    <>
+                      <h2 className="text-xl text-center">Set New Password</h2>
+                      <p className="text-sm text-muted-foreground text-center">
+                        Enter and confirm your new password for {user.name}.
+                      </p>
+                    </>
+                  )}
+                </CardHeader>
+                <CardContent>
+                  {passwordResetStep === 1 && (
+                    <>
+                      <div className="space-y-2">
+                        <Label htmlFor="password-email" className="text-gray-700">Email</Label>
+                        <Input
+                          id="password-email"
+                          value={user.email}
+                          disabled
+                          className="h-9 rounded-md border border-border bg-input-background px-3 py-1 focus:bg-white focus:border-primary transition-colors"
+                        />
+                      </div>
+                      <div className="mt-6 pt-6 flex justify-between gap-2">
+                        <Button variant="secondary" className="w-1/2" onClick={closeModal}>
+                          Cancel
+                        </Button>
+                        <Button className="w-1/2" onClick={() => setPasswordResetStep(2)}>Send Code</Button>
+                      </div>
+                    </>
+                  )}
+                  {passwordResetStep === 2 && (
+                    <>
+                      <div className="space-y-2">
+                        <Label htmlFor="auth-code" className="text-gray-700">Authentication Code</Label>
+                        <Input
+                          id="auth-code"
+                          value={authCode}
+                          onChange={(e) => setAuthCode(e.target.value)}
+                          placeholder="Enter code"
+                          className="h-9 rounded-md border border-border bg-input-background px-3 py-1 focus:bg-white focus:border-primary transition-colors"
+                        />
+                      </div>
+                      <div className="mt-6 pt-6 flex justify-between gap-2">
+                        <Button variant="secondary" className="w-1/2" onClick={() => setPasswordResetStep(1)}>
+                          Back
+                        </Button>
+                        <Button className="w-1/2" onClick={() => setPasswordResetStep(3)}>Verify Code</Button>
+                      </div>
+                    </>
+                  )}
+                  {passwordResetStep === 3 && (
+                    <>
+                      <div className="space-y-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="new-password" className="text-gray-700">New Password</Label>
+                          <Input
+                            id="new-password"
+                            type="password"
+                            value={newPassword}
+                            onChange={(e) => setNewPassword(e.target.value)}
+                            className="h-9 rounded-md border border-border bg-input-background px-3 py-1 focus:bg-white focus:border-primary transition-colors"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="confirm-password" className="text-gray-700">Confirm New Password</Label>
+                          <Input
+                            id="confirm-password"
+                            type="password"
+                            value={confirmPassword}
+                            onChange={(e) => setConfirmPassword(e.target.value)}
+                            className="h-9 rounded-md border border-border bg-input-background px-3 py-1 focus:bg-white focus:border-primary transition-colors"
+                          />
+                        </div>
+                      </div>
+                      <div className="mt-6 pt-6 flex justify-between gap-2">
+                        <Button variant="secondary" className="w-1/2" onClick={() => setPasswordResetStep(2)}>
+                          Back
+                        </Button>
+                        <Button className="w-1/2" onClick={closeModal}>Set Password</Button> {/* Placeholder for actual logic */}
+                      </div>
+                    </>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Remove User Modal */}
+      {actionModal === "remove" && (
+        <div className="fixed inset-0 z-50">
+          <div className="min-h-screen flex items-center justify-center">
+            <div className="w-full" style={{ maxWidth: "var(--login-card-max-width, 42rem)" }}>
+              <Card className="login-theme border border-border shadow-lg">
+                <CardHeader className="space-y-2 pb-6">
+                  <h2 className="text-xl text-center">Remove User</h2>
+                  <p className="text-sm text-muted-foreground text-center">
+                    This will revoke {user.name}&rsquo;s access to WorkHub.
+                  </p>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-muted-foreground text-center mb-4">
+                    Make sure you have exported any required data before permanently removing this member. This action can be undone.
+                  </p>
+                  <div className="mt-6 pt-6 flex justify-between gap-2">
+                    <Button variant="secondary" className="w-1/2" onClick={closeModal}>
+                      Cancel
+                    </Button>
+                    <Button variant="destructive" className="w-1/2 text-white">Remove User</Button>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

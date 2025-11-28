@@ -1,14 +1,13 @@
-import { useMemo, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
 import { Input } from "./ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "./ui/dialog";
+import { Paperclip, Link as LinkIcon, MoreHorizontal, Hash } from "lucide-react";
 import { Label } from "./ui/label";
-import { Textarea } from "./ui/textarea";
-import { Paperclip, Link as LinkIcon, Hash, MoreHorizontal } from "lucide-react";
+import { AutoResizeTextarea } from "./ui/auto-resize-textarea";
 
 type Priority = "Low" | "Medium" | "High" | "Critical";
 type NodeStatus = "To Do" | "In Progress" | "Review" | "Done";
@@ -87,24 +86,27 @@ const defaultNodes: Node[] = [
   },
 ];
 
+const createWorkflowFormState = () => ({
+  title: "",
+  description: "",
+  priority: "Medium" as Priority,
+  startDate: "",
+  endDate: "",
+});
+
 const priorityOptions: Priority[] = ["Low", "Medium", "High", "Critical"];
 const statusOptions: NodeStatus[] = ["To Do", "In Progress", "Review", "Done"];
 
 export function ProjectNodesBoard() {
   const { projectId } = useParams<{ projectId: string }>();
   const navigate = useNavigate();
-  const [nodes, setNodes] = useState<Node[]>(defaultNodes);
+  const location = useLocation();
+  console.log("ProjectNodesBoard - Current projectId:", projectId);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<"All" | NodeStatus>("All");
-  const [isCreateNodeOpen, setIsCreateNodeOpen] = useState(false);
-  const [newNode, setNewNode] = useState({
-    title: "",
-    description: "",
-    priority: "Medium" as Priority,
-    startDate: "",
-    endDate: "",
-    tags: "",
-  });
+  const [nodes, setNodes] = useState<Node[]>(defaultNodes);
+  const [isWorkflowModalOpen, setIsWorkflowModalOpen] = useState(false);
+  const [newWorkflow, setNewWorkflow] = useState(createWorkflowFormState);
 
   const filteredNodes = useMemo(() => {
     const term = search.toLowerCase();
@@ -117,41 +119,6 @@ export function ProjectNodesBoard() {
       return matchesSearch && matchesStatus;
     });
   }, [nodes, search, statusFilter]);
-
-  const handleCreateNode = () => {
-    if (!newNode.title.trim()) return;
-    const tagsArray = newNode.tags
-      .split(",")
-      .map((tag) => tag.trim())
-      .filter(Boolean)
-      .map((tag) => (tag.startsWith("#") ? tag : `#${tag}`));
-
-    const node: Node = {
-      id: crypto.randomUUID(),
-      title: newNode.title,
-      description: newNode.description,
-      tags: tagsArray,
-      filesCount: 0,
-      linksCount: 0,
-      priority: newNode.priority,
-      status: "To Do",
-      updatedAt: new Date().toISOString(),
-      startDate: newNode.startDate,
-      endDate: newNode.endDate,
-      hasNotification: true,
-    };
-
-    setNodes((prev) => [node, ...prev]);
-    setNewNode({
-      title: "",
-      description: "",
-      priority: "Medium",
-      startDate: "",
-      endDate: "",
-      tags: "",
-    });
-    setIsCreateNodeOpen(false);
-  };
 
   const formatDate = (value: string) => {
     if (!value) return "-";
@@ -177,8 +144,243 @@ export function ProjectNodesBoard() {
     Critical: "bg-red-50 text-red-700",
   };
 
+  const workflowBasePath = `/projects/${projectId ?? "project"}/nodes`;
+  const workflowModalPath = `/projects/${projectId ?? "project"}/nodesnew`;
+  console.log("ProjectNodesBoard - workflowBasePath:", workflowBasePath);
+  console.log("ProjectNodesBoard - workflowModalPath:", workflowModalPath);
+
+  const getNextDayISO = (dateString: string) => {
+    const date = new Date(dateString);
+    date.setDate(date.getDate() + 1);
+    return date.toISOString().split("T")[0]!;
+  };
+
+  const getPreviousDayISO = (dateString: string) => {
+    const date = new Date(dateString);
+    date.setDate(date.getDate() - 1);
+    return date.toISOString().split("T")[0]!;
+  };
+
+  const openWorkflowModal = useCallback(() => {
+    console.log("openWorkflowModal called. Current isWorkflowModalOpen:", isWorkflowModalOpen);
+    if (!isWorkflowModalOpen) {
+      setIsWorkflowModalOpen(true);
+    }
+    if (location.pathname !== workflowModalPath) {
+      console.log("Navigating to workflowModalPath:", workflowModalPath);
+      navigate(workflowModalPath, { replace: true });
+    }
+  }, [isWorkflowModalOpen, location.pathname, navigate, workflowModalPath]);
+
+  const closeWorkflowModal = useCallback(() => {
+    console.log("closeWorkflowModal called. Current isWorkflowModalOpen:", isWorkflowModalOpen);
+    if (isWorkflowModalOpen) {
+      setIsWorkflowModalOpen(false);
+    }
+    setNewWorkflow(createWorkflowFormState());
+    if (location.pathname !== workflowBasePath) {
+      console.log("Navigating to workflowBasePath:", workflowBasePath);
+      navigate(workflowBasePath, { replace: true });
+    }
+  }, [isWorkflowModalOpen, location.pathname, navigate, workflowBasePath]);
+
+  useEffect(() => {
+    const shouldOpen = location.pathname === workflowModalPath;
+    console.log("useEffect [location.pathname, workflowModalPath] triggered.");
+    console.log("  location.pathname:", location.pathname);
+    console.log("  workflowModalPath:", workflowModalPath);
+    console.log("  shouldOpen:", shouldOpen);
+    setIsWorkflowModalOpen(shouldOpen);
+    if (!shouldOpen) {
+      setNewWorkflow(createWorkflowFormState());
+    }
+  }, [location.pathname, workflowModalPath]);
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        closeWorkflowModal();
+      }
+    };
+
+    if (isWorkflowModalOpen) {
+      window.addEventListener("keydown", handleKeyDown);
+    }
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [closeWorkflowModal, isWorkflowModalOpen]);
+
+  const handleCreateWorkflow = () => {
+    if (!newWorkflow.title.trim()) return;
+    if (!newWorkflow.startDate || !newWorkflow.endDate) return;
+    if (new Date(newWorkflow.endDate) <= new Date(newWorkflow.startDate)) return;
+
+    const node: Node = {
+      id: crypto.randomUUID(),
+      title: newWorkflow.title,
+      description: newWorkflow.description,
+      tags: [], // Tags are removed, so an empty array is passed
+      filesCount: 0,
+      linksCount: 0,
+      priority: newWorkflow.priority,
+      status: "To Do",
+      updatedAt: new Date().toISOString(),
+      startDate: newWorkflow.startDate,
+      endDate: newWorkflow.endDate,
+      hasNotification: true,
+    };
+
+    setNodes((prev) => [node, ...prev]);
+    setNewWorkflow(createWorkflowFormState());
+    closeWorkflowModal();
+  };
+
   return (
     <div className="space-y-6 pb-12">
+      {isWorkflowModalOpen && (
+        <div className="fixed inset-0 z-50 backdrop-blur-sm flex items-center justify-end px-0">
+          <div className="absolute inset-0" aria-hidden="true" onClick={closeWorkflowModal}></div>
+          <div className="relative z-10 h-full max-w-lg w-full overflow-y-auto bg-white shadow-2xl border-l">
+            <div className="min-h-screen bg-white flex items-center justify-center p-4">
+            <div className="w-full" style={{ maxWidth: "var(--login-card-max-width, 42rem)" }}>
+              <Card className="login-theme border border-border shadow-lg">
+                <CardHeader className="space-y-2 pb-6">                    <h2 className="text-xl text-center">
+                      Create <span style={{ color: "var(--point-color)" }}>Workflow</span>
+                    </h2>
+                    <p className="text-sm text-muted-foreground text-center">
+                      새로운 워크플로우 단계를 작성하고 세부 정보를 입력하세요.
+                    </p>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="workflowTitle" className="text-gray-700">
+                          단계명
+                        </Label>
+                      <Input
+                        id="workflowTitle"
+                        value={newWorkflow.title}
+                        onChange={(event) =>
+                          setNewWorkflow((prev) => ({ ...prev, title: event.target.value }))
+                        }
+                        className="h-9 rounded-md border border-border bg-input-background px-3 py-1 focus:bg-white focus:border-primary transition-colors"
+                      />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="workflowDescription" className="text-gray-700">
+                          단계에 대한 설명
+                        </Label>
+                      <AutoResizeTextarea
+                        id="workflowDescription"
+                        value={newWorkflow.description}
+                        onChange={(event) =>
+                          setNewWorkflow((prev) => ({ ...prev, description: event.target.value }))
+                        }
+                        className="w-full border rounded-md border-border bg-input-background px-3 py-2 focus:bg-white focus:border-primary transition-colors"
+                        placeholder="단계에 대한 설명을 입력하세요."
+                        minHeight="36px"
+                        maxHeight="200px"
+                      />
+                      </div>
+                      <div className="grid gap-4 sm:grid-cols-2">
+                        <div className="space-y-2">
+                          <Label htmlFor="workflowStart" className="text-gray-700">
+                            시작일
+                          </Label>
+                        <Input
+                          id="workflowStart"
+                          type="date"
+                          value={newWorkflow.startDate}
+                          max={
+                            newWorkflow.endDate ? getPreviousDayISO(newWorkflow.endDate) : undefined
+                          }
+                          onChange={(event) => {
+                            const value = event.target.value;
+                            setNewWorkflow((prev) => {
+                              const updated = { ...prev, startDate: value };
+                              if (
+                                updated.endDate &&
+                                value &&
+                                new Date(updated.endDate) <= new Date(value)
+                              ) {
+                                updated.endDate = getNextDayISO(value);
+                              }
+                              return updated;
+                            });
+                          }}
+                          className="h-9 rounded-md border border-border bg-input-background px-3 py-1 focus:bg-white focus:border-primary transition-colors"
+                        />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="workflowEnd" className="text-gray-700">
+                            종료일
+                          </Label>
+                        <Input
+                          id="workflowEnd"
+                          type="date"
+                          value={newWorkflow.endDate}
+                          min={
+                            newWorkflow.startDate ? getNextDayISO(newWorkflow.startDate) : undefined
+                          }
+                          onChange={(event) => {
+                            const value = event.target.value;
+                            setNewWorkflow((prev) => {
+                              if (
+                                prev.startDate &&
+                                value &&
+                                new Date(value) <= new Date(prev.startDate)
+                              ) {
+                                return prev;
+                              }
+                              return { ...prev, endDate: value };
+                            });
+                          }}
+                          className="h-9 rounded-md border border-border bg-input-background px-3 py-1 focus:bg-white focus:border-primary transition-colors"
+                        />
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="workflowPriority" className="text-gray-700">
+                          중요도
+                        </Label>
+                        <Select
+                          value={newWorkflow.priority}
+                          onValueChange={(value) =>
+                            setNewWorkflow((prev) => ({ ...prev, priority: value as Priority }))
+                          }
+                        >
+                                                  <SelectTrigger
+                                                    id="workflowPriority"
+                                                    className="h-9 rounded-md border border-border bg-input-background px-3 py-1 focus:bg-white focus:border-primary transition-colors"
+                                                  >
+                                                    <SelectValue placeholder="중요도" />
+                                                  </SelectTrigger>                          <SelectContent>
+                            {priorityOptions.map((option) => (
+                              <SelectItem key={option} value={option}>
+                                {option}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                    <div className="mt-6 pt-6 flex justify-between gap-2">
+                      <Button variant="secondary" className="w-1/2" onClick={closeWorkflowModal}>
+                        Cancel
+                      </Button>
+                      <Button className="w-1/2" onClick={handleCreateWorkflow}>
+                        Create
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
       <div className="rounded-2xl bg-white p-6 shadow-sm">
         <h1 className="text-3xl font-semibold tracking-tight">Project Nodes</h1>
         <p className="mt-2 text-muted-foreground">
@@ -207,95 +409,9 @@ export function ProjectNodesBoard() {
           </SelectContent>
         </Select>
         <div className="flex items-center gap-2">
-          <Dialog open={isCreateNodeOpen} onOpenChange={setIsCreateNodeOpen}>
-            <DialogTrigger asChild>
-              <Button className="h-9 px-4 text-sm">+ New Workflow</Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>New Workflow Node</DialogTitle>
-                <DialogDescription>새로운 단계를 생성하고 담당자와 일정을 공유하세요.</DialogDescription>
-              </DialogHeader>
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="node-title">단계명</Label>
-                  <Input
-                    id="node-title"
-                    value={newNode.title}
-                    onChange={(event) => setNewNode((prev) => ({ ...prev, title: event.target.value }))}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="node-description">요약</Label>
-                  <Textarea
-                    id="node-description"
-                    value={newNode.description}
-                    onChange={(event) => setNewNode((prev) => ({ ...prev, description: event.target.value }))}
-                    rows={3}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="node-tags">해시태그 (쉼표로 구분)</Label>
-                  <div className="relative">
-                    <Hash className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                    <Input
-                      id="node-tags"
-                      value={newNode.tags}
-                      onChange={(event) => setNewNode((prev) => ({ ...prev, tags: event.target.value }))}
-                      className="pl-9"
-                      placeholder="#Design, #API"
-                    />
-                  </div>
-                </div>
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <div className="space-y-2">
-                    <Label htmlFor="node-priority">우선순위</Label>
-                    <Select
-                      value={newNode.priority}
-                      onValueChange={(value) => setNewNode((prev) => ({ ...prev, priority: value as Priority }))}
-                    >
-                      <SelectTrigger id="node-priority">
-                        <SelectValue placeholder="Priority" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {priorityOptions.map((option) => (
-                          <SelectItem key={option} value={option}>
-                            {option}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="grid gap-2 sm:grid-cols-2">
-                    <div className="space-y-2">
-                      <Label htmlFor="node-start">시작일</Label>
-                      <Input
-                        id="node-start"
-                        type="date"
-                        value={newNode.startDate}
-                        onChange={(event) => setNewNode((prev) => ({ ...prev, startDate: event.target.value }))}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="node-end">종료일</Label>
-                      <Input
-                        id="node-end"
-                        type="date"
-                        value={newNode.endDate}
-                        onChange={(event) => setNewNode((prev) => ({ ...prev, endDate: event.target.value }))}
-                      />
-                    </div>
-                  </div>
-                </div>
-                <DialogFooter>
-                  <Button variant="outline" onClick={() => setIsCreateNodeOpen(false)}>
-                    Cancel
-                  </Button>
-                  <Button onClick={handleCreateNode}>Create</Button>
-                </DialogFooter>
-              </div>
-            </DialogContent>
-          </Dialog>
+          <Button className="h-9 px-4 text-sm" onClick={openWorkflowModal}>
+            + New Workflow
+          </Button>
           <Button
             variant="outline"
             className="h-9 px-4 text-sm"
@@ -329,13 +445,6 @@ export function ProjectNodesBoard() {
               <CardDescription>{node.description}</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4 px-6 pb-6">
-              <div className="flex flex-wrap gap-2">
-                {node.tags.map((tag) => (
-                  <Badge key={tag} variant="secondary">
-                    {tag}
-                  </Badge>
-                ))}
-              </div>
               <div className="grid gap-2 text-sm">
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Files</span>
