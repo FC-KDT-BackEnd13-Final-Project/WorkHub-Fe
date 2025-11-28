@@ -21,6 +21,7 @@ import { AdminUserHistory } from "./components/admin/AdminUserHistory";
 import { AdminUserProjects } from "./components/admin/AdminUserProjects";
 import { NotificationsPage } from "./pages/NotificationsPage";
 import { SupportPage } from "./pages/SupportPage";
+import { SupportTicketDetail } from "./pages/SupportTicketDetail";
 import { SettingsPage } from "./pages/SettingsPage";
 
 export default function App() {
@@ -119,6 +120,10 @@ export default function App() {
             <Route
               path="/projects/:projectId/nodes/support"
               element={isAuthenticated ? <SupportPage /> : <Navigate to="/" replace />}
+            />
+            <Route
+              path="/projects/:projectId/nodes/support/:ticketId"
+              element={isAuthenticated ? <SupportTicketDetail /> : <Navigate to="/" replace />}
             />
             <Route
               path="/settings"

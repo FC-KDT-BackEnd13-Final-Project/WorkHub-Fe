@@ -32,12 +32,24 @@ interface CommentItem {
     menuOpen?: boolean; // … 메뉴 열림 여부
 }
 
-export function ProjectPostDetail() {
+interface ProjectPostDetailProps {
+    initialPost?: PostPayload;
+    backPath?: string;
+    showBackButton?: boolean;
+    startInEditMode?: boolean;
+}
+
+export function ProjectPostDetail({
+    initialPost,
+    backPath,
+    showBackButton = true,
+    startInEditMode = false,
+}: ProjectPostDetailProps = {}) {
     const navigate = useNavigate();
     const { projectId, nodeId, postId } = useParams<{ projectId?: string; nodeId?: string; postId?: string }>();
     const location = useLocation();
     const statePost = (location.state as { post?: PostPayload })?.post;
-    const post: PostPayload = statePost || {
+    const post: PostPayload = statePost || initialPost || {
         id: postId ?? "",
         customerName: "",
         type: "general",
@@ -49,7 +61,7 @@ export function ProjectPostDetail() {
         isOwner: true,
     };
     const [postContent, setPostContent] = useState(post.content);
-    const [isPostEditing, setIsPostEditing] = useState(false);
+    const [isPostEditing, setIsPostEditing] = useState(startInEditMode);
     const isPostOwner = post.isOwner ?? true; // 임시: 작성자로 가정
     const [postMenuOpen, setPostMenuOpen] = useState(false); //  게시글 메뉴 열림 여부
 
@@ -70,9 +82,10 @@ export function ProjectPostDetail() {
     const [newComment, setNewComment] = useState("");
 
     const listPath =
-        projectId && nodeId
+        backPath ??
+        (projectId && nodeId
             ? `/projects/${projectId}/nodes/${nodeId}/posts`
-            : undefined;
+            : undefined);
 
     const navigateBackToList = () => {
         if (listPath) {
@@ -504,7 +517,6 @@ export function ProjectPostDetail() {
                         <div className="flex items-center justify-between gap-3 flex-wrap">
                             <div className="flex items-center gap-2">
                                 <Badge2 variant="outline">{post.type}</Badge2>
-                                <Badge2>{post.hashtag}</Badge2>
                             </div>
 
                             {/* 게시글 우측 상단 ⋮ 메뉴 */}
@@ -629,15 +641,17 @@ export function ProjectPostDetail() {
                     </div>
                 </CardContent>
             </Card2>
-            <div className="mt-4 flex w-full">
-                <Button2
-                    variant="outline"
-                    onClick={() => navigate(-1)}
-                    className="ml-auto w-auto"
-                >
-                    목록으로
-                </Button2>
-            </div>
+            {showBackButton && (
+                <div className="mt-4 flex w-full">
+                    <Button2
+                        variant="outline"
+                        onClick={() => navigateBackToList()}
+                        className="ml-auto w-auto"
+                    >
+                        목록으로
+                    </Button2>
+                </div>
+            )}
         </div>
     );
 }
