@@ -11,6 +11,7 @@ import { CustomerForm2 } from "./components/CustomerForm2";
 import { CustomerReport2 } from "./components/CustomerReport2";
 import { Sidebar } from "./components/Sidebar";
 import { Toaster } from "./components/ui/sonner";
+import { ProjectPostDetail } from "./components/ProjectPostDetail";
 import { AdminUsers } from "./components/admin/AdminUsers";
 import { AdminUserCreate } from "./components/admin/AdminUserCreate";
 import { AdminUserSuccess } from "./components/admin/AdminUserSuccess";
@@ -130,6 +131,10 @@ export default function App() {
             <Route
               path="/projectdetail/post"
               element={isAuthenticated ? <ProjectDetailPage type="report" /> : <Navigate to="/" replace />}
+            />
+            <Route
+              path="/projectpost/:postId"
+              element={isAuthenticated ? <ProjectPostDetail /> : <Navigate to="/" replace />}
             />
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />
