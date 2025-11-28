@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
 import { Badge } from "../ui/badge";
@@ -7,7 +7,7 @@ import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { Label } from "../ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
-import { MessageSquare, Upload, CheckCircle, LogIn } from "lucide-react";
+import { MessageSquare, Upload, CheckCircle, LogIn, AlertCircle } from "lucide-react";
 import { companyUsers, activityHistory } from "./userData";
 
 const activityIconMap: Record<string, JSX.Element> = {
@@ -20,10 +20,15 @@ const activityIconMap: Record<string, JSX.Element> = {
 export function AdminUserDetail() {
   const { userId } = useParams<{ userId: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
 
   const user = useMemo(() => companyUsers.find((item) => item.id === userId), [userId]);
 
-  const [actionModal, setActionModal] = useState<"role" | "password" | "remove" | null>(null);
+  const basePath = `/admin/users/${userId}`;
+  const changeRoleModalPath = `${basePath}/change-role`;
+  const initPasswordModalPath = `${basePath}/init-password`;
+  const removeUserModalPath = `${basePath}/remove-user`;
+
   const [selectedRole, setSelectedRole] = useState(user?.role || "User"); // Default to current role or 'User'
 
   // State for Initialize Password modal steps
@@ -33,40 +38,102 @@ export function AdminUserDetail() {
   const [confirmPassword, setConfirmPassword] = useState("");
 
   const closeModal = useCallback(() => {
-    setActionModal(null);
+    navigate(basePath, { replace: true });
     setPasswordResetStep(1); // Reset step when modal closes
     setAuthCode("");
     setNewPassword("");
     setConfirmPassword("");
-  }, []);
+  }, [navigate, basePath]);
 
-  useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        closeModal();
-      }
-    };
+  // Action handlers for modals
+  const handleChangeRole = () => {
+    console.log(`Changing role for ${user.name} to ${selectedRole}`);
+    // Simulate API call
+    setTimeout(() => {
+      alert(`Role for ${user.name} changed to ${selectedRole}`);
+      closeModal();
+    }, 500);
+  };
 
-    if (actionModal) { // Only add listener if any modal is open
-      window.addEventListener("keydown", handleKeyDown);
+  const handleSendCode = () => {
+    console.log(`Sending auth code to ${user.email}`);
+    // Simulate API call
+    setTimeout(() => {
+      alert(`Auth code sent to ${user.email}`);
+      setPasswordResetStep(2);
+    }, 500);
+  };
+
+  const handleVerifyCode = () => {
+    console.log(`Verifying code: ${authCode}`);
+    // Simulate API call
+    if (authCode === "123456") { // Simple dummy code
+      alert("Code verified!");
+      setPasswordResetStep(3);
+    } else {
+      alert("Invalid code. Please try again.");
     }
+  };
 
-    return () => {
-      window.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [actionModal, closeModal]);
+  const handleSetNewPassword = () => {
+    if (newPassword.length < 6) {
+      alert("Password must be at least 6 characters long.");
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      alert("Passwords do not match.");
+      return;
+    }
+    console.log(`Setting new password for ${user.name}`);
+    // Simulate API call
+    setTimeout(() => {
+      alert("Password successfully updated!");
+      closeModal();
+    }, 500);
+  };
+
+  const handleRemoveUser = () => {
+    console.log(`Removing user: ${user.name}`);
+    // Simulate API call
+    setTimeout(() => {
+      alert(`${user.name} has been removed.`);
+      navigate("/admin/users", { replace: true }); // Navigate to user list after removal
+    }, 500);
+  };
+
+  // Effect to reset password reset step if modal is closed via URL change
+  useEffect(() => {
+    if (location.pathname !== initPasswordModalPath) {
+      setPasswordResetStep(1);
+      setAuthCode("");
+      setNewPassword("");
+      setConfirmPassword("");
+    }
+  }, [location.pathname, initPasswordModalPath]);
 
   const [showAllProjects] = useState(false);
   const canViewAllProjects = (user?.projects.length ?? 0) >= 4;
   const canViewFullHistory = activityHistory.length >= 20;
 
+  //유저 없음
   if (!user) {
     return (
-      <Card className="rounded-2xl border border-white/70 bg-white shadow-sm">
-        <CardContent className="py-12 text-center text-muted-foreground">
-          User not found.
-        </CardContent>
-      </Card>
+      <div className="h-full flex items-center justify-center">
+        <Card className="login-theme shadow-lg w-full" style={{ maxWidth: "var(--login-card-max-width, 42rem)" }}>
+          <CardHeader className="space-y-2 pb-6 text-center">
+            <AlertCircle className="mx-auto h-12 w-12 text-destructive" />
+            <h2 className="text-xl font-semibold">사용자를 찾을 수 없습니다.</h2>
+            <p className="text-sm text-muted-foreground">
+              요청하신 사용자 ID({userId})에 해당하는 정보를 찾을 수 없습니다.
+            </p>
+          </CardHeader>
+          <CardContent className="text-center">
+            <Button onClick={() => navigate("/admin/users")} className="mt-4">
+              사용자 목록으로 돌아가기
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
     );
   }
 
@@ -220,28 +287,28 @@ export function AdminUserDetail() {
           <Button
             variant="secondary"
             className="h-9 min-w-[120px] px-3 py-1 text-sm rounded-md border border-border"
-            onClick={() => setActionModal("role")}
+            onClick={() => navigate(changeRoleModalPath)}
           >
             Change Role
           </Button>
           <Button
             variant="secondary"
             className="h-9 min-w-[120px] px-3 py-1 text-sm rounded-md border border-border"
-            onClick={() => setActionModal("password")}
+            onClick={() => navigate(initPasswordModalPath)}
           >
             Initialize Password
           </Button>
           <Button
             variant="destructive"
             className="h-9 min-w-[120px] px-3 py-1 text-sm rounded-md border border-border"
-            onClick={() => setActionModal("remove")}
+            onClick={() => navigate(removeUserModalPath)}
           >
             Remove User
           </Button>
       </div>
 
       {/* Change Role Modal */}
-      {actionModal === "role" && (
+      {location.pathname === changeRoleModalPath && (
         <div className="fixed inset-0 z-50">
           <div className="min-h-screen flex items-center justify-center">
             <div className="w-full" style={{ maxWidth: "var(--login-card-max-width, 42rem)" }}>
@@ -275,7 +342,7 @@ export function AdminUserDetail() {
                     <Button variant="secondary" className="w-1/2" onClick={closeModal}>
                       Cancel
                     </Button>
-                    <Button className="w-1/2">Save Changes</Button>
+                    <Button className="w-1/2" onClick={handleChangeRole}>Save Changes</Button>
                   </div>
                 </CardContent>
               </Card>
@@ -285,7 +352,7 @@ export function AdminUserDetail() {
       )}
 
       {/* Initialize Password Modal */}
-      {actionModal === "password" && (
+      {location.pathname === initPasswordModalPath && (
         <div className="fixed inset-0 z-50">
           <div className="min-h-screen flex items-center justify-center">
             <div className="w-full" style={{ maxWidth: "var(--login-card-max-width, 42rem)" }}>
@@ -332,7 +399,7 @@ export function AdminUserDetail() {
                         <Button variant="secondary" className="w-1/2" onClick={closeModal}>
                           Cancel
                         </Button>
-                        <Button className="w-1/2" onClick={() => setPasswordResetStep(2)}>Send Code</Button>
+                        <Button className="w-1/2" onClick={handleSendCode}>Send Code</Button>
                       </div>
                     </>
                   )}
@@ -352,7 +419,7 @@ export function AdminUserDetail() {
                         <Button variant="secondary" className="w-1/2" onClick={() => setPasswordResetStep(1)}>
                           Back
                         </Button>
-                        <Button className="w-1/2" onClick={() => setPasswordResetStep(3)}>Verify Code</Button>
+                        <Button className="w-1/2" onClick={handleVerifyCode}>Verify Code</Button>
                       </div>
                     </>
                   )}
@@ -384,7 +451,7 @@ export function AdminUserDetail() {
                         <Button variant="secondary" className="w-1/2" onClick={() => setPasswordResetStep(2)}>
                           Back
                         </Button>
-                        <Button className="w-1/2" onClick={closeModal}>Set Password</Button> {/* Placeholder for actual logic */}
+                        <Button className="w-1/2" onClick={handleSetNewPassword}>Set Password</Button>
                       </div>
                     </>
                   )}
@@ -396,7 +463,7 @@ export function AdminUserDetail() {
       )}
 
       {/* Remove User Modal */}
-      {actionModal === "remove" && (
+      {location.pathname === removeUserModalPath && (
         <div className="fixed inset-0 z-50">
           <div className="min-h-screen flex items-center justify-center">
             <div className="w-full" style={{ maxWidth: "var(--login-card-max-width, 42rem)" }}>
@@ -415,7 +482,7 @@ export function AdminUserDetail() {
                     <Button variant="secondary" className="w-1/2" onClick={closeModal}>
                       Cancel
                     </Button>
-                    <Button variant="destructive" className="w-1/2 text-white">Remove User</Button>
+                    <Button variant="destructive" className="w-1/2 text-white" onClick={handleRemoveUser}>Remove User</Button>
                   </div>
                 </CardContent>
               </Card>

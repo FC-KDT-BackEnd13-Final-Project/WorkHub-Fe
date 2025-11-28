@@ -34,18 +34,28 @@ interface CommentItem {
 
 export function ProjectPostDetail() {
     const navigate = useNavigate();
-    const { postId } = useParams();
+    const { projectId, nodeId, postId } = useParams<{ projectId?: string; nodeId?: string; postId?: string }>();
     const location = useLocation();
-    const post = (location.state as { post?: PostPayload })?.post;
-
-    const [postContent, setPostContent] = useState(post?.content ?? "");
+    const statePost = (location.state as { post?: PostPayload })?.post;
+    const post: PostPayload = statePost || {
+        id: postId ?? "",
+        customerName: "",
+        type: "general",
+        title: "",
+        content: "",
+        createdDate: "",
+        updatedDate: "",
+        hashtag: "",
+        isOwner: true,
+    };
+    const [postContent, setPostContent] = useState(post.content);
     const [isPostEditing, setIsPostEditing] = useState(false);
-    const isPostOwner = true; // 임시: 항상 작성자라고 가정
+    const isPostOwner = post.isOwner ?? true; // 임시: 작성자로 가정
     const [postMenuOpen, setPostMenuOpen] = useState(false); //  게시글 메뉴 열림 여부
 
     useEffect(() => {
-        setPostContent(post?.content ?? "");
-    }, [post?.content]);
+        setPostContent(post.content);
+    }, [post.content]);
 
     const [comments, setComments] = useState<CommentItem[]>([
         {
@@ -59,13 +69,26 @@ export function ProjectPostDetail() {
     ]);
     const [newComment, setNewComment] = useState("");
 
+    const listPath =
+        projectId && nodeId
+            ? `/projects/${projectId}/nodes/${nodeId}/posts`
+            : undefined;
+
+    const navigateBackToList = () => {
+        if (listPath) {
+            navigate(listPath, { replace: true });
+        } else {
+            navigate(-1);
+        }
+    };
+
     if (!post) {
         return (
             <div className="w-full max-w-5xl mx-auto p-6 space-y-4">
                 <Card2>
                     <CardContent className="py-12 text-center space-y-4">
                         <p className="text-lg font-medium">게시글 정보를 불러올 수 없습니다.</p>
-                        <Button2 onClick={() => navigate(-1)}>목록으로 돌아가기</Button2>
+                        <Button2 onClick={navigateBackToList}>목록으로 돌아가기</Button2>
                     </CardContent>
                 </Card2>
             </div>
@@ -237,6 +260,30 @@ export function ProjectPostDetail() {
                                     </div>
                                 )}
                             </div>
+                            {post.isOwner && !isPostEditing && (
+                                <div className="flex items-center gap-2 text-sm text-primary">
+                                    <button
+                                        type="button"
+                                        className="hover:underline"
+                                        onClick={() => setIsPostEditing(true)}
+                                    >
+                                        수정
+                                    </button>
+                                    <button
+                                        type="button"
+                                        className="hover:underline"
+                                        onClick={navigateBackToList}
+                                    >
+                                        삭제
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+                        <h1 className="text-2xl font-semibold">{post.title}</h1>
+                        <div className="text-sm text-muted-foreground flex flex-wrap gap-3">
+                            <span>작성자: {post.customerName}</span>
+                            <span>작성일: {post.createdDate}</span>
+                            <span>수정일: {post.updatedDate}</span>
                         </div>
 
                         {/* 내용 or 수정 모드 */}
@@ -582,13 +629,11 @@ export function ProjectPostDetail() {
                     </div>
                 </CardContent>
             </Card2>
-
-            <div className="flex justify-between mt-4 w-full">
-                <Button2 variant="outline">답글 작성</Button2>
+            <div className="mt-4 flex w-full">
                 <Button2
                     variant="outline"
                     onClick={() => navigate(-1)}
-                    className="w-auto"
+                    className="ml-auto w-auto"
                 >
                     목록으로
                 </Button2>

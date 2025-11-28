@@ -145,7 +145,7 @@ export function ProjectNodesBoard() {
   };
 
   const workflowBasePath = `/projects/${projectId ?? "project"}/nodes`;
-  const workflowModalPath = `/projects/${projectId ?? "project"}/nodesnew`;
+  const workflowModalPath = `/projects/${projectId ?? "project"}/nodes/new`;
   console.log("ProjectNodesBoard - workflowBasePath:", workflowBasePath);
   console.log("ProjectNodesBoard - workflowModalPath:", workflowModalPath);
 

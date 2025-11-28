@@ -8,7 +8,7 @@ export function ProjectNodeDetail() {
   const { projectId, nodeId } = useParams<{ projectId: string; nodeId: string }>();
   const location = useLocation();
   const navigate = useNavigate();
-  const isReportRoute = location.pathname.endsWith("/post");
+  const isReportRoute = location.pathname.endsWith("/posts");
   const [activeTab, setActiveTab] = useState<"form" | "report">(isReportRoute ? "report" : "form");
 
   useEffect(() => {
@@ -20,7 +20,7 @@ export function ProjectNodeDetail() {
     if (tab === "form") {
       navigate(`/projects/${projectId}/nodes/${nodeId}`, { replace: true });
     } else {
-      navigate(`/projects/${projectId}/nodes/${nodeId}/post`, { replace: true });
+      navigate(`/projects/${projectId}/nodes/${nodeId}/posts`, { replace: true });
     }
   };
 

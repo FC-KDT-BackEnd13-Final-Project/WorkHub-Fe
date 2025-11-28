@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { Card2, CardContent } from "./ui/card2";
 import {
   Table2,
@@ -153,6 +153,7 @@ export function CustomerReport2() {
   const [customers] = useState<Customer[]>(mockCustomers);
   const [isWriting, setIsWriting] = useState(false);
   const navigate = useNavigate();
+  const { projectId, nodeId } = useParams<{ projectId?: string; nodeId?: string }>();
 
   // 검색 필터
   const filteredCustomers = customers.filter((customer) => {
@@ -251,15 +252,19 @@ export function CustomerReport2() {
 
                 <TableBody>
                   {paginatedRows.map((customer, index) => (
-                      <TableRow
-                          key={customer.id}
-                          className="cursor-pointer"
-                          onClick={() =>
-                              navigate(`/projectpost/${customer.id}`, {
-                                state: { post: customer },
-                              })
-                          }
-                      >
+                    <TableRow
+                      key={customer.id}
+                      className="cursor-pointer"
+                      onClick={() => {
+                        const targetPath =
+                          projectId && nodeId
+                            ? `/projects/${projectId}/nodes/${nodeId}/posts/${customer.id}`
+                            : `/projectpost/${customer.id}`;
+                        navigate(targetPath, {
+                          state: { post: customer },
+                        });
+                      }}
+                    >
                         {/* No (전체 인덱스 유지) */}
                         <TableCell className="px-6 py-2 whitespace-nowrap">
                           {indexOfFirstItem + index + 1}

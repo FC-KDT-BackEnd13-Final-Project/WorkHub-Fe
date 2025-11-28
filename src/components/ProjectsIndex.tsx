@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
 import { Input } from "./ui/input";
 import { Button } from "./ui/button";
@@ -97,7 +97,6 @@ export function ProjectsIndex() {
   const [currentManagerInput, setCurrentManagerInput] = useState("");
   const [currentDeveloperInput, setCurrentDeveloperInput] = useState("");
   const navigate = useNavigate();
-  const location = useLocation();
 
   const addManager = () => {
     if (currentManagerInput.trim() && !newProject.managers.includes(currentManagerInput.trim())) {
@@ -152,35 +151,6 @@ export function ProjectsIndex() {
     return date.toISOString().split("T")[0]!;
   };
 
-  const openProjectModal = useCallback(() => {
-    if (!isProjectModalOpen) {
-      setIsProjectModalOpen(true);
-    }
-    const params = new URLSearchParams(location.search);
-    if (params.get("newProject") !== "true") {
-      params.set("newProject", "true");
-      navigate(`${location.pathname}?${params.toString()}`, { replace: true });
-    }
-  }, [isProjectModalOpen, location.pathname, location.search, navigate]);
-
-  const closeProjectModal = useCallback(() => {
-    if (isProjectModalOpen) {
-      setIsProjectModalOpen(false);
-    }
-    const params = new URLSearchParams(location.search);
-    if (params.has("newProject")) {
-      params.delete("newProject");
-      const search = params.toString();
-      navigate(search ? `${location.pathname}?${search}` : location.pathname, { replace: true });
-    }
-  }, [isProjectModalOpen, location.pathname, location.search, navigate]);
-
-  useEffect(() => {
-    const params = new URLSearchParams(location.search);
-    const shouldOpen = params.get("newProject") === "true";
-    setIsProjectModalOpen(shouldOpen);
-  }, [location.search]);
-
   const handleCreateProject = () => {
     if (!newProject.name || !newProject.brand || newProject.managers.length === 0) return; // Managers required
     if (!newProject.startDate || !newProject.endDate) return;
@@ -211,13 +181,13 @@ export function ProjectsIndex() {
     });
     setCurrentManagerInput("");
     setCurrentDeveloperInput("");
-    closeProjectModal();
+    setIsProjectModalOpen(false); // Close modal directly
   };
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
-        closeProjectModal();
+        setIsProjectModalOpen(false); // Close modal directly
       }
     };
 
@@ -228,7 +198,7 @@ export function ProjectsIndex() {
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [closeProjectModal, isProjectModalOpen]);
+  }, [isProjectModalOpen]);
 
   return (
     <div className="space-y-6">
@@ -412,7 +382,7 @@ export function ProjectsIndex() {
                   </div>
                   </div>
                   <div className="mt-6 pt-6 flex justify-between gap-2">
-                    <Button variant="secondary" className="w-1/2" onClick={closeProjectModal}>
+                    <Button variant="secondary" className="w-1/2" onClick={() => setIsProjectModalOpen(false)}>
                       Cancel
                     </Button>
                     <Button className="w-1/2" onClick={handleCreateProject}>
@@ -454,7 +424,7 @@ export function ProjectsIndex() {
             ))}
           </SelectContent>
         </Select>
-        <Button className="h-9 px-4 text-sm md:w-auto" onClick={openProjectModal}>
+        <Button className="h-9 px-4 text-sm md:w-auto" onClick={() => setIsProjectModalOpen(true)}>
           + New Project
         </Button>
       </div>
