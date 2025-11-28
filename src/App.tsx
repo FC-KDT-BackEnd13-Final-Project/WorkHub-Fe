@@ -16,7 +16,6 @@ import { AdminUsers } from "./components/admin/AdminUsers";
 import { AdminUserCreate } from "./components/admin/AdminUserCreate";
 import { AdminUserSuccess } from "./components/admin/AdminUserSuccess";
 import { AdminUserDetail } from "./components/admin/AdminUserDetail";
-import { AdminHistory } from "./components/admin/AdminHistory";
 import { AdminPasswordReset } from "./components/admin/AdminPasswordReset";
 import { AdminUserHistory } from "./components/admin/AdminUserHistory";
 import { AdminUserProjects } from "./components/admin/AdminUserProjects";
@@ -65,15 +64,16 @@ export default function App() {
               element={isAuthenticated ? <ProjectNodesBoard /> : <Navigate to="/" replace />}
             />
             <Route
-              path="/projects/:projectId/nodesnew"
+              path="/projects/:projectId/nodes/new"
               element={isAuthenticated ? <ProjectNodesBoard /> : <Navigate to="/" replace />}
             />
+
             <Route
               path="/projects/:projectId/nodes/:nodeId"
               element={isAuthenticated ? <ProjectNodeDetail /> : <Navigate to="/" replace />}
             />
             <Route
-              path="/projects/:projectId/nodes/:nodeId/post"
+              path="/projects/:projectId/nodes/:nodeId/posts"
               element={isAuthenticated ? <ProjectNodeDetail /> : <Navigate to="/" replace />}
             />
             <Route
@@ -97,6 +97,18 @@ export default function App() {
               element={isAuthenticated ? <AdminUserDetail /> : <Navigate to="/" replace />}
             />
             <Route
+              path="/admin/users/:userId/change-role"
+              element={isAuthenticated ? <AdminUserDetail /> : <Navigate to="/" replace />}
+            />
+            <Route
+              path="/admin/users/:userId/init-password"
+              element={isAuthenticated ? <AdminUserDetail /> : <Navigate to="/" replace />}
+            />
+            <Route
+              path="/admin/users/:userId/remove-user"
+              element={isAuthenticated ? <AdminUserDetail /> : <Navigate to="/" replace />}
+            />
+            <Route
               path="/admin/users/:userId/history"
               element={isAuthenticated ? <AdminUserHistory /> : <Navigate to="/" replace />}
             />
@@ -111,10 +123,6 @@ export default function App() {
             <Route
               path="/settings"
               element={isAuthenticated ? <SettingsPage /> : <Navigate to="/" replace />}
-            />
-            <Route
-              path="/admin/history"
-              element={isAuthenticated ? <AdminHistory /> : <Navigate to="/" replace />}
             />
             <Route
               path="/admin/password"
@@ -138,6 +146,10 @@ export default function App() {
             />
             <Route
               path="/projectpost/:postId"
+              element={isAuthenticated ? <ProjectPostDetail /> : <Navigate to="/" replace />}
+            />
+            <Route
+              path="/projects/:projectId/nodes/:nodeId/posts/:postId"
               element={isAuthenticated ? <ProjectPostDetail /> : <Navigate to="/" replace />}
             />
           </Route>
