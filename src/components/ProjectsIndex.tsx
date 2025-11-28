@@ -131,10 +131,14 @@ export function ProjectsIndex() {
       const matchesStatus =
         statusFilter === "All Status" || project.status === statusFilter;
       const term = searchTerm.toLowerCase();
+      const managerText = project.manager?.toLowerCase() ||
+        (Array.isArray(project.managers)
+          ? project.managers.join(", ").toLowerCase()
+          : "");
       const matchesSearch =
         project.name.toLowerCase().includes(term) ||
         project.brand.toLowerCase().includes(term) ||
-        project.manager.toLowerCase().includes(term); // Keep manager for existing project display
+        managerText.includes(term);
       return matchesStatus && matchesSearch;
     });
   }, [projects, searchTerm, statusFilter]);
@@ -413,7 +417,7 @@ export function ProjectsIndex() {
           value={statusFilter}
           onValueChange={(value) => setStatusFilter(value as (typeof statusOptions)[number])}
         >
-          <SelectTrigger className="h-9 rounded-md border border-border bg-input-background px-3 py-1 md:w-52">
+          <SelectTrigger className="h-9 rounded-md bg-input-background px-3 py-1 md:w-52">
             <SelectValue placeholder="All Status" />
           </SelectTrigger>
           <SelectContent>

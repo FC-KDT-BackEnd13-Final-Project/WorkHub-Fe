@@ -9,11 +9,11 @@ import {
   TableHeader,
   TableRow,
 } from "./ui/table2";
-import { Search } from "lucide-react";
 import { Input2 } from "./ui/input2";
 import { Button2 } from "./ui/button2";
-import { Badge2 } from "./ui/badge2";
 import { RichTextDemo } from "./RichTextDemo";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
+import { Search } from "lucide-react";
 
 interface Customer {
   id: string;
@@ -150,6 +150,7 @@ const mockCustomers: Customer[] = [
 
 export function CustomerReport2() {
   const [searchTerm, setSearchTerm] = useState("");
+  const [typeFilter, setTypeFilter] = useState<"all" | "notice" | "question" | "general">("all");
   const [customers] = useState<Customer[]>(mockCustomers);
   const [isWriting, setIsWriting] = useState(false);
   const navigate = useNavigate();
@@ -158,11 +159,14 @@ export function CustomerReport2() {
   // 검색 필터
   const filteredCustomers = customers.filter((customer) => {
     const term = searchTerm.toLowerCase().trim();
-    if (!term) return true;
+    const matchesType = typeFilter === "all" || customer.type === typeFilter;
+    if (!term) return matchesType;
+    const title = customer.title?.toLowerCase() ?? "";
+    const content = customer.content?.toLowerCase() ?? "";
+    const name = customer.customerName?.toLowerCase() ?? "";
     return (
-        customer.customerName.toLowerCase().includes(term) ||
-        customer.title.toLowerCase().includes(term) ||
-        customer.content.toLowerCase().includes(term)
+      matchesType &&
+      (name.includes(term) || title.includes(term) || content.includes(term))
     );
   });
 
@@ -207,29 +211,31 @@ export function CustomerReport2() {
   return (
       <div className="w-full max-w-[1800px] mx-auto p-6 space-y-6">
         {/* Header */}
-        <div className="flex flex-col sm:flex-row gap-4 items-end">
-          {/* 검색어 창 */}
-          <div className="flex-1">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground h-4 w-4" />
-              <Input2
-                  id="search"
-                  style={{ paddingLeft: "2.5rem" }}
-                  placeholder="검색어를 입력하세요."
-                  value={searchTerm}
-                  onChange={(e) => {
-                    setSearchTerm(e.target.value);
-                    setCurrentPage(1); // 검색어 바뀌면 1페이지로 리셋
-                  }}
-                  className="pl-10"
-              />
-            </div>
-          </div>
-          {/* 검색, 글쓰기 버튼 */}
-          <div className="flex gap-2">
-            <Button2 className="flex items-center gap-2">검색</Button2>
-            <Button2 className="flex items-center gap-2" onClick={() => setIsWriting(true)}>글쓰기</Button2>
-          </div>
+        <div className="flex flex-col gap-4 rounded-2xl bg-white p-4 shadow-sm md:flex-row md:items-center">
+          <Input2
+            id="search"
+            placeholder="Search projects..."
+            value={searchTerm}
+            onChange={(e) => {
+              setSearchTerm(e.target.value);
+              setCurrentPage(1);
+            }}
+            className="md:flex-1"
+          />
+          <Select value={typeFilter} onValueChange={(value) => setTypeFilter(value as typeof typeFilter)}>
+            <SelectTrigger className="h-9 rounded-md border border-border bg-input-background px-3 py-1 md:w-52">
+              <SelectValue placeholder="모든 타입" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">전체</SelectItem>
+              <SelectItem value="notice">공지</SelectItem>
+              <SelectItem value="question">질문</SelectItem>
+              <SelectItem value="general">일반</SelectItem>
+            </SelectContent>
+          </Select>
+          <Button2 className="h-9 px-4 text-sm md:w-auto" onClick={() => setIsWriting(true)}>
+            문의 작성
+          </Button2>
         </div>
 
         {/* 게시판 목록 */}
@@ -246,7 +252,6 @@ export function CustomerReport2() {
                     <TableHead>내용</TableHead>
                     <TableHead>생성일</TableHead>
                     <TableHead>수정일</TableHead>
-                    <TableHead>해시태그</TableHead>
                   </TableRow>
                 </TableHeader>
 
@@ -331,10 +336,6 @@ export function CustomerReport2() {
                           )}
                         </TableCell>
 
-                        {/* 해시태그 */}
-                        <TableCell className="px-3 py-2 whitespace-nowrap">
-                          <Badge2 variant="outline">{customer.hashtag}</Badge2>
-                        </TableCell>
                       </TableRow>
                   ))}
                 </TableBody>
