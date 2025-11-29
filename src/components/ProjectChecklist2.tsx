@@ -87,46 +87,7 @@ export function ProjectChecklist2() {
                 </div>
               </div>
 
-              {/* Row 2: 시작일 + 종료일 */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* 시작일 */}
-                <div className="space-y-2">
-                  <Label2 htmlFor="startDate">시작일</Label2>
-                  <Input2
-                      id="startDate"
-                      type="date"
-                      {...register("startDate", {
-                        required: "시작일은 필수입니다."
-                      })}
-                      className={errors.startDate ? "border-destructive" : ""}
-                  />
-                  {errors.startDate && (
-                      <p className="text-sm text-destructive">
-                        {errors.startDate.message}
-                      </p>
-                  )}
-                </div>
-
-                {/* 종료일 */}
-                <div className="space-y-2">
-                  <Label2 htmlFor="endDate">종료일</Label2>
-                  <Input2
-                      id="endDate"
-                      type="date"
-                      {...register("endDate", {
-                        required: "종료일은 필수입니다."
-                      })}
-                      className={errors.endDate ? "border-destructive" : ""}
-                  />
-                  {errors.endDate && (
-                      <p className="text-sm text-destructive">
-                        {errors.endDate.message}
-                      </p>
-                  )}
-                </div>
-              </div>
-
-              {/* Row 3: 요청사항 */}
+              {/* Row 2: 요청사항 */}
               <div className="space-y-2">
                 <Label2 htmlFor="request" className="flex items-center gap-1">
                   요청사항
@@ -145,7 +106,7 @@ export function ProjectChecklist2() {
                 )}
               </div>
 
-              {/* Row 4: 체크리스트 */}
+              {/* Row 3: 체크리스트 */}
               <FormQuestion2 resetSignal ={questionResetKey} />
 
               {/* submit: Save + Reset 버튼 */}
