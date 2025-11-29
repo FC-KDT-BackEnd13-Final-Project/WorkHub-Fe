@@ -8,7 +8,7 @@ interface NavigationProps {
   onTabChange: (tab: "form" | "report") => void;
 }
 
-export function CustomerMenu2({ activeTab, onTabChange }: NavigationProps) {
+export function ProjectMenu2({ activeTab, onTabChange }: NavigationProps) {
   return (
       <Card2 className="mb-6 pb-6">
         <CardContent className="pt-6">

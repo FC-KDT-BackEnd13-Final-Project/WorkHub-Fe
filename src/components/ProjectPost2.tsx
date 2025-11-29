@@ -148,7 +148,7 @@ const mockCustomers: Customer[] = [
   },
 ];
 
-export function CustomerReport2() {
+export function ProjectPost2() {
   const [searchTerm, setSearchTerm] = useState("");
   const [typeFilter, setTypeFilter] = useState<"all" | "notice" | "question" | "general">("all");
   const [customers] = useState<Customer[]>(mockCustomers);

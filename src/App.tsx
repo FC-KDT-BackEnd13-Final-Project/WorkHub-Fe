@@ -6,9 +6,9 @@ import { Dashboard } from "./components/Dashboard";
 import { ProjectsIndex } from "./components/ProjectsIndex";
 import { ProjectNodesBoard } from "./components/ProjectNodesBoard";
 import { ProjectNodeDetail } from "./components/ProjectNodeDetail";
-import { CustomerMenu2 } from "./components/CustomerMenu2";
-import { CustomerForm2 } from "./components/CustomerForm2";
-import { CustomerReport2 } from "./components/CustomerReport2";
+import { ProjectMenu2 } from "./components/ProjectMenu2";
+import { ProjectChecklist2 } from "./components/ProjectChecklist2";
+import { ProjectPost2 } from "./components/ProjectPost2";
 import { Sidebar } from "./components/Sidebar";
 import { Toaster } from "./components/ui/sonner";
 import { ProjectPostDetail } from "./components/ProjectPostDetail";
@@ -191,11 +191,11 @@ function ProjectDetailPage({ type }: { type: "form" | "report" }) {
         <div className="pt-8 pb-12">
             <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
                 <div className="mb-6 pt-6">
-                    <CustomerMenu2 activeTab={activeTab} onTabChange={setActiveTab} />
+                    <ProjectMenu2 activeTab={activeTab} onTabChange={setActiveTab} />
                 </div>
 
                 <div>
-                    {activeTab === "form" ? <CustomerForm2 /> : <CustomerReport2 />}
+                    {activeTab === "form" ? <ProjectChecklist2 /> : <ProjectPost2 />}
                 </div>
             </div>
         </div>
