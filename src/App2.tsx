@@ -1,7 +1,7 @@
 import { useState } from "react";
-import { CustomerForm2 } from "./components/CustomerForm2";
-import { CustomerReport2 } from "./components/CustomerReport2";
-import { CustomerMenu2 } from "./components/CustomerMenu2";
+import { ProjectChecklist2 } from "./components/ProjectChecklist2";
+import { ProjectPost2 } from "./components/ProjectPost2";
+import { ProjectMenu2 } from "./components/ProjectMenu2";
 
 export default function App2() {
   const [activeTab, setActiveTab] = useState<"form" | "report">("form");
@@ -9,10 +9,10 @@ export default function App2() {
   return (
     <div className="min-h-screen bg-background">
       <div className="container mx-auto py-8">
-        <CustomerMenu2 activeTab={activeTab} onTabChange={setActiveTab} />
+        <ProjectMenu2 activeTab={activeTab} onTabChange={setActiveTab} />
         
-        {activeTab === "form" && <CustomerForm2 />}
-        {activeTab === "report" && <CustomerReport2 />}
+        {activeTab === "form" && <ProjectChecklist2 />}
+        {activeTab === "report" && <ProjectPost2 />}
       </div>
     </div>
   );

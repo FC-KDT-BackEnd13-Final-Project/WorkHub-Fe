@@ -7,7 +7,7 @@ import { Button2 } from "./ui/button2";
 import { FormQuestion2 } from "./ui/FormQuestion2";
 import { useState } from "react";
 
-interface CustomerFormData {
+interface ChecklistData {
   Name: string;
   mobile: string;
   startDate: string;
@@ -15,15 +15,15 @@ interface CustomerFormData {
   request: string;
 }
 
-export function CustomerForm2() {
+export function ProjectChecklist2() {
   const {
     register,
     handleSubmit,
     formState: { errors },
     reset
-  } = useForm<CustomerFormData>();
+  } = useForm<ChecklistData>();
 
-  const onSubmit = (data: CustomerFormData) => {
+  const onSubmit = (data: ChecklistData) => {
     console.log("Customer Data:", data);
     alert("저장 완료!");
   };

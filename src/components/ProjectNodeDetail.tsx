@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams, useLocation } from "react-router-dom";
-import { CustomerMenu2 } from "./CustomerMenu2";
-import { CustomerForm2 } from "./CustomerForm2";
-import { CustomerReport2 } from "./CustomerReport2";
+import { ProjectMenu2 } from "./ProjectMenu2";
+import { ProjectChecklist2 } from "./ProjectChecklist2";
+import { ProjectPost2 } from "./ProjectPost2";
 
 export function ProjectNodeDetail() {
   const { projectId, nodeId } = useParams<{ projectId: string; nodeId: string }>();
@@ -28,9 +28,9 @@ export function ProjectNodeDetail() {
     <div className="pt-8 pb-12">
       <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
         <div className="mb-6 pt-6">
-          <CustomerMenu2 activeTab={activeTab} onTabChange={handleTabChange} />
+          <ProjectMenu2 activeTab={activeTab} onTabChange={handleTabChange} />
         </div>
-        <div>{activeTab === "form" ? <CustomerForm2 /> : <CustomerReport2 />}</div>
+        <div>{activeTab === "form" ? <ProjectChecklist2 /> : <ProjectPost2 />}</div>
       </div>
     </div>
   );
