@@ -17,16 +17,14 @@ interface ChecklistGroup {
     locked: boolean;
 }
 
-// CustomerForm에서 내려주는 prop 타입 추가
 interface FormQuestionProps {
     resetSignal: number;
 }
 
-// 체크리스트 카드 하나의 초기 상태
 const createChecklistGroup = (id: number): ChecklistGroup => ({
     id,
     title: "",
-    rules: Array(6).fill(""), // check list 1 ~ 6
+    rules: Array(6).fill(""), // check list 1 ~ 6 기본
     selectedIndexes: [],
     evidences: {},
     comment: "",
@@ -36,22 +34,21 @@ const createChecklistGroup = (id: number): ChecklistGroup => ({
 });
 
 export function FormQuestion2({ resetSignal }: FormQuestionProps) {
-    // 여러 개의 체크리스트 카드 관리
     const [groups, setGroups] = useState<ChecklistGroup[]>([
         createChecklistGroup(1),
     ]);
 
-    // resetSignal이 바뀔 때마다 상태 초기화
+    // RESET
     useEffect(() => {
-        setGroups([createChecklistGroup(1)]); // 카드 하나만, 완전 초기 상태로
+        setGroups([createChecklistGroup(1)]);
     }, [resetSignal]);
 
-    // 카드(체크리스트 전체) 추가
+    // 체크리스트 카드 추가
     const handleAddGroup = () => {
         setGroups((prev) => [...prev, createChecklistGroup(prev.length + 1)]);
     };
 
-    // 카드(체크리스트 전체) 제거 – 최소 1개는 남기기
+    // 체크리스트 카드 제거
     const handleRemoveGroup = () => {
         setGroups((prev) => (prev.length <= 1 ? prev : prev.slice(0, -1)));
     };
@@ -59,29 +56,27 @@ export function FormQuestion2({ resetSignal }: FormQuestionProps) {
     const toggleComment = (groupIndex: number) => {
         setGroups((prev) =>
             prev.map((g, i) =>
-                i === groupIndex ? { ...g, isCommentOpen: !g.isCommentOpen } : g,
-            ),
+                i === groupIndex ? { ...g, isCommentOpen: !g.isCommentOpen } : g
+            )
         );
     };
 
     const updateComment = (groupIndex: number, value: string) => {
         setGroups((prev) =>
             prev.map((g, i) =>
-                i === groupIndex ? { ...g, comment: value } : g,
-            ),
+                i === groupIndex ? { ...g, comment: value } : g
+            )
         );
     };
 
     return (
         <div>
-            {/* 상단 제목 + 카드 전체 추가/삭제 버튼 */}
+            {/* 상단: 체크리스트 전체 + / - */}
             <div className="flex items-center justify-between mb-2">
-                {/* 상단 제목 */}
                 <Label2 className="flex items-center gap-1 text-sm font-medium">
                     체크리스트
                 </Label2>
 
-                {/* 카드 전체 추가/삭제 버튼 */}
                 <div className="flex items-center gap-1">
                     <button
                         type="button"
@@ -108,7 +103,6 @@ export function FormQuestion2({ resetSignal }: FormQuestionProps) {
                         className="border border-border/60 shadow-none bg-muted/40"
                     >
                         <CardContent className="pt-4">
-                            {/* 체크리스트 본문(CheckboxQuestion2 불러옴) */}
                             <CheckboxQuestion2
                                 titleValue={group.title}
                                 onTitleChange={(value) =>
@@ -154,65 +148,127 @@ export function FormQuestion2({ resetSignal }: FormQuestionProps) {
                                         }),
                                     )
                                 }
+
+                                onAddOption={() =>
+                                    setGroups((prev) =>
+                                        prev.map((g, i) =>
+                                            i === groupIndex
+                                                ? { ...g, rules: [...g.rules, ""] } // 새 항목 하나 추가
+                                                : g,
+                                        ),
+                                    )
+                                }
+                                onRemoveOption={(removeIndex) =>
+                                    setGroups((prev) =>
+                                        prev.map((g, i) => {
+                                            if (i !== groupIndex) return g;
+                                            if (g.rules.length <= 1) return g; // 최소 한 개는 남기기
+
+                                            // 1) rules에서 해당 인덱스 제거
+                                            const newRules = g.rules.filter((_, idx) => idx !== removeIndex);
+
+                                            // 2) 체크된 인덱스 재정렬
+                                            const newSelected = g.selectedIndexes
+                                                .filter((idx) => idx !== removeIndex)
+                                                .map((idx) => (idx > removeIndex ? idx - 1 : idx));
+
+                                            // 3) evidences 키 재정렬
+                                            const prefix = `preCheck-${g.id}-`;
+                                            const newEvidences: Record<string, File[]> = {};
+
+                                            for (const [key, files] of Object.entries(g.evidences)) {
+                                                // prefix랑 상관 없는 건 그대로 복사
+                                                if (!key.startsWith(prefix)) {
+                                                    newEvidences[key] = files;
+                                                    continue;
+                                                }
+
+                                                const indexStr = key.slice(prefix.length);
+                                                const oldIndex = Number(indexStr);
+
+                                                // 숫자로 파싱이 안 되면 그냥 놔둠
+                                                if (Number.isNaN(oldIndex)) {
+                                                    newEvidences[key] = files;
+                                                    continue;
+                                                }
+
+                                                // 지워진 인덱스면 건너뛰기 (=> 증거도 같이 삭제)
+                                                if (oldIndex === removeIndex) {
+                                                    continue;
+                                                }
+
+                                                // 그 뒤에 있던 인덱스는 -1 해줌
+                                                const newIndex = oldIndex > removeIndex ? oldIndex - 1 : oldIndex;
+                                                const newKey = `${prefix}${newIndex}`;
+                                                newEvidences[newKey] = files;
+                                            }
+
+                                            return {
+                                                ...g,
+                                                rules: newRules,
+                                                selectedIndexes: newSelected,
+                                                evidences: newEvidences,
+                                            };
+                                        }),
+                                    )
+                                }
                             />
 
-                            {/* 하단 버튼 + 코멘트 영역 */}
+                            {/* 하단: 코멘트 / 버튼 영역 */}
                             <div className="mt-2 mb-2 flex items-center justify-between w-full gap-4">
                                 {/* 말풍선 버튼 */}
                                 <button
                                     type="button"
                                     onClick={() => toggleComment(groupIndex)}
                                     className="h-8 w-8 flex items-center justify-center rounded-md border border-border bg-background hover:bg-muted transition-colors"
-                                    aria-label="코멘트 작성"
                                 >
                                     <MessagesSquare className="h-4 w-4 text-muted-foreground" />
                                 </button>
 
-                                {/* 동의 버튼 */}
+                                {/* 동의 / 보류 버튼 */}
                                 <div className="flex items-center gap-1 ml-auto">
+                                    {/* 동의 */}
                                     <button
                                         type="button"
-                                        className={`h-9 px-4 text-sm flex items-center justify-center rounded-md border transition-colors ${
+                                        disabled={group.locked}
+                                        className={`h-9 px-4 text-sm rounded-md border ${
                                             group.status === "approved"
                                                 ? "bg-primary text-primary-foreground border-primary"
-                                                : "border-border bg-background text-foreground hover:bg-muted"
-                                        } ${group.locked ? "cursor-not-allowed opacity-70" : ""}`}
+                                                : "bg-background border-border hover:bg-muted"
+                                        } ${group.locked ? "opacity-70" : ""}`}
                                         onClick={() => {
                                             if (group.locked) return;
-                                            const confirmed = window.confirm("‘동의’로 확정하시겠습니까?\n" +
-                                                "확정 후에는 상태를 변경할 수 없습니다.");
-                                            if (!confirmed) return;
+                                            if (!confirm("‘동의’로 확정하시겠습니까?")) return;
                                             setGroups((prev) =>
                                                 prev.map((g, i) =>
                                                     i === groupIndex
                                                         ? { ...g, status: "approved", locked: true }
-                                                        : g,
-                                                ),
+                                                        : g
+                                                )
                                             );
                                         }}
                                     >
                                         동의
                                     </button>
 
-                                    {/* 보류 버튼 */}
+                                    {/* 보류 */}
                                     <button
                                         type="button"
-                                        className={`h-9 px-4 text-sm flex items-center justify-center rounded-md border transition-colors ${
+                                        disabled={group.locked}
+                                        className={`h-9 px-4 text-sm rounded-md border ${
                                             group.status === "hold"
                                                 ? "bg-primary text-primary-foreground border-primary"
-                                                : "border-border bg-background text-foreground hover:bg-muted"
-                                        } ${group.locked ? "cursor-not-allowed opacity-70" : ""}`}
+                                                : "bg-background border-border hover:bg-muted"
+                                        } ${group.locked ? "opacity-70" : ""}`}
                                         onClick={() => {
                                             if (group.locked) return;
-                                            const confirmed = window.confirm("‘보류’로 확정하시겠습니까?\n" +
-                                                "확정 후에는 상태를 변경할 수 없습니다.");
-                                            if (!confirmed) return;
+                                            if (!confirm("‘보류’로 확정하시겠습니까?")) return;
                                             setGroups((prev) =>
                                                 prev.map((g, i) =>
                                                     i === groupIndex
                                                         ? { ...g, status: "hold", locked: true }
-                                                        : g,
-                                                ),
+                                                        : g
+                                                )
                                             );
                                         }}
                                     >
@@ -223,7 +279,6 @@ export function FormQuestion2({ resetSignal }: FormQuestionProps) {
 
                             {group.isCommentOpen && (
                                 <div className="mt-3 pb-6">
-                                    {/* 코멘트 입력 창 */}
                                     <Textarea2
                                         value={group.comment}
                                         onChange={(e) =>
