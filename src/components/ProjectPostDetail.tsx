@@ -4,7 +4,7 @@ import { Card2, CardContent } from "./ui/card2";
 import { Badge2 } from "./ui/badge2";
 import { Button2 } from "./ui/button2";
 import { Textarea2 } from "./ui/textarea2";
-import { MoreVertical, Pencil, Trash2 } from "lucide-react";
+import {MoreVertical, Pencil, Trash2, CornerDownRight} from "lucide-react";
 
 interface PostPayload {
     id: string;
@@ -292,12 +292,6 @@ export function ProjectPostDetail({
                                 </div>
                             )}
                         </div>
-                        <h1 className="text-2xl font-semibold">{post.title}</h1>
-                        <div className="text-sm text-muted-foreground flex flex-wrap gap-3">
-                            <span>작성자: {post.customerName}</span>
-                            <span>작성일: {post.createdDate}</span>
-                            <span>수정일: {post.updatedDate}</span>
-                        </div>
 
                         {/* 내용 or 수정 모드 */}
                         {comment.isEditing ? (
@@ -330,12 +324,12 @@ export function ProjectPostDetail({
                                 </div>
                             </div>
                         ) : (
-                            <p className="mt-2 text-sm whitespace-pre-line">{comment.content}</p>
+                            <p className="text-sm whitespace-pre-line">{comment.content}</p>
                         )}
 
                         {/* 이 댓글에 대한 답글 입력창 */}
                         {comment.showReply && (
-                            <div className="mt-3 space-y-2">
+                            <div className="mt-2 space-y-2">
                                 <Textarea2
                                     rows={2}
                                     placeholder="답글을 입력하세요"
@@ -369,8 +363,8 @@ export function ProjectPostDetail({
                     {/* 대댓글들 */}
                     {replies.map((reply) => (
                         <div key={reply.id} className="flex gap-2 pl-10">
-                            {/* ㄴ 표시 */}
-                            <div className="pt-4 text-lg text-muted-foreground">ㄴ</div>
+                            {/* 대댓글 아이콘 표시 */}
+                            <CornerDownRight className="w-4 h-4 text-muted-foreground mt-4" />
 
                             <div className="flex-1 border-b border-border pb-6 pt-4">
                                 {/* 상단: 작성자 / 시간 / ⋮ 메뉴 */}
@@ -642,7 +636,14 @@ export function ProjectPostDetail({
                 </CardContent>
             </Card2>
             {showBackButton && (
-                <div className="mt-4 flex w-full">
+                <div className="mt-2 flex w-full justify-between">
+                    <Button2
+                        variant="outline"
+                        onClick={() => navigateBackToList()}
+                        className="ml-auto w-auto"
+                    >
+                        답글쓰기
+                    </Button2>
                     <Button2
                         variant="outline"
                         onClick={() => navigateBackToList()}
