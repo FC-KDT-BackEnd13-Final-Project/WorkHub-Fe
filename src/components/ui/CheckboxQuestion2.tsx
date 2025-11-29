@@ -16,20 +16,24 @@ interface CheckboxQuestionProps {
     onEvidenceUpload: (id: string, files: File[]) => void;
     fieldName: string;
     onOptionChange: (index: number, newValue: string) => void;
+
+    onAddOption: () => void;
+    onRemoveOption: (index: number) => void;
 }
 
 export function CheckboxQuestion2({
-                                     titleValue,
-                                     onTitleChange,
-                                     options,
-                                     selectedIndexes,
-                                     onSelectionChange,
-                                     evidences,
-                                     onEvidenceUpload,
-                                     fieldName,
-                                     onOptionChange,
-                                 }: CheckboxQuestionProps) {
-    // 각 체크 항목 텍스트 영역 auto-resize
+                                      titleValue,
+                                      onTitleChange,
+                                      options,
+                                      selectedIndexes,
+                                      onSelectionChange,
+                                      evidences,
+                                      onEvidenceUpload,
+                                      fieldName,
+                                      onOptionChange,
+                                      onAddOption,
+                                      onRemoveOption,
+                                  }: CheckboxQuestionProps) {
     const textareaRefs = useRef<(HTMLTextAreaElement | null)[]>([]);
 
     const autoResize = (index: number) => {
@@ -53,35 +57,64 @@ export function CheckboxQuestion2({
                 placeholder="제목을 입력하세요"
             />
 
-            {/* 체크 항목들: 2열 레이아웃 */}
+            {/* 체크 항목: 2열 레이아웃 */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 {options.map((option, index) => {
                     const isChecked = selectedIndexes.includes(index);
                     const evidenceId = `${fieldName}-${index}`;
                     const hasEvidence = evidences[evidenceId]?.length > 0;
+                    const isLast = index === options.length - 1;
 
                     return (
                         <div key={index} className="space-y-2">
-                            {/* 체크박스 + 항목 텍스트 */}
-                            <div className="flex items-center gap-3 rounded-md px-2 py-1 hover:bg-muted/70 transition-colors">
+                            {/* 한 줄: 체크박스 + 입력창 + (마지막 줄이면 + / -) */}
+                            <div className="flex items-center gap-2 px-2 py-1 rounded-md hover:bg-muted/70 transition-colors">
+                                {/* 체크박스 */}
                                 <Checkbox2
                                     id={`${fieldName}-${index}`}
                                     checked={isChecked}
                                     onCheckedChange={(checked) =>
                                         onSelectionChange(index, checked as boolean)
                                     }
+                                    className="shrink-0"
                                 />
 
-                                <Textarea2
-                                    ref={(el) => (textareaRefs.current[index] = el)}
-                                    value={option}
-                                    onChange={(e) => {
-                                        onOptionChange(index, e.target.value);
-                                        autoResize(index);
-                                    }}
-                                    className="flex-1 min-h-[40px] resize-none overflow-hidden"
-                                    placeholder={`check list ${index + 1}`}
-                                />
+                                {/* 입력창 */}
+                                <div className="flex-1">
+                                    <Textarea2
+                                        ref={(el) => (textareaRefs.current[index] = el)}
+                                        value={option}
+                                        onChange={(e) => {
+                                            onOptionChange(index, e.target.value);
+                                            autoResize(index);
+                                        }}
+                                        className="w-full min-h-[38px] resize-none overflow-hidden"
+                                        placeholder={`check list ${index + 1}`}
+                                    />
+                                </div>
+
+                                {/* 마지막 항목에만 세로 + / - 표시 */}
+                                {isLast && (
+                                    <div className="flex flex-col items-center justify-center ml-1 select-none text-sm text-muted-foreground">
+                    <span
+                        role="button"
+                        onClick={onAddOption}
+                        className="cursor-pointer hover:text-foreground leading-none"
+                    >
+                      +
+                    </span>
+                                        <span
+                                            role="button"
+                                            onClick={() => {
+                                                if (options.length <= 1) return; // 최소 한 개는 남기기
+                                                onRemoveOption(index);
+                                            }}
+                                            className="mt-1 cursor-pointer hover:text-foreground leading-none"
+                                        >
+                      -
+                    </span>
+                                    </div>
+                                )}
                             </div>
 
                             {/* 체크된 항목만 EvidenceUpload2 노출 */}

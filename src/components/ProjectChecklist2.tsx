@@ -87,14 +87,14 @@ export function ProjectChecklist2() {
                 </div>
               </div>
 
-              {/* Row 2: 요청사항 */}
+              {/* Row 2: 전달사항 */}
               <div className="space-y-2">
                 <Label2 htmlFor="request" className="flex items-center gap-1">
-                  요청사항
+                  전달사항
                 </Label2>
                 <Textarea2
                     id="request"
-                    placeholder="요청사항을 입력해주세요"
+                    placeholder="전달사항을 입력해주세요"
                     rows={3}
                     {...register("request")}
                     className={errors.request ? "border-destructive" : ""}
