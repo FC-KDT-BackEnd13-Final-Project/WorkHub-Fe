@@ -1,208 +1,195 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import type { ChangeEvent } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "../components/ui/avatar";
-import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 import { Switch } from "../components/ui/switch";
-import { Textarea } from "../components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../components/ui/select";
+import { LoginScreen } from "../components/Login";
 
 export function SettingsPage() {
-  const [notificationSettings, setNotificationSettings] = useState({
-    taskUpdates: true,
-    commentMentions: true,
-    dailyDigest: false,
-    weeklyReport: true,
+  const [profile, setProfile] = useState({
+    id: "asdf1234",
+    email: "asdf1234@example.com",
+    phone: "010-1234-5678",
+    role: "DEVELOPER",
   });
 
-  const [projectDefaults, setProjectDefaults] = useState({
-    template: "Agile sprint",
-    reviewers: "2 approvers",
-    sprintLength: "2 weeks",
-  });
+  const [twoFactorEnabled, setTwoFactorEnabled] = useState(true);
+  const [showResetPassword, setShowResetPassword] = useState(false);
 
-  const [automationNotes, setAutomationNotes] = useState(
-    "Notify me when handoffs are delayed more than 24 hours.",
-  );
+  const handleProfileChange =
+      (field: keyof typeof profile) =>
+          (event: ChangeEvent<HTMLInputElement>) => {
+            setProfile((prev) => ({ ...prev, [field]: event.target.value }));
+          };
 
-  const [apiKey, setApiKey] = useState("workhub_live_9f39d2********");
+  // 프로필 이미지 변경 상태
+  const [photo, setPhoto] = useState("https://i.pravatar.cc/80?img=18");
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handlePhotoChange = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const imageURL = URL.createObjectURL(file);
+    setPhoto(imageURL);
+  };
+
+  const triggerFileSelect = () => {
+    fileInputRef.current?.click();
+  };
+
+  useEffect(() => {
+    if (!showResetPassword) return;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setShowResetPassword(false);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [showResetPassword]);
+
+  const handleChangePasswordClick = () => {
+    setShowResetPassword(true);
+  };
 
   return (
-    <div className="space-y-6 pb-12 pt-6 min-h-0">
-      <div className="flex flex-wrap items-center gap-6 rounded-2xl bg-white p-6 shadow-sm">
-        <Avatar className="size-16">
-          <AvatarImage src="https://i.pravatar.cc/80?img=18" alt="Project Admin" className="object-cover" />
-          <AvatarFallback className="bg-slate-100 text-lg font-semibold text-foreground">PM</AvatarFallback>
-        </Avatar>
-        <div className="space-y-2">
-          <div>
-            <h2 className="text-2xl font-semibold">Workspace Settings</h2>
-            <p className="text-sm text-muted-foreground">
-              Configure preferences for the project management team.
-            </p>
-          </div>
-          <div className="flex flex-wrap gap-2 text-sm">
-            <Badge variant="secondary">Workspace Admin</Badge>
-            <Badge variant="secondary">Nova FinTech</Badge>
-            <span className="text-muted-foreground">Last updated · 5 minutes ago</span>
-          </div>
-        </div>
-      </div>
-
-      <div className="grid gap-6 lg:grid-cols-2 min-h-0">
+      <>
+        <div className="space-y-6 pb-12 pt-6 min-h-0">
+        {/* 프로필 / 기본 정보 카드 */}
         <Card className="rounded-2xl shadow-sm">
           <CardHeader className="border-b pb-4">
-            <CardTitle>Notification Preferences</CardTitle>
-            <CardDescription>Control how project updates reach the admin team.</CardDescription>
+            <CardTitle>Settings</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4 pt-4">
-            {Object.entries(notificationSettings).map(([key, value]) => (
-              <div key={key} className="flex items-center justify-between rounded-xl border px-4 py-3">
-                <div>
-                  <p className="font-medium">
-                    {key === "taskUpdates"
-                      ? "Task status changes"
-                      : key === "commentMentions"
-                        ? "Comment mentions"
-                        : key === "dailyDigest"
-                          ? "Daily digest email"
-                          : "Weekly health report"}
-                  </p>
-                  <p className="text-sm text-muted-foreground">
-                    {key === "taskUpdates"
-                      ? "Trigger Slack alerts when tasks move between stages."
-                      : key === "commentMentions"
-                        ? "Receive push notifications for @mentions."
-                        : key === "dailyDigest"
-                          ? "Send a daily morning summary at 9AM."
-                          : "Send a workspace-wide status email every Friday."}
-                  </p>
-                </div>
-                <Switch
-                  checked={value}
-                  onCheckedChange={(next) =>
-                    setNotificationSettings((prev) => ({
-                      ...prev,
-                      [key]: next,
-                    }))
-                  }
+          <CardContent className="pt-6">
+            <div className="pb-6 flex flex-col gap-6 md:flex-row">
+              {/* 왼쪽: 사진 + Change Photo 버튼 */}
+              <div className="flex flex-col items-center gap-3 md:w-1/4">
+                <Avatar
+                    className="rounded-full"
+                    style={{ width: 80, height: 80 }}
+                >
+                  <AvatarImage
+                      src={photo}
+                      alt="Profile"
+                      className="h-full w-full object-cover"
+                  />
+                  <AvatarFallback>{profile.id.slice(0, 2).toUpperCase()}</AvatarFallback>
+                </Avatar>
+
+                <Button variant="outline" size="sm" onClick={triggerFileSelect}>
+                  Change Photo
+                </Button>
+
+                <input
+                    type="file"
+                    accept="image/*"
+                    ref={fileInputRef}
+                    className="hidden"
+                    onChange={handlePhotoChange}
                 />
               </div>
-            ))}
+
+              {/* 오른쪽: 폼 필드 */}
+              <div className="grid flex-1 gap-4 md:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="id">Id</Label>
+                  <Input
+                      id="id"
+                      value={profile.id}
+                      onChange={handleProfileChange("id")}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="email">Email</Label>
+                  <Input
+                      id="email"
+                      type="email"
+                      value={profile.email}
+                      onChange={handleProfileChange("email")}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="phone">Phone</Label>
+                  <Input
+                      id="phone"
+                      value={profile.phone}
+                      onChange={handleProfileChange("phone")}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="role">Role</Label>
+                  <Select
+                      value={profile.role}
+                      onValueChange={(value) =>
+                          setProfile((prev) => ({ ...prev, role: value }))
+                      }
+                  >
+                    <SelectTrigger id="role">
+                      <SelectValue placeholder="Select role" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="CLIENT">CLIENT</SelectItem>
+                      <SelectItem value="DEVELOPER">DEVELOPER</SelectItem>
+                      <SelectItem value="ADMIN">ADMIN</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </div>
+
+            {/* Save 버튼 – 카드 하단 오른쪽 정렬 */}
+            <div className="mt-6 border-t pt-6" style={{ display: "flex" }}>
+              <Button style={{ marginLeft: "auto" }}>Save Changes</Button>
+            </div>
           </CardContent>
         </Card>
 
+        {/* Security 카드 */}
         <Card className="rounded-2xl shadow-sm">
-          <CardHeader className="border-b pb-4">
-            <CardTitle>Project Defaults</CardTitle>
-            <CardDescription>Templates and guardrails for new project spaces.</CardDescription>
+          <CardHeader className="pb-6">
+            <CardTitle>Security</CardTitle>
+            <p className="text-sm text-muted-foreground">
+              Manage your account security settings
+            </p>
+            <Button
+                size="sm"
+                className="mt-4 w-fit"
+                onClick={handleChangePasswordClick}
+            >
+              Change Password
+            </Button>
           </CardHeader>
-          <CardContent className="space-y-4 pt-4">
-            <div className="space-y-2">
-              <Label htmlFor="template">Default template</Label>
-              <Input
-                id="template"
-                value={projectDefaults.template}
-                onChange={(event) =>
-                  setProjectDefaults((prev) => ({ ...prev, template: event.target.value }))
-                }
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="reviewers">Required reviewers</Label>
-              <Input
-                id="reviewers"
-                value={projectDefaults.reviewers}
-                onChange={(event) =>
-                  setProjectDefaults((prev) => ({ ...prev, reviewers: event.target.value }))
-                }
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="sprint">Sprint length</Label>
-              <Input
-                id="sprint"
-                value={projectDefaults.sprintLength}
-                onChange={(event) =>
-                  setProjectDefaults((prev) => ({ ...prev, sprintLength: event.target.value }))
-                }
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="automation-notes">Automation notes</Label>
-              <Textarea
-                id="automation-notes"
-                value={automationNotes}
-                onChange={(event) => setAutomationNotes(event.target.value)}
-                rows={4}
-              />
-            </div>
-            <div className="flex justify-end gap-2">
-              <Button variant="outline">Reset</Button>
-              <Button>Save defaults</Button>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="rounded-2xl shadow-sm">
-          <CardHeader className="border-b pb-4">
-            <CardTitle>Integrations</CardTitle>
-            <CardDescription>Manage access keys and automation hooks.</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4 pt-4">
-            <div className="space-y-2">
-              <Label htmlFor="api-key">Primary API key</Label>
-              <div className="flex items-center gap-3">
-                <Input id="api-key" value={apiKey} onChange={(event) => setApiKey(event.target.value)} />
-                <Button variant="secondary">Rotate</Button>
-              </div>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="webhook">Webhook endpoint</Label>
-              <Input id="webhook" placeholder="https://hooks.workhub.dev/..." />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="sync">Sync window (hours)</Label>
-              <Input id="sync" type="number" placeholder="e.g. 12" />
-            </div>
-            <div className="flex items-center justify-end gap-2">
-              <Button variant="outline">Disconnect</Button>
-              <Button>Update integrations</Button>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="rounded-2xl shadow-sm lg:col-span-2">
-          <CardHeader className="border-b pb-4">
-            <CardTitle>Workspace Policies</CardTitle>
-            <CardDescription>Shared rules that apply to every project.</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4 pt-4">
-            <div className="grid gap-4 md:grid-cols-3">
-              <div className="rounded-2xl border bg-white/60 px-4 py-3 shadow-sm">
-                <p className="text-sm text-muted-foreground">Required approvers</p>
-                <p className="text-2xl font-semibold">2</p>
-              </div>
-              <div className="rounded-2xl border bg-white/60 px-4 py-3 shadow-sm">
-                <p className="text-sm text-muted-foreground">Auto-archive</p>
-                <p className="text-2xl font-semibold">90 days</p>
-              </div>
-              <div className="rounded-2xl border bg-white/60 px-4 py-3 shadow-sm">
-                <p className="text-sm text-muted-foreground">Escalation SLA</p>
-                <p className="text-2xl font-semibold">4 hrs</p>
-              </div>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="policy-notes">Policy notes</Label>
-              <Textarea id="policy-notes" placeholder="Document change approval process, escalation contacts..." />
-            </div>
-            <div className="flex justify-end">
-              <Button>Save policies</Button>
-            </div>
-          </CardContent>
         </Card>
       </div>
-    </div>
+
+      {showResetPassword && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-end">
+          <div
+              className="absolute inset-0"
+              onClick={() => setShowResetPassword(false)}
+              aria-hidden
+          />
+          <div className="relative z-10 h-full max-w-lg w-full overflow-y-auto bg-white shadow-2xl border-l">
+            <LoginScreen
+                initialResetStage="request"
+                defaultResetId={profile.id}
+                defaultResetEmail={profile.email}
+                onSuccess={() => setShowResetPassword(false)}
+            />
+          </div>
+        </div>
+      )}
+    </>
   );
 }
