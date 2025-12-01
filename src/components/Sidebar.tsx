@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { LayoutDashboard, FolderOpen, Users, Bell, Settings, Menu, X, UserRound } from "lucide-react";
+import { LayoutDashboard, FolderOpen, Users, Bell, Settings, Menu, X, UserRound, LogOut } from "lucide-react";
 import { cn } from "./ui/utils";
 import { Button } from "./ui/button";
 import { initialNotifications } from "../data/notifications";
@@ -63,6 +63,14 @@ export function Sidebar() {
       window.removeEventListener("storage", handleStorage);
     };
   }, []);
+
+  const handleLogout = () => {
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem("workhub:auth", "false");
+    }
+    setIsMobileOpen(false);
+    window.location.href = "/";
+  };
 
   const SidebarContent = ({ isMobile }: { isMobile?: boolean }) => (
     <div className="flex h-full flex-col">
@@ -132,15 +140,18 @@ export function Sidebar() {
             </Button>
           );
         })}
-      </nav>
-      <div className="p-6">
         <Button
           variant="ghost"
-          className={cn("w-full justify-center text-sm text-muted-foreground hover:text-foreground", collapsed && !isMobile && "px-2")}
+          className={cn(
+            "flex w-full items-center gap-3 text-sm transition-all hover:text-foreground",
+            collapsed && !isMobile ? "justify-center px-2" : "justify-start",
+          )}
+          onClick={handleLogout}
         >
-          {!collapsed ? "Logout" : "⎋"}
+          <LogOut className="h-4 w-4" />
+          {!collapsed && <span className="flex-1 text-left font-normal">Logout</span>}
         </Button>
-      </div>
+      </nav>
     </div>
   );
 
