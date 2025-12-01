@@ -8,17 +8,25 @@ import { Label } from './ui/label'
 
 interface LoginScreenProps {
     onSuccess?: () => void;
+    initialResetStage?: 'login' | 'request' | 'verify' | 'newPassword';
+    defaultResetId?: string;
+    defaultResetEmail?: string;
 }
 
-export function LoginScreen({ onSuccess }: LoginScreenProps) {
+export function LoginScreen({
+    onSuccess,
+    initialResetStage = 'login',
+    defaultResetId = '',
+    defaultResetEmail = '',
+}: LoginScreenProps) {
     const [userId, setUserId] = useState('')
     const [password, setPassword] = useState('')
     const [showPassword, setShowPassword] = useState(false)
     const [isLoading, setIsLoading] = useState(false)
     const [errors, setErrors] = useState<{ userId?: string; password?: string }>({})
-    const [resetStage, setResetStage] = useState<'login' | 'request' | 'verify' | 'newPassword'>('login')
-    const [resetId, setResetId] = useState('')
-    const [resetEmail, setResetEmail] = useState('')
+    const [resetStage, setResetStage] = useState<'login' | 'request' | 'verify' | 'newPassword'>(initialResetStage)
+    const [resetId, setResetId] = useState(defaultResetId)
+    const [resetEmail, setResetEmail] = useState(defaultResetEmail)
     const [resetCode, setResetCode] = useState('')
     const [resetErrors, setResetErrors] = useState<{ userId?: string; email?: string; code?: string; newPassword?: string; confirmPassword?: string }>({})
     const [newPassword, setNewPassword] = useState('')
