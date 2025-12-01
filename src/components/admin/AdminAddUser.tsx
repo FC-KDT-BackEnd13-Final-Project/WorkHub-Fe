@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import type { FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../ui/card";
 import { Input } from "../ui/input";
@@ -32,7 +33,7 @@ export function AdminAddUser() {
   const [isCompanyLookupOpen, setIsCompanyLookupOpen] = useState(false);
   const [companySearchTerm, setCompanySearchTerm] = useState("");
 
-  const handleSubmit = (event: React.FormEvent) => {
+  const handleSubmit = (event: FormEvent) => {
     event.preventDefault();
     if (form.password !== form.confirmPassword) {
       setError("비밀번호가 일치하지 않습니다.");
