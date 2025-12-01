@@ -16,6 +16,7 @@ import { Label } from "./ui/label";
 import { Textarea } from "./ui/textarea";
 import { AutoResizeTextarea } from "./ui/auto-resize-textarea";
 import { format } from "date-fns";
+import { companyUsers } from "./admin/userData";
 
 const statusOptions = ["All Status", "In Progress", "Done", "On Hold", "Canceled"] as const;
 
@@ -96,6 +97,8 @@ export function ProjectsIndex() {
   });
   const [currentManagerInput, setCurrentManagerInput] = useState("");
   const [currentDeveloperInput, setCurrentDeveloperInput] = useState("");
+  const [isCompanyLookupOpen, setIsCompanyLookupOpen] = useState(false);
+  const [companySearchTerm, setCompanySearchTerm] = useState("");
   const navigate = useNavigate();
 
   const addManager = () => {
@@ -142,6 +145,19 @@ export function ProjectsIndex() {
       return matchesStatus && matchesSearch;
     });
   }, [projects, searchTerm, statusFilter]);
+
+  const companyDirectory = useMemo(() => {
+    const names = new Set<string>();
+    projects.forEach((project) => names.add(project.brand));
+    companyUsers.forEach((user) => names.add(user.company));
+    return Array.from(names).sort();
+  }, [projects]);
+
+  const filteredCompanyDirectory = useMemo(() => {
+    const term = companySearchTerm.toLowerCase().trim();
+    if (!term) return companyDirectory;
+    return companyDirectory.filter((company) => company.toLowerCase().includes(term));
+  }, [companyDirectory, companySearchTerm]);
 
   const getNextDayISO = (dateString: string) => {
     const date = new Date(dateString);
@@ -204,6 +220,19 @@ export function ProjectsIndex() {
     };
   }, [isProjectModalOpen]);
 
+  useEffect(() => {
+    if (!isProjectModalOpen) {
+      setIsCompanyLookupOpen(false);
+      setCompanySearchTerm("");
+    }
+  }, [isProjectModalOpen]);
+
+  const handleSelectCompany = (company: string) => {
+    setNewProject((prev) => ({ ...prev, brand: company }));
+    setIsCompanyLookupOpen(false);
+    setCompanySearchTerm("");
+  };
+
   return (
     <div className="space-y-6">
       {isProjectModalOpen && (
@@ -250,12 +279,48 @@ export function ProjectsIndex() {
                       <Label htmlFor="brand" className="text-gray-700">
                         Company
                       </Label>
-                      <Input
-                        id="brand"
-                        value={newProject.brand}
-                        onChange={(e) => setNewProject((prev) => ({ ...prev, brand: e.target.value }))}
-                        className="h-9 rounded-md border border-border bg-input-background px-3 py-1 focus:bg-white focus:border-primary transition-colors"
-                      />
+                      <div className="flex gap-2">
+                        <Input
+                          id="brand"
+                          value={newProject.brand}
+                          onChange={(e) => setNewProject((prev) => ({ ...prev, brand: e.target.value }))}
+                          className="h-9 flex-1 rounded-md border border-border bg-input-background px-3 py-1 focus:bg-white focus:border-primary transition-colors"
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="h-9 whitespace-nowrap px-4"
+                          onClick={() => setIsCompanyLookupOpen((prev) => !prev)}
+                        >
+                          조회
+                        </Button>
+                      </div>
+                      {isCompanyLookupOpen && (
+                        <div className="space-y-3 rounded-xl border border-border bg-background/80 p-3 shadow-sm backdrop-blur">
+                          <Input
+                            placeholder="회사명을 검색하세요"
+                            value={companySearchTerm}
+                            onChange={(e) => setCompanySearchTerm(e.target.value)}
+                            className="h-9 rounded-md border border-border bg-input-background px-3 py-1 focus:bg-white focus:border-primary transition-colors"
+                          />
+                          <div className="max-h-48 overflow-y-auto space-y-1 pt-1 pb-1">
+                            {filteredCompanyDirectory.length > 0 ? (
+                              filteredCompanyDirectory.map((company) => (
+                                <button
+                                  key={company}
+                                  type="button"
+                                  onClick={() => handleSelectCompany(company)}
+                                  className="w-full rounded-lg border border-transparent px-3 py-2 text-left text-sm transition-colors hover:border-border hover:bg-accent"
+                                >
+                                  {company}
+                                </button>
+                              ))
+                            ) : (
+                              <p className="text-xs text-muted-foreground">검색 결과가 없습니다.</p>
+                            )}
+                          </div>
+                        </div>
+                      )}
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="manager" className="text-gray-700">

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../ui/card";
 import { Input } from "../ui/input";
@@ -12,6 +12,7 @@ import {
 } from "../ui/select";
 import { Label } from "../ui/label";
 import { Alert, AlertDescription } from "../ui/alert";
+import { companyUsers } from "./userData";
 
 const roles = ["Developer", "Manager", "Client"] as const;
 
@@ -28,6 +29,8 @@ export function AdminAddUser() {
   });
   const navigate = useNavigate();
   const [error, setError] = useState("");
+  const [isCompanyLookupOpen, setIsCompanyLookupOpen] = useState(false);
+  const [companySearchTerm, setCompanySearchTerm] = useState("");
 
   const handleSubmit = (event: React.FormEvent) => {
     event.preventDefault();
@@ -50,6 +53,28 @@ export function AdminAddUser() {
       confirmPassword: "",
     });
     setError("");
+    setIsCompanyLookupOpen(false);
+    setCompanySearchTerm("");
+  };
+
+  const companyDirectory = useMemo(() => {
+    const set = new Set<string>();
+    companyUsers.forEach((user) => {
+      if (user.company) set.add(user.company);
+    });
+    return Array.from(set).sort();
+  }, []);
+
+  const filteredCompanies = useMemo(() => {
+    const term = companySearchTerm.trim().toLowerCase();
+    if (!term) return companyDirectory;
+    return companyDirectory.filter((company) => company.toLowerCase().includes(term));
+  }, [companyDirectory, companySearchTerm]);
+
+  const handleSelectCompany = (company: string) => {
+    setForm((prev) => ({ ...prev, company }));
+    setIsCompanyLookupOpen(false);
+    setCompanySearchTerm("");
   };
 
   return (
@@ -63,12 +88,47 @@ export function AdminAddUser() {
           <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="user-company">Company</Label>
-              <Input
-                id="user-company"
-                required
-                value={form.company}
-                onChange={(event) => setForm((prev) => ({ ...prev, company: event.target.value }))}
-              />
+              <div className="flex gap-2">
+                <Input
+                  id="user-company"
+                  required
+                  value={form.company}
+                  onChange={(event) => setForm((prev) => ({ ...prev, company: event.target.value }))}
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="whitespace-nowrap"
+                  onClick={() => setIsCompanyLookupOpen((prev) => !prev)}
+                >
+                  조회
+                </Button>
+              </div>
+              {isCompanyLookupOpen && (
+                <div className="space-y-3 rounded-xl border border-border bg-background/80 p-3 shadow-sm">
+                  <Input
+                    placeholder="회사명을 검색하세요"
+                    value={companySearchTerm}
+                    onChange={(event) => setCompanySearchTerm(event.target.value)}
+                  />
+                  <div className="max-h-48 space-y-1 overflow-y-auto pt-1 pb-1">
+                    {filteredCompanies.length ? (
+                      filteredCompanies.map((company) => (
+                        <button
+                          key={company}
+                          type="button"
+                          onClick={() => handleSelectCompany(company)}
+                          className="w-full rounded-lg border border-transparent px-3 py-2 text-left text-sm transition-colors hover:border-border hover:bg-accent"
+                        >
+                          {company}
+                        </button>
+                      ))
+                    ) : (
+                      <p className="text-xs text-muted-foreground">검색 결과가 없습니다.</p>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
             <div className="space-y-2">
               <Label>Role</Label>
