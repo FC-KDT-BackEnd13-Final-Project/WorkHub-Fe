@@ -2,6 +2,7 @@ import { Routes, Route, useLocation, Navigate, useNavigate, Outlet } from "react
 import { useEffect, useState } from "react";
 import { Main } from "./components/Main";
 import { Navigation } from "./components/Navigation";
+import { Footer } from "./components/Footer";
 import { Dashboard } from "./components/Dashboard";
 import { ProjectsIndex } from "./components/ProjectsIndex";
 import { ProjectNodesBoard } from "./components/ProjectNodesBoard";
@@ -42,9 +43,9 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
+    <div className="min-h-screen bg-background text-foreground flex flex-col">
       <Navigation />
-      <div className="pt-16">
+      <main className="pt-16 flex-1">
         <Routes>
           <Route path="/" element={<LandingPage onLoginSuccess={handleLoginSuccess} />} />
           <Route element={<SidebarLayout />}>
@@ -160,7 +161,8 @@ export default function App() {
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
-      </div>
+      </main>
+      <Footer />
       <Toaster />
     </div>
   );
