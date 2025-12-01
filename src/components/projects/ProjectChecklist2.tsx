@@ -1,12 +1,13 @@
 import { useForm } from "react-hook-form";
-import { Card2, CardContent, CardHeader, CardTitle } from "./ui/card2";
-import { Input2 } from "./ui/input2";
-import { Label2 } from "./ui/label2";
-import { Textarea2 } from "./ui/textarea2";
-import { Button2 } from "./ui/button2";
-import { FormQuestion2 } from "./ui/FormQuestion2";
+import { Card2, CardContent, CardHeader, CardTitle } from "../ui/card2";
+import { Input2 } from "../ui/input2";
+import { Label2 } from "../ui/label2";
+import { Textarea2 } from "../ui/textarea2";
+import { Button2 } from "../ui/button2";
+import { FormQuestion2 } from "../ui/FormQuestion2";
 import { useState } from "react";
 
+// 프로젝트 기본 정보를 작성하는 체크리스트 폼
 interface ChecklistData {
   Name: string;
   mobile: string;

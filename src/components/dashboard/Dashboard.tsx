@@ -1,8 +1,9 @@
 import { LayoutDashboard, Users, CheckCircle, TrendingUp } from "lucide-react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../ui/card";
 import { BrandProjectStats } from "./BrandProjectStats";
 import { UserGrowthStats } from "./UserGrowthStats";
 
+// 대시보드 메인 진입점: 상단 KPI 카드와 주요 통계 카드 묶음
 const stats = [
   { title: "Total Projects", value: "24", change: "+2 from last month", icon: LayoutDashboard },
   { title: "Active Tasks", value: "142", change: "+18 from last week", icon: CheckCircle },

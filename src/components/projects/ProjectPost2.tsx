@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { Card2, CardContent } from "./ui/card2";
+import { Card2, CardContent } from "../ui/card2";
 import {
   Table2,
   TableBody,
@@ -8,13 +8,14 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "./ui/table2";
-import { Input2 } from "./ui/input2";
-import { Button2 } from "./ui/button2";
-import { RichTextDemo } from "./RichTextDemo";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
+} from "../ui/table2";
+import { Input2 } from "../ui/input2";
+import { Button2 } from "../ui/button2";
+import { RichTextDemo } from "../RichTextDemo";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 import { Search } from "lucide-react";
 
+// CS 문의 목록과 리치 텍스트 작성 화면을 관리
 interface Customer {
   id: string;
   customerName: string; // 작성자

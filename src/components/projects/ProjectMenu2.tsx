@@ -1,8 +1,9 @@
-import { Button2 } from "./ui/button2";
-import { Card2, CardContent } from "./ui/card2";
+import { Button2 } from "../ui/button2";
+import { Card2, CardContent } from "../ui/card2";
 import { ClipboardList, LayoutDashboard } from "lucide-react";
-import "../index2.css";
+import "../../index2.css";
 
+// 체크리스트/게시판 탭을 토글하는 프로젝트 상세 메뉴
 interface NavigationProps {
   activeTab: "form" | "report";
   onTabChange: (tab: "form" | "report") => void;

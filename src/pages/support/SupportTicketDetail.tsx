@@ -1,8 +1,9 @@
 import { useMemo } from "react";
 import { useParams } from "react-router-dom";
-import { ProjectPostDetail } from "../components/ProjectPostDetail";
-import { findSupportTicket } from "../data/supportTickets";
+import { ProjectPostDetail } from "../../components/projects/ProjectPostDetail";
+import { findSupportTicket } from "../../data/supportTickets";
 
+// 단일 문의 상세를 보여주며 목록 경로로 복귀 링크를 제공
 export function SupportTicketDetail() {
   const { projectId, ticketId } = useParams<{ projectId?: string; ticketId?: string }>();
   const ticket = useMemo(() => (ticketId ? findSupportTicket(ticketId) : undefined), [ticketId]);

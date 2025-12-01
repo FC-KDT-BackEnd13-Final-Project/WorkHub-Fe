@@ -1,23 +1,24 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
-import { Input } from "./ui/input";
-import { Button } from "./ui/button";
-import { Badge } from "./ui/badge";
-import { Progress } from "./ui/progress";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../ui/card";
+import { Input } from "../ui/input";
+import { Button } from "../ui/button";
+import { Badge } from "../ui/badge";
+import { Progress } from "../ui/progress";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "./ui/select";
-import { Label } from "./ui/label";
-import { Textarea } from "./ui/textarea";
-import { AutoResizeTextarea } from "./ui/auto-resize-textarea";
+} from "../ui/select";
+import { Label } from "../ui/label";
+import { Textarea } from "../ui/textarea";
+import { AutoResizeTextarea } from "../ui/auto-resize-textarea";
 import { format } from "date-fns";
-import { companyUsers } from "./admin/userData";
+import { companyUsers } from "../admin/userData";
 
+// 프로젝트 리스트, 필터, 생성 모달을 통합 관리하는 페이지
 const statusOptions = ["All Status", "In Progress", "Done", "On Hold", "Canceled"] as const;
 
 const initialProjects = [

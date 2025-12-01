@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { LayoutDashboard, FolderOpen, Users, Bell, Settings, Menu, X, UserRound, LogOut } from "lucide-react";
-import { cn } from "./ui/utils";
-import { Button } from "./ui/button";
-import { initialNotifications } from "../data/notifications";
-import { companyUsers } from "./admin/userData";
+import { cn } from "../ui/utils";
+import { Button } from "../ui/button";
+import { initialNotifications } from "../../data/notifications";
+import { companyUsers } from "../admin/userData";
 
+// 로그인 이후 레이아웃에서 좌측 프로젝트 내비게이션과 상태를 담당
 const navigationItems = [
   { label: "Dashboard", icon: LayoutDashboard, path: "/dashboard" },
   { label: "Projects", icon: FolderOpen, path: "/projects" },
