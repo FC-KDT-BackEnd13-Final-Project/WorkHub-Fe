@@ -1,11 +1,12 @@
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { useEffect, useState } from "react";
-import { Card2, CardContent } from "./ui/card2";
-import { Badge2 } from "./ui/badge2";
-import { Button2 } from "./ui/button2";
-import { Textarea2 } from "./ui/textarea2";
+import { Card2, CardContent } from "../ui/card2";
+import { Badge2 } from "../ui/badge2";
+import { Button2 } from "../ui/button2";
+import { Textarea2 } from "../ui/textarea2";
 import {MoreVertical, Pencil, Trash2, CornerDownRight} from "lucide-react";
 
+// 단일 CS 문의/포스트를 상세 뷰 및 편집 모드로 보여줌
 interface PostPayload {
     id: string;
     customerName: string;

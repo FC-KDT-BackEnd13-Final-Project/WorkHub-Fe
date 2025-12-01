@@ -1,14 +1,15 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
-import { Input } from "./ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
-import { Badge } from "./ui/badge";
-import { Button } from "./ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../ui/card";
+import { Input } from "../ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
+import { Badge } from "../ui/badge";
+import { Button } from "../ui/button";
 import { Paperclip, Link as LinkIcon, MoreHorizontal, Hash } from "lucide-react";
-import { Label } from "./ui/label";
-import { AutoResizeTextarea } from "./ui/auto-resize-textarea";
+import { Label } from "../ui/label";
+import { AutoResizeTextarea } from "../ui/auto-resize-textarea";
 
+// 프로젝트 내 노드(작업 카드)와 워크플로우를 관리하는 보드 화면
 type Priority = "Low" | "Medium" | "High" | "Critical";
 type NodeStatus = "To Do" | "In Progress" | "Review" | "Done";
 

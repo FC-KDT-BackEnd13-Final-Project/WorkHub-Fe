@@ -1,18 +1,18 @@
 import { Routes, Route, useLocation, Navigate, useNavigate, Outlet } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { Main } from "./components/Main";
-import { Navigation } from "./components/Navigation";
-import { Footer } from "./components/Footer";
-import { Dashboard } from "./components/Dashboard";
-import { ProjectsIndex } from "./components/ProjectsIndex";
-import { ProjectNodesBoard } from "./components/ProjectNodesBoard";
-import { ProjectNodeDetail } from "./components/ProjectNodeDetail";
-import { ProjectMenu2 } from "./components/ProjectMenu2";
-import { ProjectChecklist2 } from "./components/ProjectChecklist2";
-import { ProjectPost2 } from "./components/ProjectPost2";
-import { Sidebar } from "./components/Sidebar";
+import { Navigation } from "./components/layout/Navigation";
+import { Footer } from "./components/layout/Footer";
+import { Dashboard } from "./components/dashboard/Dashboard";
+import { ProjectsIndex } from "./components/projects/ProjectsIndex";
+import { ProjectNodesBoard } from "./components/projects/ProjectNodesBoard";
+import { ProjectNodeDetail } from "./components/projects/ProjectNodeDetail";
+import { ProjectMenu2 } from "./components/projects/ProjectMenu2";
+import { ProjectChecklist2 } from "./components/projects/ProjectChecklist2";
+import { ProjectPost2 } from "./components/projects/ProjectPost2";
+import { Sidebar } from "./components/layout/Sidebar";
 import { Toaster } from "./components/ui/sonner";
-import { ProjectPostDetail } from "./components/ProjectPostDetail";
+import { ProjectPostDetail } from "./components/projects/ProjectPostDetail";
 import { AdminUsers } from "./components/admin/AdminUsers";
 import { AdminUserCreate } from "./components/admin/AdminUserCreate";
 import { AdminUserSuccess } from "./components/admin/AdminUserSuccess";
@@ -20,11 +20,12 @@ import { AdminUserDetail } from "./components/admin/AdminUserDetail";
 import { AdminPasswordReset } from "./components/admin/AdminPasswordReset";
 import { AdminUserHistory } from "./components/admin/AdminUserHistory";
 import { AdminUserProjects } from "./components/admin/AdminUserProjects";
-import { NotificationsPage } from "./pages/NotificationsPage";
-import { SupportPage } from "./pages/SupportPage";
-import { SupportTicketDetail } from "./pages/SupportTicketDetail";
-import { SettingsPage } from "./pages/SettingsPage";
+import { NotificationsPage } from "./pages/notifications/NotificationsPage";
+import { SupportPage } from "./pages/support/SupportPage";
+import { SupportTicketDetail } from "./pages/support/SupportTicketDetail";
+import { SettingsPage } from "./pages/settings/SettingsPage";
 
+// 애플리케이션 전역 라우팅과 레이아웃을 담당하는 최상위 컴포넌트
 export default function App() {
   const navigate = useNavigate();
   const [isAuthenticated, setIsAuthenticated] = useState(() => {

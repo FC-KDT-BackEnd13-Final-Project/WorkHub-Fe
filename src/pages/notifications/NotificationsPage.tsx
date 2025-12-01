@@ -1,19 +1,20 @@
 import { useEffect, useMemo, useState } from "react";
 import { CheckSquare } from "lucide-react";
-import { NotificationTabs, NotificationTab } from "../components/notifications/NotificationTabs";
-import { NotificationList } from "../components/notifications/NotificationList";
-import type { Notification } from "../components/notifications/NotificationItem";
-import { Button } from "../components/ui/button";
-import { Input } from "../components/ui/input";
+import { NotificationTabs, NotificationTab } from "../../components/notifications/NotificationTabs";
+import { NotificationList } from "../../components/notifications/NotificationList";
+import type { Notification } from "../../components/notifications/NotificationItem";
+import { Button } from "../../components/ui/button";
+import { Input } from "../../components/ui/input";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "../components/ui/select";
-import { initialNotifications } from "../data/notifications";
+} from "../../components/ui/select";
+import { initialNotifications } from "../../data/notifications";
 
+// 알림 목록/필터/읽음 처리를 제공하는 알림 페이지
 export function NotificationsPage() {
   const [notifications, setNotifications] = useState(initialNotifications);
   const [activeTab, setActiveTab] = useState<NotificationTab>("All");

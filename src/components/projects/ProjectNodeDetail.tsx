@@ -4,6 +4,7 @@ import { ProjectMenu2 } from "./ProjectMenu2";
 import { ProjectChecklist2 } from "./ProjectChecklist2";
 import { ProjectPost2 } from "./ProjectPost2";
 
+// 특정 노드의 체크리스트/게시판을 탭으로 전환하는 컨테이너
 export function ProjectNodeDetail() {
   const { projectId, nodeId } = useParams<{ projectId: string; nodeId: string }>();
   const location = useLocation();

@@ -1,4 +1,4 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../ui/card";
 import { ResponsiveContainer, BarChart, XAxis, YAxis, Tooltip, Legend, Bar, CartesianGrid } from "recharts";
 
 const brandData = [
@@ -8,6 +8,7 @@ const brandData = [
   { brand: "Coupang", active: 5, completed: 2 },
 ];
 
+// 브랜드별 활성/완료 프로젝트 수를 막대 차트로 표현
 export function BrandProjectStats() {
   return (
     <Card className="w-full rounded-2xl border shadow-sm p-6 min-h-[400px]">

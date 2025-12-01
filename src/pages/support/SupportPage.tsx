@@ -1,10 +1,9 @@
 import { useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { Search } from "lucide-react";
-import { Card2, CardContent } from "../components/ui/card2";
-import { Input2 } from "../components/ui/input2";
-import { Button2 } from "../components/ui/button2";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
+import { Card2, CardContent } from "../../components/ui/card2";
+import { Input2 } from "../../components/ui/input2";
+import { Button2 } from "../../components/ui/button2";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../components/ui/select";
 import {
   Table2,
   TableBody,
@@ -12,10 +11,11 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "../components/ui/table2";
-import { RichTextDemo } from "../components/RichTextDemo";
-import { supportTickets } from "../data/supportTickets";
+} from "../../components/ui/table2";
+import { RichTextDemo } from "../../components/RichTextDemo";
+import { supportTickets } from "../../data/supportTickets";
 
+// 프로젝트별 CS 문의 목록과 작성 폼을 렌더링하는 페이지
 export function SupportPage() {
   const navigate = useNavigate();
   const { projectId } = useParams<{ projectId?: string }>();

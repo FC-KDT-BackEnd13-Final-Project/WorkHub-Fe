@@ -1,4 +1,4 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../ui/card";
 import { ResponsiveContainer, LineChart, CartesianGrid, XAxis, YAxis, Tooltip, Legend, Line } from "recharts";
 
 const userGrowthData = [
@@ -10,6 +10,7 @@ const userGrowthData = [
   { month: "Jun", customers: 180, developers: 135 },
 ];
 
+// 고객사/개발사 증감 추이를 6개월 단위로 시각화
 export function UserGrowthStats() {
   return (
     <Card className="w-full rounded-2xl border shadow-sm p-6 min-h-[400px]">

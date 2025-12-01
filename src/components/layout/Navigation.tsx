@@ -1,8 +1,9 @@
 import { useState, useEffect, ReactNode } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { Button } from "./ui/button";
+import { Button } from "../ui/button";
 import { Moon, Sun, Menu, X } from "lucide-react";
 
+// 랜딩 페이지 상단 고정 네비게이션과 테마 토글을 관리하는 컴포넌트
 interface NavigationProps {
   onOpenSidebar?: () => void;
   mobileMenuContent?: ReactNode;
