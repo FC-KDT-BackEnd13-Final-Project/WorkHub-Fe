@@ -10,8 +10,8 @@ import { Label } from "../ui/label";
 import { AutoResizeTextarea } from "../ui/auto-resize-textarea";
 
 // 프로젝트 내 노드(작업 카드)와 워크플로우를 관리하는 보드 화면
-type Priority = "Low" | "Medium" | "High" | "Critical";
-type NodeStatus = "To Do" | "In Progress" | "Review" | "Done";
+type Priority = "낮음" | "보통" | "높음" | "긴급";
+type NodeStatus = "할 일" | "진행 중" | "검토 중" | "완료";
 
 interface Node {
   id: string;
@@ -33,11 +33,11 @@ const defaultNodes: Node[] = [
     id: "plan-001",
     title: "기획 단계",
     description: "요구사항 정의 및 페르소나 정리, 주요 기능 우선순위 확정",
-    tags: ["#Planning", "#Research", "#Stakeholder"],
+    tags: ["#기획", "#리서치", "#이해관계자"],
     filesCount: 4,
     linksCount: 3,
-    priority: "High",
-    status: "To Do",
+    priority: "높음",
+    status: "할 일",
     updatedAt: "2024-12-01T09:00:00Z",
     startDate: "2024-11-01",
     endDate: "2024-12-05",
@@ -47,11 +47,11 @@ const defaultNodes: Node[] = [
     id: "design-101",
     title: "디자인 시안",
     description: "메인 페이지 와이어프레임과 UI 시스템 리뷰 및 수정",
-    tags: ["#Design", "#UX", "#UI"],
+    tags: ["#디자인", "#UX", "#UI"],
     filesCount: 6,
     linksCount: 2,
-    priority: "Medium",
-    status: "In Progress",
+    priority: "보통",
+    status: "진행 중",
     updatedAt: "2024-11-28T14:20:00Z",
     startDate: "2024-11-05",
     endDate: "2024-12-12",
@@ -61,11 +61,11 @@ const defaultNodes: Node[] = [
     id: "dev-301",
     title: "프론트엔드 개발",
     description: "대시보드, 프로젝트 리스트, 워크플로우 뷰 구현",
-    tags: ["#Development", "#Frontend", "#API"],
+    tags: ["#개발", "#프론트엔드", "#API"],
     filesCount: 3,
     linksCount: 4,
-    priority: "Critical",
-    status: "Review",
+    priority: "긴급",
+    status: "검토 중",
     updatedAt: "2024-12-02T11:45:00Z",
     startDate: "2024-11-10",
     endDate: "2024-12-22",
@@ -75,11 +75,11 @@ const defaultNodes: Node[] = [
     id: "qa-210",
     title: "QA & 테스트",
     description: "시나리오 테스트 및 회귀 테스트, 릴리즈 전 이슈 목록 정리",
-    tags: ["#Testing", "#QA"],
+    tags: ["#테스트", "#QA"],
     filesCount: 2,
     linksCount: 1,
-    priority: "High",
-    status: "Done",
+    priority: "높음",
+    status: "완료",
     updatedAt: "2024-12-03T08:15:00Z",
     startDate: "2024-12-01",
     endDate: "2024-12-29",
@@ -90,21 +90,21 @@ const defaultNodes: Node[] = [
 const createWorkflowFormState = () => ({
   title: "",
   description: "",
-  priority: "Medium" as Priority,
+  priority: "보통" as Priority,
   startDate: "",
   endDate: "",
 });
 
-const priorityOptions: Priority[] = ["Low", "Medium", "High", "Critical"];
-const statusOptions: NodeStatus[] = ["To Do", "In Progress", "Review", "Done"];
+const priorityOptions: Priority[] = ["낮음", "보통", "높음", "긴급"];
+const statusOptions: NodeStatus[] = ["할 일", "진행 중", "검토 중", "완료"];
 
 export function ProjectNodesBoard() {
   const { projectId } = useParams<{ projectId: string }>();
   const navigate = useNavigate();
   const location = useLocation();
-  console.log("ProjectNodesBoard - Current projectId:", projectId);
+  console.log("ProjectNodesBoard - 현재 projectId:", projectId);
   const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState<"All" | NodeStatus>("All");
+  const [statusFilter, setStatusFilter] = useState<"전체" | NodeStatus>("전체");
   const [nodes, setNodes] = useState<Node[]>(defaultNodes);
   const [isWorkflowModalOpen, setIsWorkflowModalOpen] = useState(false);
   const [newWorkflow, setNewWorkflow] = useState(createWorkflowFormState);
@@ -116,7 +116,7 @@ export function ProjectNodesBoard() {
         node.title.toLowerCase().includes(term) ||
         node.description.toLowerCase().includes(term) ||
         node.tags.some((tag) => tag.toLowerCase().includes(term));
-      const matchesStatus = statusFilter === "All" || node.status === statusFilter;
+      const matchesStatus = statusFilter === "전체" || node.status === statusFilter;
       return matchesSearch && matchesStatus;
     });
   }, [nodes, search, statusFilter]);
@@ -139,16 +139,16 @@ export function ProjectNodesBoard() {
   };
 
   const priorityTone: Record<Priority, string> = {
-    Low: "bg-emerald-50 text-emerald-700",
-    Medium: "bg-amber-50 text-amber-700",
-    High: "bg-orange-50 text-orange-700",
-    Critical: "bg-red-50 text-red-700",
+    낮음: "bg-emerald-50 text-emerald-700",
+    보통: "bg-amber-50 text-amber-700",
+    높음: "bg-orange-50 text-orange-700",
+    긴급: "bg-red-50 text-red-700",
   };
 
   const workflowBasePath = `/projects/${projectId ?? "project"}/nodes`;
   const workflowModalPath = `/projects/${projectId ?? "project"}/nodes/new`;
-  console.log("ProjectNodesBoard - workflowBasePath:", workflowBasePath);
-  console.log("ProjectNodesBoard - workflowModalPath:", workflowModalPath);
+  console.log("ProjectNodesBoard - 워크플로 기본 경로:", workflowBasePath);
+  console.log("ProjectNodesBoard - 워크플로 모달 경로:", workflowModalPath);
 
   const getNextDayISO = (dateString: string) => {
     const date = new Date(dateString);
@@ -163,31 +163,31 @@ export function ProjectNodesBoard() {
   };
 
   const openWorkflowModal = useCallback(() => {
-    console.log("openWorkflowModal called. Current isWorkflowModalOpen:", isWorkflowModalOpen);
+    console.log("openWorkflowModal 호출, 현재 isWorkflowModalOpen:", isWorkflowModalOpen);
     if (!isWorkflowModalOpen) {
       setIsWorkflowModalOpen(true);
     }
     if (location.pathname !== workflowModalPath) {
-      console.log("Navigating to workflowModalPath:", workflowModalPath);
+      console.log("workflowModalPath로 이동:", workflowModalPath);
       navigate(workflowModalPath, { replace: true });
     }
   }, [isWorkflowModalOpen, location.pathname, navigate, workflowModalPath]);
 
   const closeWorkflowModal = useCallback(() => {
-    console.log("closeWorkflowModal called. Current isWorkflowModalOpen:", isWorkflowModalOpen);
+    console.log("closeWorkflowModal 호출, 현재 isWorkflowModalOpen:", isWorkflowModalOpen);
     if (isWorkflowModalOpen) {
       setIsWorkflowModalOpen(false);
     }
     setNewWorkflow(createWorkflowFormState());
     if (location.pathname !== workflowBasePath) {
-      console.log("Navigating to workflowBasePath:", workflowBasePath);
+      console.log("workflowBasePath로 이동:", workflowBasePath);
       navigate(workflowBasePath, { replace: true });
     }
   }, [isWorkflowModalOpen, location.pathname, navigate, workflowBasePath]);
 
   useEffect(() => {
     const shouldOpen = location.pathname === workflowModalPath;
-    console.log("useEffect [location.pathname, workflowModalPath] triggered.");
+    console.log("useEffect [location.pathname, workflowModalPath] 실행");
     console.log("  location.pathname:", location.pathname);
     console.log("  workflowModalPath:", workflowModalPath);
     console.log("  shouldOpen:", shouldOpen);
@@ -226,7 +226,7 @@ export function ProjectNodesBoard() {
       filesCount: 0,
       linksCount: 0,
       priority: newWorkflow.priority,
-      status: "To Do",
+      status: "할 일",
       updatedAt: new Date().toISOString(),
       startDate: newWorkflow.startDate,
       endDate: newWorkflow.endDate,
@@ -247,13 +247,12 @@ export function ProjectNodesBoard() {
             <div className="min-h-screen bg-white flex items-center justify-center p-4">
             <div className="w-full" style={{ maxWidth: "var(--login-card-max-width, 42rem)" }}>
               <Card className="login-theme border border-border shadow-lg">
-                <CardHeader className="space-y-2 pb-6">                    <h2 className="text-xl text-center">
-                      Create <span style={{ color: "var(--point-color)" }}>Workflow</span>
-                    </h2>
-                    <p className="text-sm text-muted-foreground text-center">
-                      새로운 워크플로우 단계를 작성하고 세부 정보를 입력하세요.
-                    </p>
-                  </CardHeader>
+                <CardHeader className="space-y-2 pb-6">
+                  <h2 className="text-xl text-center">새 워크플로 만들기</h2>
+                  <p className="text-sm text-muted-foreground text-center">
+                    새로운 워크플로 단계를 작성하고 세부 정보를 입력하세요.
+                  </p>
+                </CardHeader>
                   <CardContent>
                     <div className="space-y-4">
                       <div className="space-y-2">
@@ -369,10 +368,10 @@ export function ProjectNodesBoard() {
                     </div>
                     <div className="mt-6 pt-6 flex justify-between gap-2">
                       <Button variant="secondary" className="w-1/2" onClick={closeWorkflowModal}>
-                        Cancel
+                        취소
                       </Button>
                       <Button className="w-1/2" onClick={handleCreateWorkflow}>
-                        Create
+                        생성
                       </Button>
                     </div>
                   </CardContent>
@@ -385,23 +384,23 @@ export function ProjectNodesBoard() {
       <div className="rounded-2xl bg-white p-6 shadow-sm">
         <h1 className="text-3xl font-semibold tracking-tight">Project Nodes</h1>
         <p className="mt-2 text-muted-foreground">
-          Review progress across each workflow step and drill into the details.
+          각 워크플로 단계의 진행 상황을 확인하고 필요한 세부 정보를 확인하세요.
         </p>
       </div>
 
       <div className="flex flex-col gap-4 rounded-2xl bg-white p-4 shadow-sm md:flex-row md:items-center">
         <Input
-          placeholder="Search tasks..."
+          placeholder="작업을 검색하세요"
           value={search}
           onChange={(event) => setSearch(event.target.value)}
           className="md:flex-1"
         />
-        <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as "All" | NodeStatus)}>
+        <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as "전체" | NodeStatus)}>
           <SelectTrigger className="md:w-52">
-            <SelectValue placeholder="All Status" />
+            <SelectValue placeholder="전체 상태" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="All">All Status</SelectItem>
+            <SelectItem value="전체">전체 상태</SelectItem>
             {statusOptions.map((option) => (
               <SelectItem key={option} value={option}>
                 {option}
@@ -411,7 +410,7 @@ export function ProjectNodesBoard() {
         </Select>
         <div className="flex items-center gap-2">
           <Button className="h-9 px-4 text-sm" onClick={openWorkflowModal}>
-            + New Workflow
+            + 새 워크플로
           </Button>
           <Button
             variant="outline"
@@ -435,11 +434,11 @@ export function ProjectNodesBoard() {
             <CardHeader className="@container/card-header space-y-2 px-6 pt-6">
               <div className="flex items-center justify-between gap-4">
                 <div>
-                  <p className="text-xs text-muted-foreground">Last update · {formatUpdatedAt(node.updatedAt)}</p>
+                  <p className="text-xs text-muted-foreground">최근 업데이트 · {formatUpdatedAt(node.updatedAt)}</p>
                   <CardTitle className="text-xl">{node.title}</CardTitle>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Badge variant={node.status === "Done" ? "default" : "secondary"}>{node.status}</Badge>
+                  <Badge variant={node.status === "완료" ? "default" : "secondary"}>{node.status}</Badge>
                   <MoreHorizontal className="h-4 w-4 text-muted-foreground" />
                 </div>
               </div>
@@ -448,27 +447,27 @@ export function ProjectNodesBoard() {
             <CardContent className="space-y-4 px-6 pb-6">
               <div className="grid gap-2 text-sm">
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">Files</span>
+                  <span className="text-muted-foreground">파일</span>
                   <span className="flex items-center gap-2 font-medium">
                     <Paperclip className="h-4 w-4 text-muted-foreground" />
                     {node.filesCount}
                   </span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">Links</span>
+                  <span className="text-muted-foreground">링크</span>
                   <span className="flex items-center gap-2 font-medium">
                     <LinkIcon className="h-4 w-4 text-muted-foreground" />
                     {node.linksCount}
                   </span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">Timeline</span>
+                  <span className="text-muted-foreground">타임라인</span>
                   <span className="font-medium">
                     {formatDate(node.startDate)} – {formatDate(node.endDate)}
                   </span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">Priority</span>
+                  <span className="text-muted-foreground">중요도</span>
                   <span className={`rounded-full px-3 py-0.5 text-xs font-semibold ${priorityTone[node.priority]}`}>
                     {node.priority}
                   </span>

@@ -215,7 +215,7 @@ export function ProjectPost2() {
         <div className="flex flex-col gap-4 rounded-2xl bg-white p-4 shadow-sm md:flex-row md:items-center">
           <Input2
             id="search"
-            placeholder="Search projects..."
+            placeholder="검색어를 입력하세요"
             value={searchTerm}
             onChange={(e) => {
               setSearchTerm(e.target.value);

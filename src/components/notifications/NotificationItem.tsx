@@ -38,7 +38,7 @@ export function NotificationItem({ notification, onMarkRead, onRemove }: Notific
   } = notification;
   const isNew = !read;
 
-  const statusLabel = read ? "Read" : "New";
+  const statusLabel = read ? "읽음" : "새 알림";
 
   return (
     <TableRow className={cn("transition-colors", isNew ? "bg-primary/5" : undefined)}>
@@ -86,7 +86,7 @@ export function NotificationItem({ notification, onMarkRead, onRemove }: Notific
               type="button"
               onClick={() => onMarkRead(id)}
               className="rounded-full p-1 text-muted-foreground transition-colors hover:bg-muted/40 hover:text-foreground"
-              aria-label="Mark as read"
+              aria-label="읽음으로 표시"
             >
               <Check className="h-4 w-4" />
             </button>
@@ -95,7 +95,7 @@ export function NotificationItem({ notification, onMarkRead, onRemove }: Notific
             type="button"
             onClick={() => onRemove(id)}
             className="rounded-full p-1 text-muted-foreground transition-colors hover:bg-muted/40 hover:text-foreground"
-            aria-label="Remove notification"
+            aria-label="알림 삭제"
           >
             <X className="h-4 w-4" />
           </button>

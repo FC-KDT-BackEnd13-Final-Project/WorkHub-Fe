@@ -28,14 +28,14 @@ export function AdminAddCompany() {
   return (
     <Card className="rounded-2xl border border-white/70 bg-white shadow-sm">
       <CardHeader className="pb-6 text-center">
-        <CardTitle className="text-2xl">Add Company</CardTitle>
-        <CardDescription>Register a new client organization and main point of contact.</CardDescription>
+        <CardTitle className="text-2xl">회사 추가</CardTitle>
+        <CardDescription>새 고객사를 등록하고 주요 담당자를 설정하세요.</CardDescription>
       </CardHeader>
       <CardContent>
         <form className="space-y-6" onSubmit={handleSubmit}>
           <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2">
-              <Label htmlFor="company-name">Company Name</Label>
+              <Label htmlFor="company-name">회사명</Label>
               <Input
                 id="company-name"
                 required
@@ -44,7 +44,7 @@ export function AdminAddCompany() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="company-registration">Business Registration (optional)</Label>
+              <Label htmlFor="company-registration">사업자 등록번호</Label>
               <Input
                 id="company-registration"
                 value={form.registration}
@@ -54,24 +54,24 @@ export function AdminAddCompany() {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="company-address">Company Address</Label>
+            <Label htmlFor="company-address">회사 주소</Label>
             <div className="flex flex-col gap-2 md:flex-row">
               <Input
                 id="company-address"
-                placeholder="Search or enter address"
+                placeholder="주소를 검색하거나 입력하세요"
                 value={form.address}
                 onChange={(event) => setForm((prev) => ({ ...prev, address: event.target.value }))}
                 className="flex-1"
               />
               <Button type="button" variant="outline" className="md:w-auto">
-                Search
+                검색
               </Button>
             </div>
           </div>
 
           <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2">
-              <Label htmlFor="company-manager">Manager Name</Label>
+              <Label htmlFor="company-manager">담당자 이름</Label>
               <Input
                 id="company-manager"
                 required
@@ -80,7 +80,7 @@ export function AdminAddCompany() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="company-phone">Manager Phone</Label>
+              <Label htmlFor="company-phone">담당자 전화번호</Label>
               <Input
                 id="company-phone"
                 type="tel"
@@ -92,7 +92,7 @@ export function AdminAddCompany() {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="company-email">Manager Email</Label>
+            <Label htmlFor="company-email">담당자 이메일</Label>
             <Input
               id="company-email"
               type="email"
@@ -104,10 +104,10 @@ export function AdminAddCompany() {
 
           <div className="flex flex-col gap-3 border-t pt-6 sm:flex-row">
             <Button type="submit" className="flex-1">
-              Register Company
+              등록
             </Button>
             <Button type="button" variant="outline" className="flex-1" onClick={handleReset}>
-              Reset
+              초기화
             </Button>
           </div>
         </form>

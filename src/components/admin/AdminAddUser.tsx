@@ -16,6 +16,11 @@ import { Alert, AlertDescription } from "../ui/alert";
 import { companyUsers } from "./userData";
 
 const roles = ["Developer", "Manager", "Client"] as const;
+const roleLabels: Record<(typeof roles)[number], string> = {
+  Developer: "개발자",
+  Manager: "매니저",
+  Client: "고객",
+};
 
 export function AdminAddUser() {
   const [form, setForm] = useState({
@@ -81,14 +86,14 @@ export function AdminAddUser() {
   return (
     <Card className="rounded-2xl border border-white/70 bg-white shadow-sm">
       <CardHeader className="pb-6 text-center">
-        <CardTitle className="text-2xl">Add User</CardTitle>
-        <CardDescription>Invite a new member and set their initial workspace permissions.</CardDescription>
+        <CardTitle className="text-2xl">회원 추가</CardTitle>
+        <CardDescription>새 멤버를 초대하고 워크스페이스 권한을 설정하세요.</CardDescription>
       </CardHeader>
       <CardContent>
         <form className="space-y-6" onSubmit={handleSubmit}>
           <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2">
-              <Label htmlFor="user-company">Company</Label>
+              <Label htmlFor="user-company">회사명</Label>
               <div className="flex gap-2">
                 <Input
                   id="user-company"
@@ -132,18 +137,18 @@ export function AdminAddUser() {
               )}
             </div>
             <div className="space-y-2">
-              <Label>Role</Label>
+              <Label>역할</Label>
               <Select
                 value={form.role}
                 onValueChange={(value) => setForm((prev) => ({ ...prev, role: value as (typeof roles)[number] }))}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Choose a role" />
+                  <SelectValue placeholder="역할을 선택하세요" />
                 </SelectTrigger>
                 <SelectContent>
                   {roles.map((role) => (
                     <SelectItem key={role} value={role}>
-                      {role}
+                      {roleLabels[role]}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -153,7 +158,7 @@ export function AdminAddUser() {
 
           <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2">
-              <Label htmlFor="user-name">Name</Label>
+              <Label htmlFor="user-name">이름</Label>
               <Input
                 id="user-name"
                 required
@@ -162,7 +167,7 @@ export function AdminAddUser() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="user-phone">Phone Number</Label>
+              <Label htmlFor="user-phone">전화번호</Label>
               <Input
                 id="user-phone"
                 type="tel"
@@ -175,7 +180,7 @@ export function AdminAddUser() {
 
           <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2">
-              <Label htmlFor="user-email">Email</Label>
+              <Label htmlFor="user-email">이메일</Label>
               <Input
                 id="user-email"
                 type="email"
@@ -185,7 +190,7 @@ export function AdminAddUser() {
               />
             </div>
             <div className="space-y-2">
-              <Label>User ID</Label>
+              <Label>ID</Label>
               <div className="flex gap-2">
                 <Input
                   id="user-username"
@@ -194,7 +199,7 @@ export function AdminAddUser() {
                   onChange={(event) => setForm((prev) => ({ ...prev, username: event.target.value }))}
                 />
                 <Button type="button" variant="outline">
-                  Duplicate Check
+                  중복 확인
                 </Button>
               </div>
             </div>
@@ -202,7 +207,7 @@ export function AdminAddUser() {
 
           <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2">
-              <Label htmlFor="user-password">Password</Label>
+              <Label htmlFor="user-password">비밀번호</Label>
               <Input
                 id="user-password"
                 type="password"
@@ -212,7 +217,7 @@ export function AdminAddUser() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="user-confirm-password">Confirm Password</Label>
+              <Label htmlFor="user-confirm-password">비밀번호 확인</Label>
               <Input
                 id="user-confirm-password"
                 type="password"
@@ -231,10 +236,10 @@ export function AdminAddUser() {
 
           <div className="flex flex-col gap-3 border-t pt-6 sm:flex-row">
             <Button type="submit" className="flex-1">
-              Create User
+              등록
             </Button>
             <Button type="button" variant="outline" className="flex-1" onClick={handleReset}>
-              Reset
+              초기화
             </Button>
           </div>
         </form>

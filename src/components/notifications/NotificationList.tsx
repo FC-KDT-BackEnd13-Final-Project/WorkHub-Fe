@@ -26,11 +26,11 @@ export function NotificationList({ notifications, onMarkRead, onRemove }: Notifi
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="w-1/3">Notification</TableHead>
-                <TableHead className="w-1/6 text-center">Priority</TableHead>
-                <TableHead className="w-1/6 text-center">Status</TableHead>
-                <TableHead className="w-1/6 text-center">Received</TableHead>
-                <TableHead className="w-1/6 text-center">Actions</TableHead>
+                <TableHead className="w-1/3">알림</TableHead>
+                <TableHead className="w-1/6 text-center">중요도</TableHead>
+                <TableHead className="w-1/6 text-center">상태</TableHead>
+                <TableHead className="w-1/6 text-center">수신 시각</TableHead>
+                <TableHead className="w-1/6 text-center">확인</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -46,7 +46,7 @@ export function NotificationList({ notifications, onMarkRead, onRemove }: Notifi
           </Table>
           {paginatedNotifications.length === 0 && (
             <p className="py-8 text-center text-sm text-muted-foreground">
-              No notifications in this filter.
+              선택된 조건에 해당하는 알림이 없습니다.
             </p>
           )}
         </div>

@@ -70,7 +70,7 @@ export function SettingsPage() {
         {/* 프로필 / 기본 정보 카드 */}
         <Card className="rounded-2xl shadow-sm">
           <CardHeader className="border-b pb-4">
-            <CardTitle>Settings</CardTitle>
+            <CardTitle>프로필 설정</CardTitle>
           </CardHeader>
           <CardContent className="pt-6">
             <div className="pb-6 flex flex-col gap-6 md:flex-row">
@@ -89,7 +89,7 @@ export function SettingsPage() {
                 </Avatar>
 
                 <Button variant="outline" size="sm" onClick={triggerFileSelect}>
-                  Change Photo
+                  사진 변경
                 </Button>
 
                 <input
@@ -104,7 +104,7 @@ export function SettingsPage() {
               {/* 오른쪽: 폼 필드 */}
               <div className="grid flex-1 gap-4 md:grid-cols-2">
                 <div className="space-y-2">
-                  <Label htmlFor="id">Id</Label>
+                  <Label htmlFor="id">아이디</Label>
                   <Input
                       id="id"
                       value={profile.id}
@@ -112,7 +112,7 @@ export function SettingsPage() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="email">Email</Label>
+                  <Label htmlFor="email">이메일</Label>
                   <Input
                       id="email"
                       type="email"
@@ -121,7 +121,7 @@ export function SettingsPage() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="phone">Phone</Label>
+                  <Label htmlFor="phone">전화번호</Label>
                   <Input
                       id="phone"
                       value={profile.phone}
@@ -129,7 +129,7 @@ export function SettingsPage() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="role">Role</Label>
+                  <Label htmlFor="role">역할</Label>
                   <Select
                       value={profile.role}
                       onValueChange={(value) =>
@@ -137,7 +137,7 @@ export function SettingsPage() {
                       }
                   >
                     <SelectTrigger id="role">
-                      <SelectValue placeholder="Select role" />
+                      <SelectValue placeholder="역할을 선택하세요" />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="CLIENT">CLIENT</SelectItem>
@@ -151,7 +151,7 @@ export function SettingsPage() {
 
             {/* Save 버튼 – 카드 하단 오른쪽 정렬 */}
             <div className="mt-6 border-t pt-6" style={{ display: "flex" }}>
-              <Button style={{ marginLeft: "auto" }}>Save Changes</Button>
+              <Button style={{ marginLeft: "auto" }}>변경 사항 저장</Button>
             </div>
           </CardContent>
         </Card>
@@ -159,16 +159,16 @@ export function SettingsPage() {
         {/* Security 카드 */}
         <Card className="rounded-2xl shadow-sm">
           <CardHeader className="pb-6">
-            <CardTitle>Security</CardTitle>
+            <CardTitle>보안</CardTitle>
             <p className="text-sm text-muted-foreground">
-              Manage your account security settings
+              계정 보안 설정을 관리하세요
             </p>
             <Button
                 size="sm"
                 className="mt-4 w-fit"
                 onClick={handleChangePasswordClick}
             >
-              Change Password
+              비밀번호 변경
             </Button>
           </CardHeader>
         </Card>
