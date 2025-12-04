@@ -19,7 +19,7 @@ import { Search } from "lucide-react";
 interface Customer {
   id: string;
   customerName: string; // 작성자
-  type: "notice" | "question" | "general"; // 타입
+  type: "공지" | "질문" | "일반"; // 타입
   title: string; // 제목
   content: string; // 내용
   createdDate: string; // 생성일
@@ -39,7 +39,7 @@ const mockCustomers: Customer[] = [
   {
     id: "1",
     customerName: "abcd",
-    type: "question",
+    type: "질문",
     title: "제목입니다. 제목이 길어졌을 때 어떻게 보이는지 테스트용입니다.",
     content:
         "내용입니다. 이 내용도 길어졌을 때 말줄임표(...)가 잘 나오는지 확인하기 위한 더미 텍스트입니다.",
@@ -50,7 +50,7 @@ const mockCustomers: Customer[] = [
   {
     id: "2",
     customerName: "abcd",
-    type: "notice",
+    type: "공지",
     title: "공지 제목입니다.",
     content: "공지 내용입니다.",
     createdDate: "2025-11-20",
@@ -60,7 +60,7 @@ const mockCustomers: Customer[] = [
   {
     id: "3",
     customerName: "abcd",
-    type: "general",
+    type: "일반",
     title: "일반 글 제목입니다.",
     content: "일반 글 내용입니다.",
     createdDate: "2025-11-20",
@@ -70,7 +70,7 @@ const mockCustomers: Customer[] = [
   {
     id: "4",
     customerName: "abcd",
-    type: "question",
+    type: "질문",
     title: "질문입니다.",
     content: "질문 내용입니다.",
     createdDate: "2025-11-20",
@@ -80,7 +80,7 @@ const mockCustomers: Customer[] = [
   {
     id: "5",
     customerName: "abcd",
-    type: "question",
+    type: "질문",
     title: "제목입니다.",
     content: "내용입니다.",
     createdDate: "2025-11-20",
@@ -90,7 +90,7 @@ const mockCustomers: Customer[] = [
   {
     id: "6",
     customerName: "abcd",
-    type: "question",
+    type: "질문",
     title: "제목입니다.",
     content: "내용입니다.",
     createdDate: "2025-11-20",
@@ -100,7 +100,7 @@ const mockCustomers: Customer[] = [
   {
     id: "7",
     customerName: "abcd",
-    type: "question",
+    type: "질문",
     title: "제목입니다.",
     content: "내용입니다.",
     createdDate: "2025-11-20",
@@ -110,7 +110,7 @@ const mockCustomers: Customer[] = [
   {
     id: "8",
     customerName: "abcd",
-    type: "question",
+    type: "질문",
     title: "제목입니다.",
     content: "내용입니다.",
     createdDate: "2025-11-20",
@@ -120,7 +120,7 @@ const mockCustomers: Customer[] = [
   {
     id: "9",
     customerName: "abcd",
-    type: "question",
+    type: "질문",
     title: "제목입니다.",
     content: "내용입니다.",
     createdDate: "2025-11-20",
@@ -130,7 +130,7 @@ const mockCustomers: Customer[] = [
   {
     id: "10",
     customerName: "abcd",
-    type: "question",
+    type: "질문",
     title: "제목입니다.",
     content: "내용입니다.",
     createdDate: "2025-11-20",
@@ -140,7 +140,7 @@ const mockCustomers: Customer[] = [
   {
     id: "11",
     customerName: "abcde",
-    type: "question",
+    type: "질문",
     title: "제목입니다!",
     content: "내용입니다.",
     createdDate: "2025-11-20",

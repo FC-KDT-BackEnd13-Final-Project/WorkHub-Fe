@@ -59,7 +59,7 @@ export function AdminUserHistory() {
 
       <div className="rounded-2xl bg-white p-6 shadow-sm min-h-0">
         <div className="border-b pb-4">
-          <h3 className="text-lg font-semibold">Activity History · 전체</h3>
+          <h3 className="text-lg font-semibold">활동 내역 · 전체</h3>
           <p className="text-sm text-muted-foreground">이 구성원의 전체 활동 기록입니다.</p>
         </div>
         <div className="space-y-4 overflow-y-auto pt-4 max-h-[640px] pr-1">
