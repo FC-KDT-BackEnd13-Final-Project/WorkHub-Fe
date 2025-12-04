@@ -1,11 +1,26 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { CSSProperties, ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
+import {
+  DndContext,
+  DragEndEvent,
+  PointerSensor,
+  closestCenter,
+  useSensor,
+  useSensors,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  arrayMove,
+  rectSortingStrategy,
+  useSortable,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../ui/card";
 import { Input } from "../ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
-import { Paperclip, Link as LinkIcon, MoreHorizontal, Hash } from "lucide-react";
+import { Paperclip, Link as LinkIcon, MoreHorizontal, GripVertical } from "lucide-react";
 import { Label } from "../ui/label";
 import { AutoResizeTextarea } from "../ui/auto-resize-textarea";
 
@@ -15,6 +30,7 @@ type NodeStatus = "할 일" | "진행 중" | "검토 중" | "완료";
 
 interface Node {
   id: string;
+  projectNodeId: number;
   title: string;
   description: string;
   tags: string[];
@@ -31,6 +47,7 @@ interface Node {
 const defaultNodes: Node[] = [
   {
     id: "plan-001",
+    projectNodeId: 10,
     title: "기획 단계",
     description: "요구사항 정의 및 페르소나 정리, 주요 기능 우선순위 확정",
     tags: ["#기획", "#리서치", "#이해관계자"],
@@ -45,6 +62,7 @@ const defaultNodes: Node[] = [
   },
   {
     id: "design-101",
+    projectNodeId: 11,
     title: "디자인 시안",
     description: "메인 페이지 와이어프레임과 UI 시스템 리뷰 및 수정",
     tags: ["#디자인", "#UX", "#UI"],
@@ -59,6 +77,7 @@ const defaultNodes: Node[] = [
   },
   {
     id: "dev-301",
+    projectNodeId: 12,
     title: "프론트엔드 개발",
     description: "대시보드, 프로젝트 리스트, 워크플로우 뷰 구현",
     tags: ["#개발", "#프론트엔드", "#API"],
@@ -73,6 +92,7 @@ const defaultNodes: Node[] = [
   },
   {
     id: "qa-210",
+    projectNodeId: 13,
     title: "QA & 테스트",
     description: "시나리오 테스트 및 회귀 테스트, 릴리즈 전 이슈 목록 정리",
     tags: ["#테스트", "#QA"],
@@ -108,6 +128,17 @@ export function ProjectNodesBoard() {
   const [nodes, setNodes] = useState<Node[]>(defaultNodes);
   const [isWorkflowModalOpen, setIsWorkflowModalOpen] = useState(false);
   const [newWorkflow, setNewWorkflow] = useState(createWorkflowFormState);
+  const [isReorderMode, setIsReorderMode] = useState(false);
+  const nextProjectNodeId = useRef(
+    defaultNodes.reduce((max, node) => Math.max(max, node.projectNodeId), 0) + 1,
+  );
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 6,
+      },
+    }),
+  );
 
   const filteredNodes = useMemo(() => {
     const term = search.toLowerCase();
@@ -220,6 +251,7 @@ export function ProjectNodesBoard() {
 
     const node: Node = {
       id: crypto.randomUUID(),
+      projectNodeId: nextProjectNodeId.current++,
       title: newWorkflow.title,
       description: newWorkflow.description,
       tags: [], // Tags are removed, so an empty array is passed
@@ -237,6 +269,53 @@ export function ProjectNodesBoard() {
     setNewWorkflow(createWorkflowFormState());
     closeWorkflowModal();
   };
+
+  const syncNodeOrder = useCallback(
+    async (orderedNodes: Node[]) => {
+      if (!projectId) return;
+      const payload = {
+        orders: orderedNodes.map((node, index) => ({
+          projectNodeId: node.projectNodeId,
+          nodeOrder: index + 1,
+        })),
+      };
+
+      try {
+        const response = await fetch(`/projects/${projectId}/nodes/order`, {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(payload),
+        });
+
+        if (!response.ok) {
+          throw new Error(`Failed to update order: ${response.status}`);
+        }
+      } catch (error) {
+        console.error("노드 순서 갱신 실패:", error);
+      }
+    },
+    [projectId],
+  );
+
+  const handleDragEnd = useCallback(
+    (event: DragEndEvent) => {
+      const { active, over } = event;
+      if (!over || active.id === over.id) return;
+
+      setNodes((prev) => {
+        const oldIndex = prev.findIndex((node) => node.id === active.id);
+        const newIndex = prev.findIndex((node) => node.id === over.id);
+        if (oldIndex === -1 || newIndex === -1) return prev;
+
+        const reordered = arrayMove(prev, oldIndex, newIndex);
+        void syncNodeOrder(reordered);
+        return reordered;
+      });
+    },
+    [syncNodeOrder],
+  );
 
   return (
     <div className="space-y-6 pb-12">
@@ -419,64 +498,168 @@ export function ProjectNodesBoard() {
           >
             CS 문의
           </Button>
+          <Button
+            variant={isReorderMode ? "default" : "outline"}
+            className="h-9 px-4 text-sm"
+            onClick={() => setIsReorderMode((prev) => !prev)}
+          >
+            {isReorderMode ? "편집 완료" : "편집"}
+          </Button>
         </div>
       </div>
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-3">
-        {filteredNodes.map((node) => (
-          <Card
-            key={node.id}
-            className="relative cursor-pointer rounded-2xl border border-white/70 bg-white/90 shadow-sm backdrop-blur transition-shadow hover:shadow-lg"
-            onClick={() => navigate(`/projects/${projectId ?? "project"}/nodes/${node.id}`)}
-          >
-            {node.hasNotification && (
-              <span className="absolute top-3 right-3 h-2 w-2 rounded-full" style={{ backgroundColor: "var(--point-color)" }} />
-            )}
-            <CardHeader className="@container/card-header space-y-2 px-6 pt-6">
-              <div className="flex items-center justify-between gap-4">
-                <div>
-                  <p className="text-xs text-muted-foreground">최근 업데이트 · {formatUpdatedAt(node.updatedAt)}</p>
-                  <CardTitle className="text-xl">{node.title}</CardTitle>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Badge variant={node.status === "완료" ? "default" : "secondary"}>{node.status}</Badge>
-                  <MoreHorizontal className="h-4 w-4 text-muted-foreground" />
-                </div>
-              </div>
-              <CardDescription>{node.description}</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4 px-6 pb-6">
-              <div className="grid gap-2 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">파일</span>
-                  <span className="flex items-center gap-2 font-medium">
-                    <Paperclip className="h-4 w-4 text-muted-foreground" />
-                    {node.filesCount}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">링크</span>
-                  <span className="flex items-center gap-2 font-medium">
-                    <LinkIcon className="h-4 w-4 text-muted-foreground" />
-                    {node.linksCount}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">타임라인</span>
-                  <span className="font-medium">
-                    {formatDate(node.startDate)} – {formatDate(node.endDate)}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">중요도</span>
-                  <span className={`rounded-full px-3 py-0.5 text-xs font-semibold ${priorityTone[node.priority]}`}>
-                    {node.priority}
-                  </span>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+      {isReorderMode ? (
+        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+          <SortableContext items={filteredNodes.map((node) => node.id)} strategy={rectSortingStrategy}>
+            <div className="grid grid-cols-2 gap-4 lg:grid-cols-3">
+              {filteredNodes.map((node) => (
+                <SortableNodeCard
+                  key={node.id}
+                  node={node}
+                  formatDate={formatDate}
+                  formatUpdatedAt={formatUpdatedAt}
+                  onNavigate={(id) => navigate(`/projects/${projectId ?? "project"}/nodes/${id}`)}
+                  priorityToneClass={priorityTone[node.priority]}
+                />
+              ))}
+            </div>
+          </SortableContext>
+        </DndContext>
+      ) : (
+        <div className="grid grid-cols-2 gap-4 lg:grid-cols-3">
+          {filteredNodes.map((node) => (
+            <StaticNodeCard
+              key={node.id}
+              node={node}
+              formatDate={formatDate}
+              formatUpdatedAt={formatUpdatedAt}
+              onNavigate={(id) => navigate(`/projects/${projectId ?? "project"}/nodes/${id}`)}
+              priorityToneClass={priorityTone[node.priority]}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+interface NodeCardBaseProps {
+  node: Node;
+  formatDate: (value: string) => string;
+  formatUpdatedAt: (value: string) => string;
+  onNavigate: (nodeId: string) => void;
+  priorityToneClass: string;
+  rightActions?: ReactNode;
+  cardRef?: (element: HTMLDivElement | null) => void;
+  style?: CSSProperties;
+}
+
+function NodeCardBase({
+  node,
+  formatDate,
+  formatUpdatedAt,
+  onNavigate,
+  priorityToneClass,
+  rightActions,
+  cardRef,
+  style,
+}: NodeCardBaseProps) {
+  return (
+    <Card
+      ref={cardRef}
+      style={style}
+      className="relative cursor-pointer rounded-2xl border border-white/70 bg-white/90 shadow-sm backdrop-blur transition-shadow hover:shadow-lg"
+      onClick={() => onNavigate(node.id)}
+    >
+      {node.hasNotification && (
+        <span className="absolute top-3 right-3 h-2 w-2 rounded-full" style={{ backgroundColor: "var(--point-color)" }} />
+      )}
+      <CardHeader className="@container/card-header space-y-2 px-6 pt-6">
+        <div className="flex items-center justify-between gap-4">
+          <div>
+            <p className="text-xs text-muted-foreground">최근 업데이트 · {formatUpdatedAt(node.updatedAt)}</p>
+            <CardTitle className="text-xl">{node.title}</CardTitle>
+          </div>
+          <div className="flex items-center gap-2">
+            <Badge variant={node.status === "완료" ? "default" : "secondary"}>{node.status}</Badge>
+            {rightActions}
+            <MoreHorizontal className="h-4 w-4 text-muted-foreground" />
+          </div>
+        </div>
+        <CardDescription>{node.description}</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4 px-6 pb-6">
+        <div className="grid gap-2 text-sm">
+          <div className="flex justify-between">
+            <span className="text-muted-foreground">파일</span>
+            <span className="flex items-center gap-2 font-medium">
+              <Paperclip className="h-4 w-4 text-muted-foreground" />
+              {node.filesCount}
+            </span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-muted-foreground">링크</span>
+            <span className="flex items-center gap-2 font-medium">
+              <LinkIcon className="h-4 w-4 text-muted-foreground" />
+              {node.linksCount}
+            </span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-muted-foreground">타임라인</span>
+            <span className="font-medium">
+              {formatDate(node.startDate)} – {formatDate(node.endDate)}
+            </span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-muted-foreground">중요도</span>
+            <span className={`rounded-full px-3 py-0.5 text-xs font-semibold ${priorityToneClass}`}>
+              {node.priority}
+            </span>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+interface SortableNodeCardProps extends NodeCardBaseProps {}
+
+function StaticNodeCard(props: NodeCardBaseProps) {
+  return <NodeCardBase {...props} />;
+}
+
+function SortableNodeCard({
+  node,
+  formatDate,
+  formatUpdatedAt,
+  onNavigate,
+  priorityToneClass,
+}: SortableNodeCardProps) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({
+    id: node.id,
+  });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.6 : 1,
+  };
+
+  return (
+    <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
+      <NodeCardBase
+        node={node}
+        formatDate={formatDate}
+        formatUpdatedAt={formatUpdatedAt}
+        onNavigate={() => {}}
+        priorityToneClass={priorityToneClass}
+      />
     </div>
   );
 }
