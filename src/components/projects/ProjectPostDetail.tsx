@@ -6,6 +6,8 @@ import { Button2 } from "../ui/button2";
 import { Textarea2 } from "../ui/textarea2";
 import {MoreVertical, Pencil, Trash2, CornerDownRight} from "lucide-react";
 
+const COMMENTS_PER_PAGE = 5;
+
 // 단일 CS 문의/포스트를 상세 뷰 및 편집 모드로 보여줌
 interface PostPayload {
     id: string;
@@ -65,6 +67,7 @@ export function ProjectPostDetail({
     const [isPostEditing, setIsPostEditing] = useState(startInEditMode);
     const isPostOwner = post.isOwner ?? true; // 임시: 작성자로 가정
     const [postMenuOpen, setPostMenuOpen] = useState(false); //  게시글 메뉴 열림 여부
+    const [commentPage, setCommentPage] = useState(1);
 
     useEffect(() => {
         setPostContent(post.content);
@@ -81,6 +84,16 @@ export function ProjectPostDetail({
         },
     ]);
     const [newComment, setNewComment] = useState("");
+    const topLevelComments = comments.filter((c) => (c.parentId ?? null) === null);
+    const totalCommentPages = Math.max(1, Math.ceil(topLevelComments.length / COMMENTS_PER_PAGE));
+    const paginatedTopLevel = topLevelComments.slice(
+        (commentPage - 1) * COMMENTS_PER_PAGE,
+        commentPage * COMMENTS_PER_PAGE,
+    );
+
+    useEffect(() => {
+        setCommentPage((prev) => Math.min(prev, totalCommentPages));
+    }, [totalCommentPages]);
 
     const listPath =
         backPath ??
@@ -113,6 +126,9 @@ export function ProjectPostDetail({
 
     const handleAddComment = () => {
         if (!newComment.trim()) return;
+        const nextTopLevelCount = topLevelComments.length + 1;
+        const nextPage = Math.max(1, Math.ceil(nextTopLevelCount / COMMENTS_PER_PAGE));
+
         setComments((prev) => [
             ...prev,
             {
@@ -125,6 +141,7 @@ export function ProjectPostDetail({
             },
         ]);
         setNewComment("");
+        setCommentPage(nextPage);
     };
 
     const handleDeleteComment = (id: string) => {
@@ -208,10 +225,8 @@ export function ProjectPostDetail({
 
     // ───────────── 렌더링: 댓글/대댓글 ─────────────
 
-    const renderCommentList = () => {
-        const topLevel = comments.filter((c) => (c.parentId ?? null) === null);
-
-        return topLevel.map((comment) => {
+    const renderCommentList = (targetTopLevel: CommentItem[]) => {
+        return targetTopLevel.map((comment) => {
             const replies = comments.filter((c) => c.parentId === comment.id);
 
             return (
@@ -615,7 +630,7 @@ export function ProjectPostDetail({
                     <h2 className="text-lg font-semibold mb-2">댓글</h2>
 
                     <div className="space-y-2">
-                        {renderCommentList()}
+                        {renderCommentList(paginatedTopLevel)}
                         {comments.length === 0 && (
                             <p className="text-sm text-muted-foreground">아직 댓글이 없습니다.</p>
                         )}
@@ -632,10 +647,45 @@ export function ProjectPostDetail({
                             <Button2 className="ml-auto" onClick={handleAddComment}>
                                 댓글 등록
                             </Button2>
-                        </div>
                     </div>
-                </CardContent>
-            </Card2>
+                </div>
+            </CardContent>
+        </Card2>
+
+        {topLevelComments.length > 0 && (
+            <div className="flex flex-col items-center gap-2 border-t pt-4 text-sm text-muted-foreground">
+                <div className="flex items-center justify-center gap-2">
+                    <Button2
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setCommentPage((prev) => Math.max(prev - 1, 1))}
+                        disabled={commentPage === 1}
+                        aria-label="이전 댓글 페이지"
+                    >
+                        {"<"}
+                    </Button2>
+                    {Array.from({ length: totalCommentPages }, (_, index) => index + 1).map((page) => (
+                        <Button2
+                            key={page}
+                            variant={page === commentPage ? "default" : "outline"}
+                            size="sm"
+                            onClick={() => setCommentPage(page)}
+                        >
+                            {page}
+                        </Button2>
+                    ))}
+                    <Button2
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setCommentPage((prev) => Math.min(prev + 1, totalCommentPages))}
+                        disabled={commentPage === totalCommentPages}
+                        aria-label="다음 댓글 페이지"
+                    >
+                        {">"}
+                    </Button2>
+                </div>
+            </div>
+        )}
             {showBackButton && (
                 <div className="mt-2 flex w-full justify-between">
                     <Button2

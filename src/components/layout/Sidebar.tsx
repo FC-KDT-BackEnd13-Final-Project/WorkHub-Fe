@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { LayoutDashboard, FolderOpen, Users, Bell, Settings, Menu, X, UserRound, LogOut } from "lucide-react";
 import { cn } from "../ui/utils";
@@ -15,14 +15,30 @@ const navigationItems = [
   { label: "Settings", icon: Settings, path: "/settings" },
 ];
 
-export function Sidebar() {
+interface SidebarProps {
+  isMobileOpen?: boolean;
+  onMobileOpenChange?: (open: boolean) => void;
+}
+
+export function Sidebar({ isMobileOpen: controlledMobileOpen, onMobileOpenChange }: SidebarProps = {}) {
   const navigate = useNavigate();
   const location = useLocation();
-  const [isMobileOpen, setIsMobileOpen] = useState(false);
+  const [uncontrolledMobileOpen, setUncontrolledMobileOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
   const [profileImageUrl, setProfileImageUrl] = useState<string | null>(null);
   const [notificationCount, setNotificationCount] = useState(
     initialNotifications.filter((notification) => !notification.read).length,
+  );
+  const isMobileOpen = controlledMobileOpen ?? uncontrolledMobileOpen;
+  const setIsMobileOpen = useCallback(
+    (open: boolean) => {
+      if (onMobileOpenChange) {
+        onMobileOpenChange(open);
+      } else {
+        setUncontrolledMobileOpen(open);
+      }
+    },
+    [onMobileOpenChange],
   );
 
   const activeProjectCount = useMemo(() => {
@@ -72,6 +88,17 @@ export function Sidebar() {
     setIsMobileOpen(false);
     window.location.href = "/";
   };
+
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    if (isMobileOpen) {
+      const original = document.body.style.overflow;
+      document.body.style.overflow = "hidden";
+      return () => {
+        document.body.style.overflow = original;
+      };
+    }
+  }, [isMobileOpen]);
 
   const SidebarContent = ({ isMobile }: { isMobile?: boolean }) => (
     <div className="flex h-full flex-col">
@@ -158,14 +185,6 @@ export function Sidebar() {
 
   return (
     <>
-      <Button
-        variant="ghost"
-        size="icon"
-        className="fixed left-4 top-24 z-50 md:hidden"
-        onClick={() => setIsMobileOpen(true)}
-      >
-        <Menu className="h-4 w-4" />
-      </Button>
       <aside
         className={cn(
           "hidden md:flex flex-col border-r bg-white shadow-sm transition-[width] duration-200",
@@ -174,13 +193,21 @@ export function Sidebar() {
       >
         <SidebarContent />
       </aside>
-      <div
-        className={cn(
-          "fixed inset-y-0 left-0 z-50 w-64 transform border-r bg-white transition-transform duration-300 md:hidden",
-          isMobileOpen ? "translate-x-0" : "-translate-x-full",
+      <div className="md:hidden">
+        {isMobileOpen && (
+          <div
+            className="fixed inset-0 z-40 bg-black/30 backdrop-blur-sm"
+            onClick={() => setIsMobileOpen(false)}
+          />
         )}
-      >
-        <SidebarContent />
+        <div
+          className={cn(
+            "fixed inset-y-0 left-0 z-50 w-64 transform border-r bg-white transition-transform duration-300",
+            isMobileOpen ? "translate-x-0" : "-translate-x-full",
+          )}
+        >
+          <SidebarContent isMobile />
+        </div>
       </div>
     </>
   );

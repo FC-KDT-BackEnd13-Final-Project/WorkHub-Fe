@@ -32,6 +32,7 @@ export default function App() {
     if (typeof window === "undefined") return false;
     return window.localStorage.getItem("workhub:auth") === "true";
   });
+  const [isSidebarMobileOpen, setIsSidebarMobileOpen] = useState(false);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -45,11 +46,22 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col">
-      <Navigation />
+      <Navigation
+        onOpenSidebar={
+          isAuthenticated ? () => setIsSidebarMobileOpen(true) : undefined
+        }
+      />
       <main className="pt-16 flex-1">
         <Routes>
           <Route path="/" element={<LandingPage onLoginSuccess={handleLoginSuccess} />} />
-          <Route element={<SidebarLayout />}>
+          <Route
+            element={
+              <SidebarLayout
+                isSidebarMobileOpen={isSidebarMobileOpen}
+                onSidebarMobileOpenChange={setIsSidebarMobileOpen}
+              />
+            }
+          >
             <Route
               path="/dashboard"
               element={isAuthenticated ? <Dashboard /> : <Navigate to="/" replace />}
@@ -205,10 +217,18 @@ function ProjectDetailPage({ type }: { type: "form" | "report" }) {
     );
 }
 
-function SidebarLayout() {
+interface SidebarLayoutProps {
+  isSidebarMobileOpen: boolean;
+  onSidebarMobileOpenChange: (open: boolean) => void;
+}
+
+function SidebarLayout({ isSidebarMobileOpen, onSidebarMobileOpenChange }: SidebarLayoutProps) {
   return (
     <div className="flex min-h-[calc(100vh-4rem)] bg-[#f8fafc]">
-      <Sidebar />
+      <Sidebar
+        isMobileOpen={isSidebarMobileOpen}
+        onMobileOpenChange={onSidebarMobileOpenChange}
+      />
       <main className="flex-1 overflow-auto px-4 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-7xl">
           <Outlet />

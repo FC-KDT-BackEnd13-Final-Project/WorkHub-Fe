@@ -52,17 +52,17 @@ export function Navigation({ onOpenSidebar, mobileMenuContent }: NavigationProps
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-4">
           <div className="flex items-center gap-2">
-            {/*{onOpenSidebar && (*/}
-            {/*  <Button*/}
-            {/*    variant="ghost"*/}
-            {/*    size=""*/}
-            {/*    onClick={onOpenSidebar}*/}
-            {/*    className="inline-flex items-center justify-center whitespace-nowrap text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive hover:bg-accent hover:text-accent-foreground dark:hover:bg-accent/50 h-8 rounded-md gap-1.5 has-[&_svg]:px-2.5 p-2 md:hidden"*/}
-            {/*    aria-label="Open sidebar"*/}
-            {/*  >*/}
-            {/*    <Menu className="h-4 w-4" />*/}
-            {/*  </Button>*/}
-            {/*)}*/}
+            {onOpenSidebar && (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={onOpenSidebar}
+                className="md:hidden"
+                aria-label="사이드바 열기"
+              >
+                <Menu className="h-4 w-4" />
+              </Button>
+            )}
             <div className="text-xl font-medium">
               <span className="text-foreground">Work</span>
               <span style={{ color: "var(--point-color)" }}>Hub</span>
