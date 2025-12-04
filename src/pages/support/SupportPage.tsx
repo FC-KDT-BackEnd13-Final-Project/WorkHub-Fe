@@ -106,11 +106,6 @@ export function SupportPage() {
               }
             />
           </div>
-          <div className="flex justify-end">
-            <Button2 className="md:w-auto" onClick={() => setIsWriting(false)}>
-              목록으로
-            </Button2>
-          </div>
         </div>
       ) : (
         <Card2>
@@ -169,7 +164,7 @@ export function SupportPage() {
           </CardContent>
         </Card2>
       )}
-      {filteredTickets.length > 0 && (
+      {!isWriting && filteredTickets.length > 0 && (
         <div className="flex flex-col items-center gap-2 border-t pt-4 text-sm text-muted-foreground">
           <div className="flex items-center justify-center gap-2">
             <Button2
