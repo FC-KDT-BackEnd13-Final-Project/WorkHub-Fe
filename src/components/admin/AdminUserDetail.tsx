@@ -47,56 +47,56 @@ export function AdminUserDetail() {
 
   // Action handlers for modals
   const handleChangeRole = () => {
-    console.log(`Changing role for ${user.name} to ${selectedRole}`);
+    console.log(`${user.name}의 역할을 ${selectedRole}로 변경`);
     // Simulate API call
     setTimeout(() => {
-      alert(`Role for ${user.name} changed to ${selectedRole}`);
+      alert(`${user.name}의 역할이 ${selectedRole}로 변경되었습니다.`);
       closeModal();
     }, 500);
   };
 
   const handleSendCode = () => {
-    console.log(`Sending auth code to ${user.email}`);
+    console.log(`${user.email}로 인증 코드를 전송`);
     // Simulate API call
     setTimeout(() => {
-      alert(`Auth code sent to ${user.email}`);
+      alert(`${user.email}로 인증 코드를 전송했습니다.`);
       setPasswordResetStep(2);
     }, 500);
   };
 
   const handleVerifyCode = () => {
-    console.log(`Verifying code: ${authCode}`);
+    console.log(`인증 코드 확인: ${authCode}`);
     // Simulate API call
     if (authCode === "123456") { // Simple dummy code
-      alert("Code verified!");
+      alert("코드가 확인되었습니다.");
       setPasswordResetStep(3);
     } else {
-      alert("Invalid code. Please try again.");
+      alert("인증 코드가 올바르지 않습니다. 다시 시도해주세요.");
     }
   };
 
   const handleSetNewPassword = () => {
     if (newPassword.length < 6) {
-      alert("Password must be at least 6 characters long.");
+      alert("비밀번호는 최소 6자 이상이어야 합니다.");
       return;
     }
     if (newPassword !== confirmPassword) {
-      alert("Passwords do not match.");
+      alert("비밀번호가 일치하지 않습니다.");
       return;
     }
-    console.log(`Setting new password for ${user.name}`);
+    console.log(`${user.name}의 새 비밀번호 설정`);
     // Simulate API call
     setTimeout(() => {
-      alert("Password successfully updated!");
+      alert("비밀번호가 성공적으로 변경되었습니다.");
       closeModal();
     }, 500);
   };
 
   const handleRemoveUser = () => {
-    console.log(`Removing user: ${user.name}`);
+    console.log(`사용자 삭제: ${user.name}`);
     // Simulate API call
     setTimeout(() => {
-      alert(`${user.name} has been removed.`);
+      alert(`${user.name} 사용자가 삭제되었습니다.`);
       navigate("/admin/users", { replace: true }); // Navigate to user list after removal
     }, 500);
   };
@@ -161,8 +161,8 @@ export function AdminUserDetail() {
           <div className="mt-2 flex flex-wrap gap-2 text-sm">
             <Badge variant="secondary">{user.company}</Badge>
             <Badge variant="secondary">{user.role}</Badge>
-            <Badge variant={user.status === "Active" ? "default" : "secondary"}>{user.status}</Badge>
-            <span className="text-muted-foreground">Last active · {user.lastActive}</span>
+            <Badge variant={user.status === "Active" ? "default" : "secondary"}>{user.status === "Active" ? "활성" : "대기"}</Badge>
+            <span className="text-muted-foreground">마지막 활동 · {user.lastActive}</span>
           </div>
         </div>
       </div>
@@ -172,8 +172,8 @@ export function AdminUserDetail() {
           <div className="border-b pb-4">
             <div className="flex items-center justify-between">
               <div>
-                <h3 className="text-lg font-semibold">Assigned Projects</h3>
-                <p className="text-sm text-muted-foreground">Active initiatives currently owned by the member.</p>
+                <h3 className="text-lg font-semibold">배정된 프로젝트</h3>
+                <p className="text-sm text-muted-foreground">현재 이 구성원에게 배정된 프로젝트입니다.</p>
               </div>
               <Button
                 variant="link"
@@ -181,7 +181,7 @@ export function AdminUserDetail() {
                 disabled={!canViewAllProjects}
                 onClick={() => canViewAllProjects && navigate(`/admin/users/${user.id}/projects`)}
               >
-                View all
+                전체 보기
               </Button>
             </div>
           </div>
@@ -211,29 +211,29 @@ export function AdminUserDetail() {
                 <div className="space-y-4 px-6 py-4">
                   <div className="grid gap-2 text-sm">
                     <div className="flex justify-between">
-                      <span className="text-muted-foreground">Client Manager</span>
+                      <span className="text-muted-foreground">고객 담당자</span>
                       <span className="font-medium">{project.manager}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-muted-foreground">Team Size</span>
+                      <span className="text-muted-foreground">팀 규모</span>
                       <span className="font-medium">{project.teamSize}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-muted-foreground">Workflow Steps</span>
+                      <span className="text-muted-foreground">워크플로 단계</span>
                       <span className="font-medium">{project.tasks}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-muted-foreground">Start</span>
+                      <span className="text-muted-foreground">시작일</span>
                       <span className="font-medium">{project.start}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-muted-foreground">Due</span>
+                      <span className="text-muted-foreground">마감일</span>
                       <span className="font-medium">{project.due}</span>
                     </div>
                   </div>
                   <div>
                     <div className="flex items-center justify-between text-sm font-medium">
-                      <span>Progress</span>
+                      <span>진행률</span>
                       <span>{project.progress}%</span>
                     </div>
                     <div className="relative mt-2 h-2 w-full overflow-hidden rounded-full bg-primary/20">
@@ -250,8 +250,8 @@ export function AdminUserDetail() {
           <div className="border-b pb-4">
             <div className="flex items-center justify-between">
               <div>
-                <h3 className="text-lg font-semibold">Activity History</h3>
-                <p className="text-sm text-muted-foreground">Recent events from the last 30 days.</p>
+                <h3 className="text-lg font-semibold">활동 내역</h3>
+                <p className="text-sm text-muted-foreground">지난 30일 동안의 주요 활동입니다.</p>
               </div>
               <Button
                 variant="link"
@@ -259,7 +259,7 @@ export function AdminUserDetail() {
                 disabled={!canViewFullHistory}
                 onClick={() => canViewFullHistory && navigate(`/admin/users/${user.id}/history`)}
               >
-                View all
+                전체 보기
               </Button>
             </div>
           </div>
@@ -289,21 +289,21 @@ export function AdminUserDetail() {
             className="h-9 min-w-[120px] px-3 py-1 text-sm rounded-md border border-border"
             onClick={() => navigate(changeRoleModalPath)}
           >
-            Change Role
+            역할 변경
           </Button>
           <Button
             variant="secondary"
             className="h-9 min-w-[120px] px-3 py-1 text-sm rounded-md border border-border"
             onClick={() => navigate(initPasswordModalPath)}
           >
-            Initialize Password
+            비밀번호 초기화
           </Button>
           <Button
             variant="destructive"
             className="h-9 min-w-[120px] px-3 py-1 text-sm rounded-md border border-border"
             onClick={() => navigate(removeUserModalPath)}
           >
-            Remove User
+            회원 삭제
           </Button>
       </div>
 
@@ -314,21 +314,21 @@ export function AdminUserDetail() {
             <div className="w-full" style={{ maxWidth: "var(--login-card-max-width, 42rem)" }}>
               <Card className="login-theme border border-border shadow-lg">
                 <CardHeader className="space-y-2 pb-6">
-                  <h2 className="text-xl text-center">Change User Role</h2>
+                  <h2 className="text-xl text-center">User 역할 변경</h2>
                   <p className="text-sm text-muted-foreground text-center">
-                    Update workspace role and permissions for {user.name}.
+                    {user.name}의 워크스페이스 역할과 권한을 업데이트하세요.
                   </p>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
                     <div className="space-y-2">
-                      <Label htmlFor="new-role" className="text-gray-700">New Role</Label>
+                      <Label htmlFor="new-role" className="text-gray-700">새 역할</Label>
                       <Select value={selectedRole} onValueChange={setSelectedRole}>
                         <SelectTrigger
                           id="new-role"
                           className="h-9 rounded-md border border-border bg-input-background px-3 py-1 focus:bg-white focus:border-primary transition-colors"
                         >
-                          <SelectValue placeholder="Select a role" />
+                          <SelectValue placeholder="역할을 선택하세요" />
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="Admin">Admin</SelectItem>
@@ -340,7 +340,7 @@ export function AdminUserDetail() {
                   </div>
                   <div className="mt-6 pt-6 flex justify-between gap-2">
                     <Button variant="secondary" className="w-1/2" onClick={closeModal}>
-                      Cancel
+                      취소
                     </Button>
                     <Button className="w-1/2" onClick={handleChangeRole}>Save Changes</Button>
                   </div>
@@ -360,34 +360,34 @@ export function AdminUserDetail() {
                 <CardHeader className="space-y-2 pb-6">
                   {passwordResetStep === 1 && (
                     <>
-                      <h2 className="text-xl text-center">Initialize Password</h2>
+                      <h2 className="text-xl text-center">비밀번호 초기화</h2>
                       <p className="text-sm text-muted-foreground text-center">
-                        Send a password reset link to {user.email}.
+                        {user.email}로 비밀번호 재설정 링크를 전송합니다.
                       </p>
-                    </>
-                  )}
-                  {passwordResetStep === 2 && (
-                    <>
-                      <h2 className="text-xl text-center">Verify Code</h2>
+                  </>
+                )}
+                {passwordResetStep === 2 && (
+                  <>
+                      <h2 className="text-xl text-center">코드 확인</h2>
                       <p className="text-sm text-muted-foreground text-center">
-                        Enter the authentication code sent to {user.email}.
+                        {user.email}로 전송된 인증 코드를 입력하세요.
                       </p>
-                    </>
-                  )}
-                  {passwordResetStep === 3 && (
-                    <>
-                      <h2 className="text-xl text-center">Set New Password</h2>
+                  </>
+                )}
+                {passwordResetStep === 3 && (
+                  <>
+                      <h2 className="text-xl text-center">새 비밀번호 설정</h2>
                       <p className="text-sm text-muted-foreground text-center">
-                        Enter and confirm your new password for {user.name}.
+                        {user.name}의 새 비밀번호를 입력하고 확인하세요.
                       </p>
-                    </>
-                  )}
+                  </>
+                )}
                 </CardHeader>
                 <CardContent>
                   {passwordResetStep === 1 && (
                     <>
                       <div className="space-y-2">
-                        <Label htmlFor="password-email" className="text-gray-700">Email</Label>
+                        <Label htmlFor="password-email" className="text-gray-700">이메일</Label>
                         <Input
                           id="password-email"
                           value={user.email}
@@ -397,29 +397,29 @@ export function AdminUserDetail() {
                       </div>
                       <div className="mt-6 pt-6 flex justify-between gap-2">
                         <Button variant="secondary" className="w-1/2" onClick={closeModal}>
-                          Cancel
+                          취소
                         </Button>
-                        <Button className="w-1/2" onClick={handleSendCode}>Send Code</Button>
+                        <Button className="w-1/2" onClick={handleSendCode}>코드 보내기</Button>
                       </div>
                     </>
                   )}
                   {passwordResetStep === 2 && (
                     <>
                       <div className="space-y-2">
-                        <Label htmlFor="auth-code" className="text-gray-700">Authentication Code</Label>
+                        <Label htmlFor="auth-code" className="text-gray-700">인증 코드</Label>
                         <Input
                           id="auth-code"
                           value={authCode}
                           onChange={(e) => setAuthCode(e.target.value)}
-                          placeholder="Enter code"
+                          placeholder="코드를 입력하세요"
                           className="h-9 rounded-md border border-border bg-input-background px-3 py-1 focus:bg-white focus:border-primary transition-colors"
                         />
                       </div>
                       <div className="mt-6 pt-6 flex justify-between gap-2">
                         <Button variant="secondary" className="w-1/2" onClick={() => setPasswordResetStep(1)}>
-                          Back
+                          뒤로
                         </Button>
-                        <Button className="w-1/2" onClick={handleVerifyCode}>Verify Code</Button>
+                        <Button className="w-1/2" onClick={handleVerifyCode}>코드 확인</Button>
                       </div>
                     </>
                   )}
@@ -427,7 +427,7 @@ export function AdminUserDetail() {
                     <>
                       <div className="space-y-4">
                         <div className="space-y-2">
-                          <Label htmlFor="new-password" className="text-gray-700">New Password</Label>
+                          <Label htmlFor="new-password" className="text-gray-700">새 비밀번호</Label>
                           <Input
                             id="new-password"
                             type="password"
@@ -437,7 +437,7 @@ export function AdminUserDetail() {
                           />
                         </div>
                         <div className="space-y-2">
-                          <Label htmlFor="confirm-password" className="text-gray-700">Confirm New Password</Label>
+                          <Label htmlFor="confirm-password" className="text-gray-700">새 비밀번호 확인</Label>
                           <Input
                             id="confirm-password"
                             type="password"
@@ -449,9 +449,9 @@ export function AdminUserDetail() {
                       </div>
                       <div className="mt-6 pt-6 flex justify-between gap-2">
                         <Button variant="secondary" className="w-1/2" onClick={() => setPasswordResetStep(2)}>
-                          Back
+                          뒤로
                         </Button>
-                        <Button className="w-1/2" onClick={handleSetNewPassword}>Set Password</Button>
+                        <Button className="w-1/2" onClick={handleSetNewPassword}>비밀번호 설정</Button>
                       </div>
                     </>
                   )}
@@ -469,20 +469,20 @@ export function AdminUserDetail() {
             <div className="w-full" style={{ maxWidth: "var(--login-card-max-width, 42rem)" }}>
               <Card className="login-theme border border-border shadow-lg">
                 <CardHeader className="space-y-2 pb-6">
-                  <h2 className="text-xl text-center">Remove User</h2>
+                  <h2 className="text-xl text-center">User 삭제</h2>
                   <p className="text-sm text-muted-foreground text-center">
-                    This will revoke {user.name}&rsquo;s access to WorkHub.
+                    {user.name}의 WorkHub 접근 권한이 회수됩니다.
                   </p>
                 </CardHeader>
                 <CardContent>
                   <p className="text-sm text-muted-foreground text-center mb-4">
-                    Make sure you have exported any required data before permanently removing this member. This action can be undone.
+                    이 구성원을 영구적으로 삭제하기 전에 필요한 데이터를 모두 내보냈는지 확인하세요. 이 작업은 되돌릴 수 없습니다.
                   </p>
                   <div className="mt-6 pt-6 flex justify-between gap-2">
                     <Button variant="secondary" className="w-1/2" onClick={closeModal}>
-                      Cancel
+                      취소
                     </Button>
-                    <Button variant="destructive" className="w-1/2 text-white" onClick={handleRemoveUser}>Remove User</Button>
+                    <Button variant="destructive" className="w-1/2 text-white" onClick={handleRemoveUser}>User 삭제</Button>
                   </div>
                 </CardContent>
               </Card>
