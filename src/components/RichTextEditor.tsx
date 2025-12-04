@@ -326,38 +326,6 @@ export function RichTextEditor({
 
                 <Separator orientation="vertical" className="h-6" />
 
-                {/* Attachments / Links / Actions */}
-                <div className="flex items-center gap-1">
-                    <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-8 w-8 p-0"
-                        onMouseDown={(e) => e.preventDefault()}
-                        onClick={handleFileButtonClick}
-                        title="파일 첨부"
-                    >
-                        <Paperclip className="h-4 w-4" />
-                    </Button>
-                    <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-8 w-8 p-0"
-                        onMouseDown={(e) => e.preventDefault()}
-                        onClick={handleAddReferenceLink}
-                        title="링크 추가"
-                    >
-                        <Link2 className="h-4 w-4" />
-                    </Button>
-                </div>
-
-                <input
-                    type="file"
-                    ref={fileInputRef}
-                    className="hidden"
-                    multiple
-                    onChange={handleFilesSelected}
-                />
-
             </div>
 
             {/* Editor Area */}

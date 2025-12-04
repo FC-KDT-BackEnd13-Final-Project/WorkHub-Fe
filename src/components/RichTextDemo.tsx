@@ -72,7 +72,6 @@ export function RichTextDemo({ actionButtons }: RichTextDemoProps) {
                         className="w-full"
                     />
 
-                    {/* 파일/링크 첨부 */}
                     <div className="space-y-3 rounded-lg border border-dashed border-border/70 bg-muted/20 p-4">
                         <p className="text-sm font-medium text-muted-foreground">첨부</p>
                         <input
