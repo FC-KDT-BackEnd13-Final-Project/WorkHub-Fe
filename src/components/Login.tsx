@@ -37,13 +37,13 @@ export function LoginScreen({
         const newErrors: { userId?: string; password?: string } = {}
 
         if (!userId) {
-            newErrors.userId = 'Please enter your ID'
+            newErrors.userId = '아이디를 입력해주세요'
         }
 
         if (!password) {
-            newErrors.password = 'Password is required'
+            newErrors.password = '비밀번호를 입력해주세요'
         } else if (password.length < 6) {
-            newErrors.password = 'Password must be at least 6 characters'
+            newErrors.password = '비밀번호는 최소 6자 이상이어야 합니다'
         }
 
         setErrors(newErrors)
@@ -72,8 +72,8 @@ export function LoginScreen({
         } catch (error) {
             console.error('Login error:', error)
             setErrors({
-                userId: 'Invalid ID or password',
-                password: 'Invalid ID or password',
+                userId: '아이디 또는 비밀번호가 올바르지 않습니다',
+                password: '아이디 또는 비밀번호가 올바르지 않습니다',
             })
         } finally {
             setIsLoading(false)
@@ -84,13 +84,13 @@ export function LoginScreen({
         const newErrors: { userId?: string; email?: string } = {}
 
         if (!resetId) {
-            newErrors.userId = 'Please enter your ID'
+            newErrors.userId = '아이디를 입력해주세요'
         }
 
         if (!resetEmail) {
-            newErrors.email = 'Please enter your email'
+            newErrors.email = '이메일을 입력해주세요'
         } else if (!/\S+@\S+\.\S+/.test(resetEmail)) {
-            newErrors.email = 'Email format looks incorrect'
+            newErrors.email = '이메일 형식이 올바르지 않습니다'
         }
 
         setResetErrors(newErrors)
@@ -117,7 +117,7 @@ export function LoginScreen({
         e.preventDefault()
         const newErrors: { code?: string } = {}
         if (!resetCode) {
-            newErrors.code = 'Please enter the verification code'
+            newErrors.code = '인증 코드를 입력해주세요'
         }
         setResetErrors(newErrors)
         if (Object.keys(newErrors).length > 0) return
@@ -137,15 +137,15 @@ export function LoginScreen({
         const newErrors: { newPassword?: string; confirmPassword?: string } = {}
 
         if (!newPassword) {
-            newErrors.newPassword = 'Please enter a new password'
+            newErrors.newPassword = '새 비밀번호를 입력해주세요'
         } else if (newPassword.length < 6) {
-            newErrors.newPassword = 'Password must be at least 6 characters'
+            newErrors.newPassword = '비밀번호는 최소 6자 이상이어야 합니다'
         }
 
         if (!confirmPassword) {
-            newErrors.confirmPassword = 'Please confirm your password'
+            newErrors.confirmPassword = '비밀번호를 확인해주세요'
         } else if (confirmPassword !== newPassword) {
-            newErrors.confirmPassword = 'Passwords do not match'
+            newErrors.confirmPassword = '비밀번호가 일치하지 않습니다'
         }
 
         setResetErrors(newErrors)
@@ -178,7 +178,7 @@ export function LoginScreen({
                         <h2 className="text-xl text-center">
                             {resetStage !== 'login' ? (
                                 <>
-                                    Reset <span style={{ color: "var(--point-color)" }}>Password</span>
+                                    비밀번호 <span style={{ color: "var(--point-color)" }}>재설정</span>
                                 </>
                             ) : (
                                 <>
@@ -188,12 +188,12 @@ export function LoginScreen({
                         </h2>
                         <p className="text-sm text-muted-foreground text-center">
                             {resetStage === 'login'
-                                ? 'Sign in to access your workspace.'
+                                ? '워크스페이스에 접근하려면 로그인하세요.'
                                 : resetStage === 'request'
-                                ? 'Enter your ID and email to receive a verification code.'
+                                ? '아이디와 이메일을 입력해 인증 코드를 받아보세요.'
                                 : resetStage === 'verify'
-                                ? 'Enter the verification code we sent to your email.'
-                                : 'Choose a new password to finish resetting your account.'}
+                                ? '이메일로 받은 인증 코드를 입력하세요.'
+                                : '새 비밀번호를 설정해 비밀번호 재설정을 완료하세요.'}
                         </p>
                     </CardHeader>
                     <CardContent>
@@ -201,11 +201,11 @@ export function LoginScreen({
                         <form onSubmit={handleLogin} className="space-y-6">
                             {/* Email Field */}
                             <div className="space-y-2">
-                                <Label htmlFor="userId" className="text-gray-700">ID</Label>
+                                <Label htmlFor="userId" className="text-gray-700">아이디</Label>
                                 <Input
                                     id="userId"
                                     type="text"
-                                    placeholder="Enter your ID"
+                                    placeholder="아이디를 입력하세요"
                                     value={userId}
                                     onChange={(e) => setUserId(e.target.value)}
                                     className={`h-12 rounded-xl border-gray-200 bg-gray-50 px-4 focus:bg-white focus:border-primary transition-colors ${
@@ -221,12 +221,12 @@ export function LoginScreen({
 
                             {/* Password Field */}
               <div className="space-y-2">
-                <Label htmlFor="password" className="text-gray-700">Password</Label>
+                <Label htmlFor="password" className="text-gray-700">비밀번호</Label>
                 <div className="relative">
                   <Input
                     id="password"
                     type={showPassword ? 'text' : 'password'}
-                    placeholder="Enter your password"
+                    placeholder="비밀번호를 입력하세요"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     className={`h-12 rounded-xl border-gray-200 bg-gray-50 pr-16 px-4 focus:bg-white focus:border-primary transition-colors ${
@@ -250,10 +250,10 @@ export function LoginScreen({
                                 {isLoading ? (
                                     <div className="flex items-center justify-center">
                                         <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
-                                        Signing in...
+                                        로그인 중...
                                     </div>
                                 ) : (
-                                    'Sign In'
+                                    '로그인'
                                 )}
                             </Button>
 
@@ -266,7 +266,7 @@ export function LoginScreen({
                                         setErrors({})
                                     }}
                                 >
-                                    Forgot password?
+                                    비밀번호를 잊으셨나요?
                                 </button>
                             </div>
 
@@ -274,11 +274,11 @@ export function LoginScreen({
                         ) : resetStage === 'request' ? (
                         <form onSubmit={handleResetRequest} className="space-y-6">
                             <div className="space-y-2">
-                                <Label htmlFor="resetId" className="text-gray-700">ID</Label>
+                                <Label htmlFor="resetId" className="text-gray-700">아이디</Label>
                                 <Input
                                     id="resetId"
                                     type="text"
-                                    placeholder="Enter your ID"
+                                    placeholder="아이디를 입력하세요"
                                     value={resetId}
                                     onChange={(e) => setResetId(e.target.value)}
                                     className={`h-12 rounded-xl border-gray-200 bg-gray-50 px-4 focus:bg-white focus:border-primary transition-colors ${
@@ -293,11 +293,11 @@ export function LoginScreen({
                             </div>
 
                             <div className="space-y-2">
-                                <Label htmlFor="resetEmail" className="text-gray-700">Email</Label>
+                                <Label htmlFor="resetEmail" className="text-gray-700">이메일</Label>
                                 <Input
                                     id="resetEmail"
                                     type="email"
-                                    placeholder="Enter your email"
+                                    placeholder="이메일을 입력하세요"
                                     value={resetEmail}
                                     onChange={(e) => setResetEmail(e.target.value)}
                                     className={`h-12 rounded-xl border-gray-200 bg-gray-50 px-4 focus:bg-white focus:border-primary transition-colors ${
@@ -321,25 +321,25 @@ export function LoginScreen({
                                         setResetErrors({})
                                     }}
                                 >
-                                    Back
+                                    뒤로가기
                                 </Button>
                                 <Button
                                     type="submit"
                                     className="w-1/2"
                                     disabled={isResetSubmitting}
                                 >
-                                    {isResetSubmitting ? 'Sending...' : 'Send Code'}
+                                    {isResetSubmitting ? '전송 중...' : '인증 코드 받기'}
                                 </Button>
                             </div>
                         </form>
                         ) : resetStage === 'verify' ? (
                         <form onSubmit={handleResetCodeSubmit} className="space-y-6">
                             <div className="space-y-2">
-                                <Label htmlFor="verificationCode" className="text-gray-700">Verification Code</Label>
+                                <Label htmlFor="verificationCode" className="text-gray-700">인증 코드</Label>
                                 <Input
                                     id="verificationCode"
                                     type="text"
-                                    placeholder="Enter the code"
+                                    placeholder="코드를 입력하세요"
                                     value={resetCode}
                                     onChange={(e) => setResetCode(e.target.value)}
                                     className={`h-12 rounded-xl border-gray-200 bg-gray-50 px-4 focus:bg-white focus:border-primary transition-colors ${
@@ -363,25 +363,25 @@ export function LoginScreen({
                                         setResetErrors({})
                                     }}
                                 >
-                                    Back
+                                    뒤로
                                 </Button>
                                 <Button
                                     type="submit"
                                     className="w-1/2"
                                     disabled={isResetSubmitting}
                                 >
-                                    {isResetSubmitting ? 'Verifying...' : 'Verify'}
+                                    {isResetSubmitting ? '확인 중...' : '확인'}
                                 </Button>
                             </div>
                         </form>
                         ) : (
                         <form onSubmit={handleNewPasswordSubmit} className="space-y-6">
                             <div className="space-y-2">
-                                <Label htmlFor="newPassword" className="text-gray-700">New Password</Label>
+                                <Label htmlFor="newPassword" className="text-gray-700">새 비밀번호</Label>
                                 <Input
                                     id="newPassword"
                                     type="password"
-                                    placeholder="Enter a new password"
+                                    placeholder="새 비밀번호를 입력하세요"
                                     value={newPassword}
                                     onChange={(e) => setNewPassword(e.target.value)}
                                     className={`h-12 rounded-xl border-gray-200 bg-gray-50 px-4 focus:bg-white focus:border-primary transition-colors ${
@@ -396,11 +396,11 @@ export function LoginScreen({
                             </div>
 
                             <div className="space-y-2">
-                                <Label htmlFor="confirmPassword" className="text-gray-700">Confirm Password</Label>
+                                <Label htmlFor="confirmPassword" className="text-gray-700">비밀번호 확인</Label>
                                 <Input
                                     id="confirmPassword"
                                     type="password"
-                                    placeholder="Re-enter the new password"
+                                    placeholder="새 비밀번호를 다시 입력하세요"
                                     value={confirmPassword}
                                     onChange={(e) => setConfirmPassword(e.target.value)}
                                     className={`h-12 rounded-xl border-gray-200 bg-gray-50 px-4 focus:bg-white focus:border-primary transition-colors ${
@@ -426,14 +426,14 @@ export function LoginScreen({
                                         setConfirmPassword('')
                                     }}
                                 >
-                                    Cancel
+                                    취소
                                 </Button>
                                 <Button
                                     type="submit"
                                     className="w-1/2"
                                     disabled={isResetSubmitting}
                                 >
-                                    {isResetSubmitting ? 'Saving...' : 'Update Password'}
+                                    {isResetSubmitting ? '저장 중...' : '비밀번호 변경'}
                                 </Button>
                             </div>
                         </form>

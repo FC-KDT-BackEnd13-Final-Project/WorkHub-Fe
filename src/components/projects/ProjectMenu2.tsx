@@ -22,7 +22,7 @@ export function ProjectMenu2({ activeTab, onTabChange }: NavigationProps) {
             className="flex items-center gap-2"
           >
             <ClipboardList className="h-4 w-4" />
-            Create Project Checklist
+            체크리스트 작성
           </Button2>
 
             {/* Project Board */}
@@ -32,7 +32,7 @@ export function ProjectMenu2({ activeTab, onTabChange }: NavigationProps) {
             className="flex items-center gap-2"
           >
             <LayoutDashboard className="h-4 w-4" />
-            Project Board
+            프로젝트 게시판
           </Button2>
         </div>
       </CardContent>

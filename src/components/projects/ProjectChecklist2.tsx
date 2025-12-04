@@ -40,7 +40,7 @@ export function ProjectChecklist2() {
       <div className="max-w-4xl mx-auto p-6">
         <Card2>
           <CardHeader className="pb-6">
-            <CardTitle className="text-center">Create Project Checklist</CardTitle>
+            <CardTitle className="text-center">체크리스트 작성</CardTitle>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
@@ -117,7 +117,7 @@ export function ProjectChecklist2() {
                     type="submit"
                     className="flex-1"
                 >
-                  Save
+                  저장
                 </Button2>
 
                 {/* Reset */}
@@ -127,7 +127,7 @@ export function ProjectChecklist2() {
                     onClick={handleReset}
                     className="flex-1"
                 >
-                  Reset
+                  초기화
                 </Button2>
               </div>
             </form>

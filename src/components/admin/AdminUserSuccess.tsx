@@ -12,14 +12,14 @@ export function AdminUserSuccess() {
         <div className="rounded-full bg-emerald-50 p-4">
           <CheckCircle2 className="h-10 w-10 text-emerald-500" />
         </div>
-        <h1 className="text-2xl font-semibold">User successfully created!</h1>
+        <h1 className="text-2xl font-semibold">회원 등록이 완료되었습니다!</h1>
         <p className="text-muted-foreground">
-          Send the welcome email and share credentials with the member or client admin.
+          환영 이메일을 발송하고 멤버 또는 고객 관리자에게 계정 정보를 공유하세요.
         </p>
         <div className="flex flex-col gap-3 sm:flex-row">
-          <Button onClick={() => navigate("/admin/users/add")}>Add another user</Button>
+          <Button onClick={() => navigate("/admin/users/add")}>회원 추가</Button>
           <Button variant="outline" onClick={() => navigate("/admin/users")}>
-            Go to User List
+            회원 목록으로 이동
           </Button>
         </div>
       </CardContent>

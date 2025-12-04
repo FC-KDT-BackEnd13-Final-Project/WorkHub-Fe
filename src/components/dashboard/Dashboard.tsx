@@ -5,10 +5,10 @@ import { UserGrowthStats } from "./UserGrowthStats";
 
 // 대시보드 메인 진입점: 상단 KPI 카드와 주요 통계 카드 묶음
 const stats = [
-  { title: "Total Projects", value: "24", change: "+2 from last month", icon: LayoutDashboard },
-  { title: "Active Tasks", value: "142", change: "+18 from last week", icon: CheckCircle },
-  { title: "Team Members", value: "32", change: "+4 new this month", icon: Users },
-  { title: "Completion Rate", value: "87%", change: "+5% from last month", icon: TrendingUp },
+  { title: "전체 프로젝트", value: "24", change: "지난달 대비 +2", icon: LayoutDashboard },
+  { title: "진행 중인 작업", value: "142", change: "지난주 대비 +18", icon: CheckCircle },
+  { title: "팀 구성원", value: "32", change: "이번 달 신규 +4", icon: Users },
+  { title: "완료율", value: "87%", change: "지난달 대비 +5%", icon: TrendingUp },
 ];
 
 export function Dashboard() {
@@ -17,7 +17,7 @@ export function Dashboard() {
       <div className="rounded-2xl bg-white p-6 shadow-sm">
         <h1 className="text-3xl font-semibold tracking-tight">Dashboard</h1>
         <p className="mt-2 text-muted-foreground">
-          Keep an eye on live metrics: total projects, completed tasks, and today’s wins at a glance.
+          실시간 지표를 확인하세요. 전체 프로젝트, 완료된 작업, 오늘의 성과를 한눈에 볼 수 있습니다.
         </p>
       </div>
       <div className="space-y-6">

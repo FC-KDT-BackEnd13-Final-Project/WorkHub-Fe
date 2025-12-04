@@ -22,7 +22,7 @@ export function AdminUserHistory() {
   if (!user) {
     return (
       <div className="rounded-2xl bg-white p-6 text-center text-muted-foreground shadow-sm">
-        User not found.
+        사용자를 찾을 수 없습니다.
       </div>
     );
   }
@@ -51,16 +51,16 @@ export function AdminUserHistory() {
           <div className="mt-2 flex flex-wrap gap-2 text-sm">
             <Badge variant="secondary">{user.company}</Badge>
             <Badge variant="secondary">{user.role}</Badge>
-            <Badge variant={user.status === "Active" ? "default" : "secondary"}>{user.status}</Badge>
-            <span className="text-muted-foreground">Last active · {user.lastActive}</span>
+            <Badge variant={user.status === "Active" ? "default" : "secondary"}>{user.status === "Active" ? "활성" : "대기"}</Badge>
+            <span className="text-muted-foreground">마지막 활동 · {user.lastActive}</span>
           </div>
         </div>
       </div>
 
       <div className="rounded-2xl bg-white p-6 shadow-sm min-h-0">
         <div className="border-b pb-4">
-          <h3 className="text-lg font-semibold">Activity History · All</h3>
-          <p className="text-sm text-muted-foreground">Full activity feed for this member.</p>
+          <h3 className="text-lg font-semibold">Activity History · 전체</h3>
+          <p className="text-sm text-muted-foreground">이 구성원의 전체 활동 기록입니다.</p>
         </div>
         <div className="space-y-4 overflow-y-auto pt-4 max-h-[640px] pr-1">
           {activityHistory.map((activity) => (
@@ -75,7 +75,7 @@ export function AdminUserHistory() {
         </div>
         <div className="mt-4 flex justify-end">
           <Button variant="outline" onClick={() => navigate(-1)}>
-            Back
+            뒤로 가기
           </Button>
         </div>
       </div>

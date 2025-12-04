@@ -18,7 +18,7 @@ export function AdminAddMenu({ activeTab, onTabChange }: AdminAddMenuProps) {
             className="flex items-center gap-2"
           >
             <UserPlus className="h-4 w-4" />
-            User
+            회원
           </Button>
           <Button
             variant={activeTab === "company" ? "default" : "outline"}
@@ -26,7 +26,7 @@ export function AdminAddMenu({ activeTab, onTabChange }: AdminAddMenuProps) {
             className="flex items-center gap-2"
           >
             <Building2 className="h-4 w-4" />
-            Company
+            회사
           </Button>
         </CardContent>
       </Card>

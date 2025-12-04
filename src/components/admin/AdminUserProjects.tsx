@@ -14,7 +14,7 @@ export function AdminUserProjects() {
   if (!user) {
     return (
       <div className="rounded-2xl bg-white p-6 text-center text-muted-foreground shadow-sm">
-        User not found.
+        사용자를 찾을 수 없습니다.
       </div>
     );
   }
@@ -43,17 +43,17 @@ export function AdminUserProjects() {
           <div className="mt-2 flex flex-wrap gap-2 text-sm">
             <Badge variant="secondary">{user.company}</Badge>
             <Badge variant="secondary">{user.role}</Badge>
-            <Badge variant={user.status === "Active" ? "default" : "secondary"}>{user.status}</Badge>
-            <span className="text-muted-foreground">Last active · {user.lastActive}</span>
+            <Badge variant={user.status === "Active" ? "default" : "secondary"}>{user.status === "Active" ? "활성" : "대기"}</Badge>
+            <span className="text-muted-foreground">마지막 활동 · {user.lastActive}</span>
           </div>
         </div>
       </div>
 
       <div className="rounded-2xl bg-white p-6 shadow-sm min-h-0">
         <div className="border-b pb-4">
-          <h3 className="text-lg font-semibold">Assigned Projects · All</h3>
+          <h3 className="text-lg font-semibold">배정된 Projects · 전체</h3>
           <p className="text-sm text-muted-foreground">
-            Full project list currently owned by {user.name}.
+            현재 {user.name}에게 배정된 전체 프로젝트입니다.
           </p>
         </div>
         <div className="grid gap-4 pt-4 max-h-[640px] overflow-y-auto pr-1">
@@ -79,29 +79,29 @@ export function AdminUserProjects() {
               <div className="space-y-4 px-6 py-4">
                 <div className="grid gap-2 text-sm">
                   <div className="flex justify-between">
-                    <span className="text-muted-foreground">Client Manager</span>
+                    <span className="text-muted-foreground">고객 담당자</span>
                     <span className="font-medium">{project.manager}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-muted-foreground">Team Size</span>
+                    <span className="text-muted-foreground">팀 규모</span>
                     <span className="font-medium">{project.teamSize}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-muted-foreground">Workflow Steps</span>
+                    <span className="text-muted-foreground">워크플로 단계</span>
                     <span className="font-medium">{project.tasks}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-muted-foreground">Start</span>
+                    <span className="text-muted-foreground">시작일</span>
                     <span className="font-medium">{project.start}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-muted-foreground">Due</span>
+                    <span className="text-muted-foreground">마감일</span>
                     <span className="font-medium">{project.due}</span>
                   </div>
                 </div>
                 <div>
                   <div className="flex items-center justify-between text-sm font-medium">
-                    <span>Progress</span>
+                    <span>진행률</span>
                     <span>{project.progress}%</span>
                   </div>
                   <div className="relative mt-2 h-2 w-full overflow-hidden rounded-full bg-primary/20">
@@ -117,7 +117,7 @@ export function AdminUserProjects() {
         </div>
         <div className="mt-4 flex justify-end">
           <Button variant="outline" onClick={() => navigate(-1)}>
-            Back
+            뒤로 가기
           </Button>
         </div>
       </div>

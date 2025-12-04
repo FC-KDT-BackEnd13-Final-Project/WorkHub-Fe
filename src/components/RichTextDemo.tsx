@@ -44,7 +44,7 @@ export function RichTextDemo({ actionButtons }: RichTextDemoProps) {
                     {/* 하단 버튼들 (예시) */}
                     <div className="flex items-center justify-between gap-2">
                         <Button variant="outline" size="sm" onClick={clearEditor}>
-                            Clear Content
+                            내용 초기화
                         </Button>
                         <div className="flex gap-2">
                             {actionButtons}

@@ -22,6 +22,20 @@ import {
 } from "../ui/table";
 
 const roles = ["All", "Client", "Developer", "Manager", "Admin"] as const;
+const roleDisplayMap: Record<string, string> = {
+  All: "전체 역할",
+  Client: "클라이언트",
+  Developer: "개발자",
+  Manager: "매니저",
+  Admin: "관리자",
+  "Project Lead": "프로젝트 리드",
+  "Client Manager": "클라이언트 매니저",
+  "Lead Engineer": "리드 엔지니어",
+  "UX Designer": "UX 디자이너",
+  "Data Analyst": "데이터 분석가",
+  "Customer Success": "고객 성공 담당",
+  "QA Lead": "QA 리드",
+};
 
 const users = [
   {
@@ -211,35 +225,35 @@ export function AdminUsers() {
       <div className="rounded-2xl bg-white p-6 shadow-sm">
         <h1 className="text-3xl font-semibold tracking-tight">Users</h1>
         <p className="mt-2 text-muted-foreground">
-          Manage every member across the workspace, assign access, and review activity.
+          워크스페이스 구성원을 관리하고 권한을 지정하며 활동 현황을 확인하세요.
         </p>
       </div>
 
       <div className="flex flex-col gap-4 rounded-2xl bg-white p-4 shadow-sm md:flex-row md:items-center">
         <Input
-          placeholder="Search users..."
+          placeholder="구성원을 검색하세요"
           value={search}
           onChange={(event) => setSearch(event.target.value)}
           className="md:flex-1"
         />
         <Select value={roleFilter} onValueChange={(value) => setRoleFilter(value as (typeof roles)[number])}>
           <SelectTrigger className="md:w-52">
-            <SelectValue placeholder="All Roles" />
+            <SelectValue placeholder="전체 역할" />
           </SelectTrigger>
           <SelectContent>
             {roles.map((role) => (
               <SelectItem key={role} value={role}>
-                {role}
+                {roleDisplayMap[role] ?? role}
               </SelectItem>
             ))}
           </SelectContent>
         </Select>
         <Select value={companyFilter} onValueChange={(value) => setCompanyFilter(value)}>
           <SelectTrigger className="md:w-52">
-            <SelectValue placeholder="All Companies" />
+            <SelectValue placeholder="전체 회사" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="All">All Companies</SelectItem>
+            <SelectItem value="All">전체 회사</SelectItem>
             {companies.map((company) => (
               <SelectItem key={company} value={company}>
                 {company}
@@ -248,7 +262,7 @@ export function AdminUsers() {
           </SelectContent>
         </Select>
         <Button className="md:w-auto" onClick={() => navigate("/admin/users/add")}>
-          + Add
+          + 추가
         </Button>
       </div>
 
@@ -258,12 +272,12 @@ export function AdminUsers() {
             <TableHeader>
               <TableRow>
                 <TableHead className="w-1/4">User</TableHead>
-                <TableHead className="w-1/6 text-center">Company</TableHead>
-                <TableHead className="w-1/6 text-center">Role</TableHead>
-                <TableHead className="w-1/6 text-center">Status</TableHead>
-                <TableHead className="w-1/12 text-center">Projects</TableHead>
-                <TableHead className="w-1/12 text-center">Workload</TableHead>
-                <TableHead className="w-1/6 text-center">Joined</TableHead>
+                <TableHead className="w-1/6 text-center">회사</TableHead>
+                <TableHead className="w-1/6 text-center">역할</TableHead>
+                <TableHead className="w-1/6 text-center">상태</TableHead>
+                <TableHead className="w-1/12 text-center">프로젝트</TableHead>
+                <TableHead className="w-1/12 text-center">업무량</TableHead>
+                <TableHead className="w-1/6 text-center">가입일</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -301,10 +315,12 @@ export function AdminUsers() {
                   <TableCell className="text-center">
                     <Badge variant="secondary">{user.company}</Badge>
                   </TableCell>
-                  <TableCell className="text-center text-sm text-muted-foreground">{user.role}</TableCell>
+                  <TableCell className="text-center text-sm text-muted-foreground">
+                    {roleDisplayMap[user.role] ?? user.role}
+                  </TableCell>
                   <TableCell className="text-center">
                     <Badge variant={user.status === "Active" ? "default" : "secondary"}>
-                      {user.status}
+                      {user.status === "Active" ? "활성" : "대기"}
                     </Badge>
                   </TableCell>
                   <TableCell className="text-center font-medium">{user.projects}</TableCell>

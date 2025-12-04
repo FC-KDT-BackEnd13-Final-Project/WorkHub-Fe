@@ -50,7 +50,7 @@ export function SupportPage() {
               setSearchInput(value);
               setSearchTerm(value);
             }}
-            placeholder="Search projects..."
+            placeholder="검색어를 입력하세요"
             className="md:flex-1"
           />
           <Select value={typeFilter} onValueChange={(value) => setTypeFilter(value as typeof typeFilter)}>
@@ -58,7 +58,7 @@ export function SupportPage() {
               <SelectValue placeholder="All Status" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All Status</SelectItem>
+              <SelectItem value="all">전체</SelectItem>
               <SelectItem value="notice">공지</SelectItem>
               <SelectItem value="question">질문</SelectItem>
               <SelectItem value="general">일반</SelectItem>
