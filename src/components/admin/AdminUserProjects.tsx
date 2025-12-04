@@ -56,7 +56,7 @@ export function AdminUserProjects() {
             현재 {user.name}에게 배정된 전체 프로젝트입니다.
           </p>
         </div>
-        <div className="grid gap-4 pt-4 max-h-[640px] overflow-y-auto pr-1">
+        <div className="grid gap-4 pt-4 max-h-[640px] overflow-y-auto pr-1 sm:grid-cols-2 lg:grid-cols-3">
           {user.projects.map((project) => (
             <div
               key={project.id}

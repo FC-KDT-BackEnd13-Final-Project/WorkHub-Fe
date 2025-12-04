@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Card2, CardContent } from "../../components/ui/card2";
 import { Input2 } from "../../components/ui/input2";
@@ -23,6 +23,9 @@ export function SupportPage() {
   const [searchInput, setSearchInput] = useState("");
   const [typeFilter, setTypeFilter] = useState<"all" | "notice" | "question" | "general">("all");
   const [isWriting, setIsWriting] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+
+  const ITEMS_PER_PAGE = 8;
 
   const filteredTickets = useMemo(() => {
     const term = searchTerm.toLowerCase();
@@ -34,6 +37,19 @@ export function SupportPage() {
           ticket.customerName.toLowerCase().includes(term))
     );
   }, [searchTerm, typeFilter]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredTickets.length / ITEMS_PER_PAGE));
+  useEffect(() => {
+    setCurrentPage((prev) => Math.min(prev, totalPages));
+  }, [totalPages]);
+  const paginatedTickets = useMemo(() => {
+    const start = (currentPage - 1) * ITEMS_PER_PAGE;
+    return filteredTickets.slice(start, start + ITEMS_PER_PAGE);
+  }, [filteredTickets, currentPage]);
+
+  const goToPage = (page: number) => {
+    setCurrentPage(Math.min(Math.max(page, 1), totalPages));
+  };
 
   return (
     <div className="space-y-6">
@@ -49,13 +65,20 @@ export function SupportPage() {
               const value = event.target.value;
               setSearchInput(value);
               setSearchTerm(value);
+              goToPage(1);
             }}
             placeholder="검색어를 입력하세요"
             className="md:flex-1"
           />
-          <Select value={typeFilter} onValueChange={(value) => setTypeFilter(value as typeof typeFilter)}>
+          <Select
+            value={typeFilter}
+            onValueChange={(value) => {
+              setTypeFilter(value as typeof typeFilter);
+              goToPage(1);
+            }}
+          >
             <SelectTrigger className="h-9 rounded-md border border-border bg-input-background px-3 py-1 md:w-52">
-              <SelectValue placeholder="All Status" />
+              <SelectValue placeholder="전체 상태" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">전체</SelectItem>
@@ -105,7 +128,7 @@ export function SupportPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredTickets.map((ticket, index) => (
+                {paginatedTickets.map((ticket, index) => (
                   <TableRow
                     key={ticket.id}
                     className="cursor-pointer"
@@ -115,7 +138,9 @@ export function SupportPage() {
                       })
                     }
                   >
-                    <TableCell className="px-6 py-2 whitespace-nowrap">{index + 1}</TableCell>
+                    <TableCell className="px-6 py-2 whitespace-nowrap">
+                      {(currentPage - 1) * ITEMS_PER_PAGE + index + 1}
+                    </TableCell>
                     <TableCell className="px-3 py-2 whitespace-nowrap">{ticket.customerName}</TableCell>
                     <TableCell className="px-3 py-2 whitespace-nowrap">{ticket.type}</TableCell>
                     <TableCell className="px-3 py-2">
@@ -143,6 +168,40 @@ export function SupportPage() {
             </Table2>
           </CardContent>
         </Card2>
+      )}
+      {filteredTickets.length > 0 && (
+        <div className="flex flex-col items-center gap-2 border-t pt-4 text-sm text-muted-foreground">
+          <div className="flex items-center justify-center gap-2">
+            <Button2
+              variant="outline"
+              size="sm"
+              onClick={() => goToPage(currentPage - 1)}
+              disabled={currentPage === 1}
+              aria-label="이전 페이지"
+            >
+              {"<"}
+            </Button2>
+            {Array.from({ length: totalPages }, (_, index) => index + 1).map((page) => (
+              <Button2
+                key={page}
+                variant={page === currentPage ? "default" : "outline"}
+                size="sm"
+                onClick={() => goToPage(page)}
+              >
+                {page}
+              </Button2>
+            ))}
+            <Button2
+              variant="outline"
+              size="sm"
+              onClick={() => goToPage(currentPage + 1)}
+              disabled={currentPage === totalPages}
+              aria-label="다음 페이지"
+            >
+              {">"}
+            </Button2>
+          </div>
+        </div>
       )}
     </div>
   );
