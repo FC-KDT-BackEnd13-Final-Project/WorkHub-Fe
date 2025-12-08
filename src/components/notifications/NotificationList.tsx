@@ -27,7 +27,7 @@ export function NotificationList({ notifications, onMarkRead, onRemove }: Notifi
             <TableHeader>
               <TableRow>
                 <TableHead className="w-1/3">알림</TableHead>
-                <TableHead className="w-1/6 text-center">중요도</TableHead>
+                <TableHead className="w-1/6 text-center">유형</TableHead>
                 <TableHead className="w-1/6 text-center">상태</TableHead>
                 <TableHead className="w-1/6 text-center">수신 시각</TableHead>
                 <TableHead className="w-1/6 text-center">확인</TableHead>
