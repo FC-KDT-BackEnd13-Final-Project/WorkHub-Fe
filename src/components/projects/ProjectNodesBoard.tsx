@@ -530,10 +530,10 @@ export function ProjectNodesBoard() {
         />
         <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as "전체" | NodeStatus)}>
           <SelectTrigger className="md:w-52">
-            <SelectValue placeholder="상태" />
+            <SelectValue placeholder="전체 상태" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="전체">상태</SelectItem>
+            <SelectItem value="전체">전체 상태</SelectItem>
             {statusOptions.map((option) => (
               <SelectItem key={option} value={option}>
                 {option}
@@ -543,24 +543,24 @@ export function ProjectNodesBoard() {
         </Select>
         <Select value={approvalFilter} onValueChange={(value) => setApprovalFilter(value as ApprovalFilter)}>
           <SelectTrigger className="md:w-52">
-            <SelectValue placeholder="승인" />
+            <SelectValue placeholder="전체 승인" />
           </SelectTrigger>
           <SelectContent>
             {approvalFilterOptions.map((option) => (
               <SelectItem key={option} value={option}>
-                {option === "전체" ? "승인" : option}
+                {option === "전체" ? "전체 승인" : option}
               </SelectItem>
             ))}
           </SelectContent>
         </Select>
         <Select value={developerFilter} onValueChange={(value) => setDeveloperFilter(value)}>
           <SelectTrigger className="md:w-52">
-            <SelectValue placeholder="담당자" />
+            <SelectValue placeholder="전체 개발 담당자" />
           </SelectTrigger>
           <SelectContent>
             {developerFilterOptions.map((option) => (
               <SelectItem key={option} value={option}>
-                {option === "전체" ? "담당자" : option}
+                {option === "전체" ? "전체 개발 담당자" : option}
               </SelectItem>
             ))}
           </SelectContent>
