@@ -4,7 +4,9 @@ import { Card2, CardContent } from "../ui/card2";
 import { Badge2 } from "../ui/badge2";
 import { Button2 } from "../ui/button2";
 import { Textarea2 } from "../ui/textarea2";
-import {MoreVertical, Pencil, Trash2, CornerDownRight} from "lucide-react";
+import { MoreVertical, Pencil, Trash2, CornerDownRight, History, X } from "lucide-react";
+import { PostCard } from "./PostCard";
+import { postRevisionsByPostId, type PostRevision } from "../../data/postRevisions";
 
 const COMMENTS_PER_PAGE = 5;
 
@@ -68,6 +70,10 @@ export function ProjectPostDetail({
     const isPostOwner = post.isOwner ?? true; // 임시: 작성자로 가정
     const [postMenuOpen, setPostMenuOpen] = useState(false); //  게시글 메뉴 열림 여부
     const [commentPage, setCommentPage] = useState(1);
+    // 게시글 수정 이력 모달 및 선택된 버전 상태
+    const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+    const [selectedRevision, setSelectedRevision] = useState<PostRevision | null>(null);
+    const revisions = postRevisionsByPostId[post.id] ?? postRevisionsByPostId.default;
 
     useEffect(() => {
         setPostContent(post.content);
@@ -101,6 +107,21 @@ export function ProjectPostDetail({
             ? `/projects/${projectId}/nodes/${nodeId}/posts`
             : undefined);
 
+    const postMetaItems = [
+        post.customerName ? `작성자: ${post.customerName}` : undefined,
+        post.updatedDate
+            ? `수정일: ${post.updatedDate}`
+            : post.createdDate
+                ? `수정일: ${post.createdDate}`
+                : undefined,
+    ].filter(Boolean) as string[];
+
+    const currentPostCardData = {
+        title: post.title,
+        content: postContent || post.content,
+        type: post.type,
+    };
+
     const navigateBackToList = () => {
         if (listPath) {
             navigate(listPath, { replace: true });
@@ -108,6 +129,102 @@ export function ProjectPostDetail({
             navigate(-1);
         }
     };
+
+    const handleHistoryOpen = () => {
+        // 메뉴 상태를 초기화하고 누구나 이력 모달을 볼 수 있게 연다
+        setSelectedRevision(null);
+        setPostMenuOpen(false);
+        setIsHistoryOpen(true);
+    };
+
+    const getRevisionTimestamp = (revision: PostRevision) =>
+        revision.updatedAt ?? revision.editedAt ?? revision.createdAt ?? "";
+
+    const getRevisionPreview = (content: string) => {
+        if (!content) return "";
+        const trimmed = content.trim();
+        const firstLineBreak = trimmed.indexOf("\n");
+        const line = firstLineBreak !== -1 ? trimmed.slice(0, firstLineBreak) : trimmed;
+        const firstSentenceEnd = line.indexOf(".");
+        if (firstSentenceEnd !== -1) {
+            return line.slice(0, firstSentenceEnd + 1);
+        }
+        return line;
+    };
+
+    const sortedRevisions = [...revisions].sort((a, b) => {
+        const aTime = getRevisionTimestamp(a) ? new Date(getRevisionTimestamp(a)).getTime() : 0;
+        const bTime = getRevisionTimestamp(b) ? new Date(getRevisionTimestamp(b)).getTime() : 0;
+        return bTime - aTime;
+    });
+
+    const closeHistory = () => {
+        setIsHistoryOpen(false);
+        setSelectedRevision(null);
+    };
+
+    useEffect(() => {
+        if (!isHistoryOpen) return;
+        const handleKeyDown = (event: KeyboardEvent) => {
+            if (event.key === "Escape") {
+                closeHistory();
+            }
+        };
+        window.addEventListener("keydown", handleKeyDown);
+        return () => window.removeEventListener("keydown", handleKeyDown);
+    }, [isHistoryOpen]);
+
+    const postActionMenu = !isPostEditing ? (
+        <div className="relative">
+            <button
+                type="button"
+                className="p-1 rounded-full hover:bg-muted text-muted-foreground hover:text-foreground"
+                onClick={() => setPostMenuOpen((prev) => !prev)}
+                aria-label="게시글 메뉴 열기"
+            >
+                <MoreVertical className="w-4 h-4" />
+            </button>
+
+            {postMenuOpen && (
+                <div className="absolute right-0 mt-2 w-44 rounded-md border bg-background shadow-lg text-sm overflow-hidden z-20">
+                    {isPostOwner && (
+                        <button
+                            type="button"
+                            className="flex w-full items-center px-4 py-2 hover:bg-muted"
+                            onClick={() => {
+                                setIsPostEditing(true);
+                                setPostMenuOpen(false);
+                            }}
+                        >
+                            <Pencil className="w-4 h-4" />
+                            <span className="whitespace-nowrap pl-2">수정하기</span>
+                        </button>
+                    )}
+                    <button
+                        type="button"
+                        className="flex w-full items-center px-4 py-2 hover:bg-muted"
+                        onClick={handleHistoryOpen}
+                    >
+                        <History className="w-4 h-4" />
+                        <span className="whitespace-nowrap pl-2">이력 보기</span>
+                    </button>
+                    {isPostOwner && (
+                        <button
+                            type="button"
+                            className="flex w-full items-center px-4 py-2 text-destructive hover:bg-muted"
+                            onClick={() => {
+                                setPostMenuOpen(false);
+                                navigate(-1);
+                            }}
+                        >
+                            <Trash2 className="w-4 h-4" />
+                            <span className="whitespace-nowrap pl-2">삭제하기</span>
+                        </button>
+                    )}
+                </div>
+            )}
+        </div>
+    ) : null;
 
     if (!post) {
         return (
@@ -521,69 +638,27 @@ export function ProjectPostDetail({
     return (
         <div className="w-full max-w-5xl mx-auto p-6 space-y-2">
             {/* 게시글 카드 */}
-            <Card2>
-                <CardContent className="space-y-4 p-6">
-                    <div className="space-y-2">
-                        <div className="flex items-center justify-between gap-3 flex-wrap">
-                            <div className="flex items-center gap-2">
-                                <Badge2 variant="outline">{post.type}</Badge2>
-                            </div>
-
-                            {/* 게시글 우측 상단 ⋮ 메뉴 */}
-                            {isPostOwner && (
-                                <div className="relative">
-                                    {!isPostEditing && (
-                                        <button
-                                            type="button"
-                                            className="p-1 rounded-full hover:bg-muted text-muted-foreground hover:text-foreground"
-                                            onClick={() => setPostMenuOpen((prev) => !prev)}
-                                        >
-                                            <MoreVertical className="w-4 h-4" />
-                                        </button>
-                                    )}
-
-                                    {postMenuOpen && !isPostEditing && (
-                                        <div className="absolute right-0 mt-2 w-40 rounded-md border bg-background shadow-lg text-sm overflow-hidden z-20">
-                                            {/* 수정하기 */}
-                                            <button
-                                                type="button"
-                                                className="flex w-full items-center px-4 py-2 hover:bg-muted"
-                                                onClick={() => {
-                                                    setIsPostEditing(true);
-                                                    setPostMenuOpen(false);
-                                                }}
-                                            >
-                                                <Pencil className="w-4 h-4" />
-                                                <span className="whitespace-nowrap pl-2">수정하기</span>
-                                            </button>
-
-                                            {/* 삭제하기 */}
-                                            <button
-                                                type="button"
-                                                className="flex w-full items-center px-4 py-2 text-destructive hover:bg-muted"
-                                                onClick={() => {
-                                                    setPostMenuOpen(false);
-                                                    navigate(-1);
-                                                }}
-                                            >
-                                                <Trash2 className="w-4 h-4" />
-                                                <span className="whitespace-nowrap pl-2">삭제하기</span>
-                                            </button>
-                                        </div>
-                                    )}
+            {isPostOwner && isPostEditing ? (
+                <Card2>
+                    <CardContent className="space-y-4 p-6">
+                        <div className="space-y-2">
+                            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                                현재 버전 (편집 중)
+                            </p>
+                            <div className="flex items-center justify-between gap-3 flex-wrap">
+                                <div className="flex items-center gap-2">
+                                    <Badge2 variant="outline">{post.type}</Badge2>
                                 </div>
-                            )}
+                            </div>
+                            <h2 className="text-2xl font-semibold">{post.title}</h2>
+                            <div className="text-sm text-muted-foreground flex flex-wrap gap-3">
+                                {postMetaItems.map((meta, index) => (
+                                    <span key={`${meta}-${index}`} className="whitespace-nowrap">
+                                        {meta}
+                                    </span>
+                                ))}
+                            </div>
                         </div>
-
-                        <h1 className="text-2xl font-semibold">{post.title}</h1>
-                        <div className="text-sm text-muted-foreground flex flex-wrap gap-3">
-                            <span>작성자: {post.customerName}</span>
-                            <span>작성일: {post.createdDate}</span>
-                            {post.updatedDate && <span>수정일: {post.updatedDate}</span>}
-                        </div>
-                    </div>
-
-                    {isPostOwner && isPostEditing ? (
                         <div className="space-y-2">
                             <Textarea2
                                 rows={6}
@@ -602,7 +677,6 @@ export function ProjectPostDetail({
                                 </Button2>
                                 <Button2
                                     onClick={() => {
-                                        //  게시글 수정 내용 및 수정일 갱신
                                         const now = new Date().toLocaleString("ko-KR");
                                         post.content = postContent;
                                         post.updatedDate = now;
@@ -614,15 +688,16 @@ export function ProjectPostDetail({
                                 </Button2>
                             </div>
                         </div>
-                    ) : (
-                        <div className="space-y-3">
-                            <div className="prose max-w-none text-base leading-relaxed whitespace-pre-line">
-                                {postContent || post?.content}
-                            </div>
-                        </div>
-                    )}
-                </CardContent>
-            </Card2>
+                    </CardContent>
+                </Card2>
+            ) : (
+                <PostCard
+                    headerLabel="현재 버전"
+                    post={currentPostCardData}
+                    metaItems={postMetaItems}
+                    extraMenu={postActionMenu}
+                />
+            )}
 
             {/* 댓글 카드 */}
             <Card2>
@@ -702,6 +777,100 @@ export function ProjectPostDetail({
                     >
                         목록으로
                     </Button2>
+                </div>
+            )}
+
+            {isHistoryOpen && (
+                <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm">
+                    <div className="absolute inset-0" aria-hidden onClick={closeHistory} />
+                    <div className="relative z-10 flex h-full items-center justify-center p-4">
+                        <div className="login-theme bg-card text-card-foreground flex h-full max-h-[90vh] w-full max-w-4xl flex-col gap-6 overflow-hidden rounded-xl border border-border shadow-2xl">
+                            <div className="flex flex-col gap-2 border-b px-6 pt-6 pb-6 text-center sm:flex-row sm:items-center sm:text-left">
+                                <div className="flex-1">
+                                    <h2 className="text-xl font-semibold">수정 이력</h2>
+                                    <p className="text-sm text-muted-foreground">
+                                        게시글의 과거 버전을 확인하거나 현재 글과 비교할 수 있습니다.
+                                    </p>
+                                </div>
+                                <span className="text-sm font-semibold text-sky-600">
+                                    총 {sortedRevisions.length}건
+                                </span>
+                            </div>
+                            <div className="flex flex-1 flex-col gap-6 px-6 pb-6">
+                                {selectedRevision ? (
+                                    <>
+                                        <div className="flex flex-col gap-3 text-sm sm:flex-row sm:items-center sm:justify-between">
+                                            <Button2 variant="ghost" size="sm" onClick={() => setSelectedRevision(null)}>
+                                                이력 목록으로 돌아가기
+                                            </Button2>
+                                        </div>
+                                        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                                            <PostCard
+                                                headerLabel="현재 게시물"
+                                                post={currentPostCardData}
+                                                metaItems={postMetaItems}
+                                            />
+                                            <PostCard
+                                                headerLabel={`수정 전 ${selectedRevision.version}`}
+                                                post={{
+                                                    title: selectedRevision.title,
+                                                    content: selectedRevision.content,
+                                                    type: post.type,
+                                                }}
+                                                metaItems={[
+                                                    selectedRevision.author && `작성자: ${selectedRevision.author}`,
+                                                    (selectedRevision.updatedAt || selectedRevision.editedAt || selectedRevision.createdAt) &&
+                                                        `수정일: ${
+                                                            selectedRevision.updatedAt ??
+                                                            selectedRevision.editedAt ??
+                                                            selectedRevision.createdAt
+                                                        }`,
+                                                ].filter(Boolean) as string[]}
+                                            />
+                                        </div>
+                                    </>
+                        ) : sortedRevisions.length ? (
+                            <div className="flex-1 space-y-6 overflow-y-auto pr-1">
+                                {sortedRevisions.map((revision) => {
+                                    const revisionDate = getRevisionTimestamp(revision);
+                                    const previewText = getRevisionPreview(revision.content);
+                                    return (
+                                        <button
+                                            key={revision.id}
+                                            type="button"
+                                            className="flex w-full flex-col rounded-lg border bg-muted/30 px-6 py-6 text-left hover:bg-muted"
+                                            onClick={() => setSelectedRevision(revision)}
+                                        >
+                                            <div className="flex items-center justify-between gap-2 text-base font-semibold mt-4">
+                                                <span className="text-foreground">
+                                                    {revision.title}
+                                                </span>
+                                                <span className="text-muted-foreground text-sm">
+                                                    {revisionDate || "날짜 미정"}
+                                                </span>
+                                            </div>
+                                            {previewText && (
+                                                <p className="text-sm text-muted-foreground leading-relaxed mb-6">
+                                                    {previewText}
+                                                </p>
+                                            )}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        ) : (
+                                    <p className="py-8 text-center text-sm text-muted-foreground">
+                                        아직 수정된 이력이 없습니다.
+                                    </p>
+                                )}
+                            </div>
+                            <div className="border-t px-6 py-4 mt-6">
+                                <Button2 type="button" className="w-full" onClick={closeHistory}>
+                                    닫기
+                                </Button2>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             )}
         </div>
