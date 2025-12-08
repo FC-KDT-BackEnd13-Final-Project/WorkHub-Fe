@@ -14,6 +14,9 @@ import {
   SelectValue,
 } from "../../components/ui/select";
 import { LoginScreen } from "../../components/Login";
+import { toast } from "sonner";
+
+const PROFILE_STORAGE_KEY = "workhub:settings:profile";
 
 // 사용자 프로필, 보안 설정, 로그인 미리보기를 관리하는 설정 페이지
 export function SettingsPage() {
@@ -49,6 +52,35 @@ export function SettingsPage() {
     fileInputRef.current?.click();
   };
 
+  // 페이지 최초 로드시 저장된 프로필/사진/보안 설정 복원
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+    const stored = window.localStorage.getItem(PROFILE_STORAGE_KEY);
+    if (!stored) {
+      return;
+    }
+    try {
+      const parsed = JSON.parse(stored) as {
+        profile: typeof profile;
+        photo: string;
+        twoFactorEnabled: boolean;
+      };
+      if (parsed.profile) {
+        setProfile(parsed.profile);
+      }
+      if (parsed.photo) {
+        setPhoto(parsed.photo);
+      }
+      if (typeof parsed.twoFactorEnabled === "boolean") {
+        setTwoFactorEnabled(parsed.twoFactorEnabled);
+      }
+    } catch (error) {
+      console.error("프로필 정보를 불러오지 못했습니다.", error);
+    }
+  }, []);
+
   useEffect(() => {
     if (!showResetPassword) return;
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -62,6 +94,52 @@ export function SettingsPage() {
 
   const handleChangePasswordClick = () => {
     setShowResetPassword(true);
+  };
+
+  // 변경 사항을 저장하고 결과를 사용자에게 알림
+  const handleSaveProfile = () => {
+    if (typeof window === "undefined") {
+      return;
+    }
+    const stored = window.localStorage.getItem(PROFILE_STORAGE_KEY);
+    if (stored) {
+      try {
+        const parsed = JSON.parse(stored) as {
+          profile: typeof profile;
+          photo: string;
+          twoFactorEnabled: boolean;
+        };
+        const noChange =
+          JSON.stringify(parsed.profile) === JSON.stringify(profile) &&
+          parsed.photo === photo &&
+          parsed.twoFactorEnabled === twoFactorEnabled;
+        if (noChange) {
+          toast("변경 사항이 없습니다.", {
+            description: "수정 후 저장을 시도해주세요.",
+          });
+          return;
+        }
+      } catch (error) {
+        console.error("저장 데이터 비교 중 오류", error);
+      }
+    }
+    const payload = {
+      profile,
+      photo,
+      twoFactorEnabled,
+      updatedAt: new Date().toISOString(),
+    };
+    try {
+      window.localStorage.setItem(PROFILE_STORAGE_KEY, JSON.stringify(payload));
+      toast.success("변경 사항이 저장되었습니다.", {
+        description: "설정한 정보가 기기에 안전하게 보관됩니다.",
+      });
+    } catch (error) {
+      console.error(error);
+      toast.error("저장 중 오류가 발생했습니다.", {
+        description: "잠시 후 다시 시도해주세요.",
+      });
+    }
   };
 
   return (
@@ -151,7 +229,9 @@ export function SettingsPage() {
 
             {/* Save 버튼 – 카드 하단 오른쪽 정렬 */}
             <div className="mt-6 border-t pt-6" style={{ display: "flex" }}>
-              <Button style={{ marginLeft: "auto" }}>변경 사항 저장</Button>
+              <Button style={{ marginLeft: "auto" }} onClick={handleSaveProfile}>
+                변경 사항 저장
+              </Button>
             </div>
           </CardContent>
         </Card>
