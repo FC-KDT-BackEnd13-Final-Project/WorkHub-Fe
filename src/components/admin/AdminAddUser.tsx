@@ -37,6 +37,9 @@ export function AdminAddUser() {
   const [error, setError] = useState("");
   const [isCompanyLookupOpen, setIsCompanyLookupOpen] = useState(false);
   const [companySearchTerm, setCompanySearchTerm] = useState("");
+  const [isCheckingUsername, setIsCheckingUsername] = useState(false);
+  const [usernameCheckStatus, setUsernameCheckStatus] = useState<"idle" | "success" | "error">("idle");
+  const [usernameCheckMessage, setUsernameCheckMessage] = useState("");
 
   const handleSubmit = (event: FormEvent) => {
     event.preventDefault();
@@ -61,6 +64,8 @@ export function AdminAddUser() {
     setError("");
     setIsCompanyLookupOpen(false);
     setCompanySearchTerm("");
+    setUsernameCheckStatus("idle");
+    setUsernameCheckMessage("");
   };
 
   const companyDirectory = useMemo(() => {
@@ -77,10 +82,37 @@ export function AdminAddUser() {
     return companyDirectory.filter((company) => company.toLowerCase().includes(term));
   }, [companyDirectory, companySearchTerm]);
 
+  // 조회 리스트에서 회사명을 선택하면 입력 값으로 채움
   const handleSelectCompany = (company: string) => {
     setForm((prev) => ({ ...prev, company }));
     setIsCompanyLookupOpen(false);
     setCompanySearchTerm("");
+  };
+
+  // ID 중복 여부를 간단히 검사해 사용자에게 알려줌
+  const handleCheckUsername = () => {
+    const username = form.username.trim();
+    if (!username) {
+      setUsernameCheckStatus("error");
+      setUsernameCheckMessage("ID를 입력해주세요.");
+      return;
+    }
+    setIsCheckingUsername(true);
+    setUsernameCheckStatus("idle");
+    setUsernameCheckMessage("");
+    setTimeout(() => {
+      const exists = companyUsers.some(
+        (user) => user.id?.toLowerCase() === username.toLowerCase()
+      );
+      if (exists) {
+        setUsernameCheckStatus("error");
+        setUsernameCheckMessage("이미 사용 중인 ID입니다.");
+      } else {
+        setUsernameCheckStatus("success");
+        setUsernameCheckMessage("사용 가능한 ID입니다.");
+      }
+      setIsCheckingUsername(false);
+    }, 400);
   };
 
   return (
@@ -99,7 +131,9 @@ export function AdminAddUser() {
                   id="user-company"
                   required
                   value={form.company}
-                  onChange={(event) => setForm((prev) => ({ ...prev, company: event.target.value }))}
+                  readOnly
+                  placeholder="조회 버튼으로 회사를 선택하세요"
+                  onClick={() => setIsCompanyLookupOpen(true)}
                 />
                 <Button
                   type="button"
@@ -196,12 +230,30 @@ export function AdminAddUser() {
                   id="user-username"
                   required
                   value={form.username}
-                  onChange={(event) => setForm((prev) => ({ ...prev, username: event.target.value }))}
+                  onChange={(event) => {
+                    setForm((prev) => ({ ...prev, username: event.target.value }));
+                    setUsernameCheckStatus("idle");
+                    setUsernameCheckMessage("");
+                  }}
                 />
-                <Button type="button" variant="outline">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleCheckUsername}
+                  disabled={isCheckingUsername}
+                >
                   중복 확인
                 </Button>
               </div>
+              {usernameCheckMessage && (
+                <p
+                  className={`text-sm ${
+                    usernameCheckStatus === "success" ? "text-emerald-600" : "text-destructive"
+                  }`}
+                >
+                  {usernameCheckMessage}
+                </p>
+              )}
             </div>
           </div>
 
@@ -229,7 +281,7 @@ export function AdminAddUser() {
           </div>
 
           {error && (
-            <Alert variant="destructive">
+            <Alert variant="destructive" className="border-none">
               <AlertDescription>{error}</AlertDescription>
             </Alert>
           )}

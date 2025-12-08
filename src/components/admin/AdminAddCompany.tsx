@@ -5,6 +5,18 @@ import { Input } from "../ui/input";
 import { Label } from "../ui/label";
 import { Button } from "../ui/button";
 
+declare global {
+  interface Window {
+    daum?: {
+      Postcode: new (
+        options: {
+          oncomplete: (data: { roadAddress: string; jibunAddress: string }) => void;
+        }
+      ) => { open: () => void };
+    };
+  }
+}
+
 export function AdminAddCompany() {
   const navigate = useNavigate();
   const [form, setForm] = useState({
@@ -25,14 +37,30 @@ export function AdminAddCompany() {
     setForm({ name: "", registration: "", address: "", manager: "", phone: "", email: "" });
   };
 
+  const handleSearchAddress = () => {
+    if (!window.daum?.Postcode) {
+      alert("주소 검색 서비스를 불러올 수 없습니다. 잠시 후 다시 시도해주세요.");
+      return;
+    }
+    new window.daum.Postcode({
+      oncomplete: (data) => {
+        const address = data.roadAddress || data.jibunAddress;
+        if (address) {
+          setForm((prev) => ({ ...prev, address }));
+        }
+      },
+    }).open();
+  };
+
   return (
-    <Card className="rounded-2xl border border-white/70 bg-white shadow-sm">
-      <CardHeader className="pb-6 text-center">
-        <CardTitle className="text-2xl">회사 추가</CardTitle>
-        <CardDescription>새 고객사를 등록하고 주요 담당자를 설정하세요.</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <form className="space-y-6" onSubmit={handleSubmit}>
+    <>
+      <Card className="rounded-2xl border border-white/70 bg-white shadow-sm">
+        <CardHeader className="pb-6 text-center">
+          <CardTitle className="text-2xl">회사 추가</CardTitle>
+          <CardDescription>새 고객사를 등록하고 주요 담당자를 설정하세요.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form className="space-y-6" onSubmit={handleSubmit}>
           <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="company-name">회사명</Label>
@@ -63,7 +91,12 @@ export function AdminAddCompany() {
                 onChange={(event) => setForm((prev) => ({ ...prev, address: event.target.value }))}
                 className="flex-1"
               />
-              <Button type="button" variant="outline" className="md:w-auto">
+              <Button
+                type="button"
+                variant="outline"
+                className="md:w-auto"
+                onClick={handleSearchAddress}
+              >
                 검색
               </Button>
             </div>
@@ -110,8 +143,9 @@ export function AdminAddCompany() {
               초기화
             </Button>
           </div>
-        </form>
-      </CardContent>
-    </Card>
+          </form>
+        </CardContent>
+      </Card>
+    </>
   );
 }
