@@ -75,7 +75,7 @@ export function ProjectChecklist2() {
                         required: "전화번호는 필수입니다.",
                         pattern: {
                           value: /^[0-9+\-\s()]+$/,
-                          message: "Format nomor mobile tidak valid"
+                          message: "전화번호 형식이 올바르지 않습니다."
                         }
                       })}
                       className={errors.mobile ? "border-destructive" : ""}
@@ -111,7 +111,7 @@ export function ProjectChecklist2() {
               <FormQuestion2 resetSignal ={questionResetKey} />
 
               {/* submit: Save + Reset 버튼 */}
-              <div className="flex flex-col sm:flex-row gap-3 pt-6 pb-6 border-t">
+              <div className="flex flex-col md:flex-row gap-3 pt-6 pb-6 border-t">
                 {/* Save */}
                 <Button2
                     type="submit"
