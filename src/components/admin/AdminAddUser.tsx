@@ -15,11 +15,11 @@ import { Label } from "../ui/label";
 import { Alert, AlertDescription } from "../ui/alert";
 import { companyUsers } from "./userData";
 
-const roles = ["Developer", "Manager", "Client"] as const;
+const roles = ["Client", "Developer", "Admin"] as const;
 const roleLabels: Record<(typeof roles)[number], string> = {
+  Client: "클라이언트",
   Developer: "개발자",
-  Manager: "매니저",
-  Client: "고객",
+  Admin: "관리자",
 };
 
 export function AdminAddUser() {
@@ -27,7 +27,7 @@ export function AdminAddUser() {
     name: "",
     email: "",
     company: "",
-    role: "Developer",
+    role: "Client",
     phone: "",
     username: "",
     password: "",
@@ -55,7 +55,7 @@ export function AdminAddUser() {
       name: "",
       email: "",
       company: "",
-      role: "Developer",
+      role: "Client",
       phone: "",
       username: "",
       password: "",

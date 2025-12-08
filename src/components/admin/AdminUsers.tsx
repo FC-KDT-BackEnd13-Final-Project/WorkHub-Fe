@@ -20,169 +20,37 @@ import {
   TableHeader,
   TableRow,
 } from "../ui/table";
+import { companyUsers } from "./userData";
 
-const roles = ["All", "Client", "Developer", "Manager", "Admin"] as const;
+const statusStyles = {
+  ACTIVE: {
+    label: "활성",
+    bg: "#ECFDF5",
+    color: "#15803D",
+    border: "#A7F3D0",
+  },
+  INACTIVE: {
+    label: "비활성",
+    bg: "#F9FAFB",
+    color: "#374151",
+    border: "#E5E7EB",
+  },
+  SUSPENDED: {
+    label: "정지",
+    bg: "#FEF2F2",
+    color: "#B91C1C",
+    border: "#FECACA",
+  },
+} as const;
+
+const roles = ["All", "Client", "Developer", "Admin"] as const;
+const statusOptions = ["All", "ACTIVE", "INACTIVE", "SUSPENDED"] as const;
 const roleDisplayMap: Record<string, string> = {
   All: "전체 역할",
   Client: "클라이언트",
   Developer: "개발자",
-  Manager: "매니저",
   Admin: "관리자",
-  "Project Lead": "프로젝트 리드",
-  "Client Manager": "클라이언트 매니저",
-  "Lead Engineer": "리드 엔지니어",
-  "UX Designer": "UX 디자이너",
-  "Data Analyst": "데이터 분석가",
-  "Customer Success": "고객 성공 담당",
-  "QA Lead": "QA 리드",
 };
-
-const users = [
-  {
-    id: "usr-101",
-    name: "Jane Smith",
-    email: "jane@studio.kr",
-    role: "Manager",
-    company: "Nova FinTech",
-    avatarUrl: "https://i.pravatar.cc/80?img=47",
-    status: "Active",
-    projects: 6,
-    workload: "72%",
-    joined: "2022-04-10",
-  },
-  {
-    id: "usr-102",
-    name: "Chris Davis",
-    email: "chris@workhub.com",
-    role: "Developer",
-    company: "WorkHub Labs",
-    avatarUrl: "https://i.pravatar.cc/80?img=12",
-    status: "Active",
-    projects: 4,
-    workload: "64%",
-    joined: "2023-01-18",
-  },
-  {
-    id: "usr-103",
-    name: "Ava Kim",
-    email: "ava@designplus.io",
-    role: "Client",
-    company: "DesignPlus",
-    avatarUrl: "https://i.pravatar.cc/80?img=32",
-    status: "Pending",
-    projects: 3,
-    workload: "28%",
-    joined: "2023-09-05",
-  },
-  {
-    id: "usr-104",
-    name: "Noah Lee",
-    email: "noah@buildly.dev",
-    role: "Admin",
-    company: "WorkHub Labs",
-    avatarUrl: "https://i.pravatar.cc/80?img=21",
-    status: "Active",
-    projects: 9,
-    workload: "88%",
-    joined: "2021-11-02",
-  },
-  {
-    id: "usr-105",
-    name: "Lena Morris",
-    email: "lena@aperture.io",
-    role: "Project Lead",
-    company: "Aperture Studios",
-    avatarUrl: "https://i.pravatar.cc/80?img=15",
-    status: "Active",
-    projects: 5,
-    workload: "67%",
-    joined: "2022-08-14",
-  },
-  {
-    id: "usr-106",
-    name: "Ethan Ward",
-    email: "ethan@nova.io",
-    role: "Developer",
-    company: "Nova FinTech",
-    avatarUrl: "https://i.pravatar.cc/80?img=18",
-    status: "Active",
-    projects: 4,
-    workload: "61%",
-    joined: "2022-10-01",
-  },
-  {
-    id: "usr-107",
-    name: "Nora Lee",
-    email: "nora@globemart.com",
-    role: "Client Manager",
-    company: "GlobeMart",
-    avatarUrl: "https://i.pravatar.cc/80?img=9",
-    status: "Pending",
-    projects: 3,
-    workload: "35%",
-    joined: "2023-02-19",
-  },
-  {
-    id: "usr-108",
-    name: "Chris Reynolds",
-    email: "chris@unitylogistics.com",
-    role: "Lead Engineer",
-    company: "Unity Logistics",
-    avatarUrl: "https://i.pravatar.cc/80?img=28",
-    status: "Active",
-    projects: 8,
-    workload: "82%",
-    joined: "2021-05-11",
-  },
-  {
-    id: "usr-109",
-    name: "Lena Park",
-    email: "lena@lumina.ai",
-    role: "UX Designer",
-    company: "Lumina Labs",
-    avatarUrl: "https://i.pravatar.cc/80?img=44",
-    status: "Active",
-    projects: 6,
-    workload: "74%",
-    joined: "2023-03-05",
-  },
-  {
-    id: "usr-110",
-    name: "Daniel Cho",
-    email: "daniel@bluewave.io",
-    role: "Data Analyst",
-    company: "BlueWave Data",
-    avatarUrl: "https://i.pravatar.cc/80?img=36",
-    status: "Active",
-    projects: 7,
-    workload: "79%",
-    joined: "2022-01-23",
-  },
-  {
-    id: "usr-111",
-    name: "Emily Carter",
-    email: "emily@stellarhq.com",
-    role: "Customer Success",
-    company: "Stellar HQ",
-    avatarUrl: "https://i.pravatar.cc/80?img=53",
-    status: "Active",
-    projects: 5,
-    workload: "58%",
-    joined: "2023-07-17",
-  },
-  {
-    id: "usr-112",
-    name: "Michael Green",
-    email: "michael@atlasco.com",
-    role: "QA Lead",
-    company: "Atlas Co",
-    avatarUrl: "https://i.pravatar.cc/80?img=63",
-    status: "Pending",
-    projects: 2,
-    workload: "41%",
-    joined: "2023-09-30",
-  },
-];
 
 const PAGE_SIZE = 10;
 
@@ -191,22 +59,24 @@ export function AdminUsers() {
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState<(typeof roles)[number]>("All");
   const [companyFilter, setCompanyFilter] = useState<string>("All");
+  const [statusFilter, setStatusFilter] = useState<(typeof statusOptions)[number]>("All");
   const [currentPage, setCurrentPage] = useState(1);
 
   const filteredUsers = useMemo(() => {
     const term = search.toLowerCase();
-    return users.filter((user) => {
+    return companyUsers.filter((user) => {
       const matchesSearch =
         user.name.toLowerCase().includes(term) || user.email.toLowerCase().includes(term);
       const matchesRole = roleFilter === "All" || user.role === roleFilter;
       const matchesCompany = companyFilter === "All" || user.company === companyFilter;
-      return matchesSearch && matchesRole && matchesCompany;
+      const matchesStatus = statusFilter === "All" || user.status === statusFilter;
+      return matchesSearch && matchesRole && matchesCompany && matchesStatus;
     });
-  }, [search, roleFilter, companyFilter]);
+  }, [search, roleFilter, companyFilter, statusFilter]);
 
   const companies = useMemo(() => {
     const set = new Set<string>();
-    users.forEach((user) => set.add(user.company));
+    companyUsers.forEach((user) => set.add(user.company));
     return Array.from(set);
   }, []);
 
@@ -231,7 +101,7 @@ export function AdminUsers() {
 
       <div className="flex flex-col gap-4 rounded-2xl bg-white p-4 shadow-sm md:flex-row md:items-center">
         <Input
-          placeholder="구성원을 검색하세요"
+          placeholder="회원을 검색하세요"
           value={search}
           onChange={(event) => setSearch(event.target.value)}
           className="md:flex-1"
@@ -261,6 +131,17 @@ export function AdminUsers() {
             ))}
           </SelectContent>
         </Select>
+        <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as (typeof statusOptions)[number])}>
+          <SelectTrigger className="md:w-52">
+            <SelectValue placeholder="회원 상태" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="All">전체 상태</SelectItem>
+            <SelectItem value="ACTIVE">활성</SelectItem>
+            <SelectItem value="INACTIVE">비활성</SelectItem>
+            <SelectItem value="SUSPENDED">정지</SelectItem>
+          </SelectContent>
+        </Select>
         <Button className="md:w-auto" onClick={() => navigate("/admin/users/add")}>
           + 추가
         </Button>
@@ -276,7 +157,6 @@ export function AdminUsers() {
                 <TableHead className="w-1/6 text-center">역할</TableHead>
                 <TableHead className="w-1/6 text-center">상태</TableHead>
                 <TableHead className="w-1/12 text-center">프로젝트</TableHead>
-                <TableHead className="w-1/12 text-center">업무량</TableHead>
                 <TableHead className="w-1/6 text-center">가입일</TableHead>
               </TableRow>
             </TableHeader>
@@ -319,12 +199,22 @@ export function AdminUsers() {
                     {roleDisplayMap[user.role] ?? user.role}
                   </TableCell>
                   <TableCell className="text-center">
-                    <Badge variant={user.status === "Active" ? "default" : "secondary"}>
-                      {user.status === "Active" ? "활성" : "대기"}
+                    <Badge
+                      variant="outline"
+                      style={{
+                        backgroundColor: statusStyles[user.status]?.bg ?? statusStyles.INACTIVE.bg,
+                        color: statusStyles[user.status]?.color ?? statusStyles.INACTIVE.color,
+                        border: `1px solid ${
+                          statusStyles[user.status]?.border ?? statusStyles.INACTIVE.border
+                        }`,
+                      }}
+                    >
+                      {statusStyles[user.status]?.label ?? statusStyles.INACTIVE.label}
                     </Badge>
                   </TableCell>
-                  <TableCell className="text-center font-medium">{user.projects}</TableCell>
-                  <TableCell className="text-center font-medium">{user.workload}</TableCell>
+                  <TableCell className="text-center font-medium">
+                    {Array.isArray(user.projects) ? user.projects.length : user.projects ?? 0}
+                  </TableCell>
                   <TableCell className="text-center text-sm text-muted-foreground">
                     {new Date(user.joined).toLocaleDateString()}
                   </TableCell>
@@ -336,36 +226,34 @@ export function AdminUsers() {
           </Table>
         </CardContent>
       </Card>
-      {filteredUsers.length > PAGE_SIZE && (
-        <div className="flex items-center justify-center gap-2">
+      <div className="flex items-center justify-center gap-2">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+          disabled={currentPage === 1}
+        >
+          {"<"}
+        </Button>
+        {Array.from({ length: totalPages }, (_, index) => index + 1).map((page) => (
           <Button
-            variant="outline"
+            key={page}
+            variant={page === currentPage ? "default" : "outline"}
             size="sm"
-            onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
-            disabled={currentPage === 1}
+            onClick={() => setCurrentPage(page)}
           >
-            {"<"}
+            {page}
           </Button>
-          {Array.from({ length: totalPages }, (_, index) => index + 1).map((page) => (
-            <Button
-              key={page}
-              variant={page === currentPage ? "default" : "outline"}
-              size="sm"
-              onClick={() => setCurrentPage(page)}
-            >
-              {page}
-            </Button>
-          ))}
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
-            disabled={currentPage === totalPages}
-          >
-            {">"}
-          </Button>
-        </div>
-      )}
+        ))}
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
+          disabled={currentPage === totalPages}
+        >
+          {">"}
+        </Button>
+      </div>
     </div>
   );
 }

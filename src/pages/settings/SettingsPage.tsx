@@ -144,12 +144,16 @@ export function SettingsPage() {
 
   return (
       <>
-        <div className="space-y-6 pb-12 pt-6 min-h-0">
+        <div className="space-y-6 pb-12 min-h-0">
+        <div className="rounded-2xl bg-white p-6 shadow-sm">
+          <h1 className="text-3xl font-semibold tracking-tight">Settings</h1>
+          <p className="mt-2 text-muted-foreground">
+            프로필/보안 정보를 업데이트하고 계정 상태를 관리하세요.
+          </p>
+        </div>
         {/* 프로필 / 기본 정보 카드 */}
         <Card className="rounded-2xl shadow-sm">
-          <CardHeader className="border-b pb-4">
-            <CardTitle>프로필 설정</CardTitle>
-          </CardHeader>
+          <CardHeader />
           <CardContent className="pt-6">
             <div className="pb-6 flex flex-col gap-6 md:flex-row">
               {/* 왼쪽: 사진 + Change Photo 버튼 */}
