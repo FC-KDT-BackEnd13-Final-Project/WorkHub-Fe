@@ -169,11 +169,11 @@ export function ProjectNodesBoard() {
     });
   };
 
-  const priorityTone: Record<Priority, string> = {
-    낮음: "bg-emerald-50 text-emerald-700",
-    보통: "bg-amber-50 text-amber-700",
-    높음: "bg-orange-50 text-orange-700",
-    긴급: "bg-red-50 text-red-700",
+  const priorityTone: Record<Priority, { bg: string; color: string; border: string }> = {
+    낮음: { bg: "#ECFDF5", color: "#047857", border: "#A7F3D0" },
+    보통: { bg: "#FFFBEB", color: "#B45309", border: "#FCD34D" },
+    높음: { bg: "#FFF7ED", color: "#C2410C", border: "#FED7AA" },
+    긴급: { bg: "#FEF2F2", color: "#B91C1C", border: "#FECACA" },
   };
 
   const workflowBasePath = `/projects/${projectId ?? "project"}/nodes`;
@@ -518,7 +518,7 @@ export function ProjectNodesBoard() {
                   formatDate={formatDate}
                   formatUpdatedAt={formatUpdatedAt}
                   onNavigate={(id) => navigate(`/projects/${projectId ?? "project"}/nodes/${id}`)}
-                  priorityToneClass={priorityTone[node.priority]}
+                  priorityToneStyle={priorityTone[node.priority]}
                 />
               ))}
             </div>
@@ -533,7 +533,7 @@ export function ProjectNodesBoard() {
               formatDate={formatDate}
               formatUpdatedAt={formatUpdatedAt}
               onNavigate={(id) => navigate(`/projects/${projectId ?? "project"}/nodes/${id}`)}
-              priorityToneClass={priorityTone[node.priority]}
+              priorityToneStyle={priorityTone[node.priority]}
             />
           ))}
         </div>
@@ -547,7 +547,7 @@ interface NodeCardBaseProps {
   formatDate: (value: string) => string;
   formatUpdatedAt: (value: string) => string;
   onNavigate: (nodeId: string) => void;
-  priorityToneClass: string;
+  priorityToneStyle: { bg: string; color: string; border: string };
   rightActions?: ReactNode;
   cardRef?: (element: HTMLDivElement | null) => void;
   style?: CSSProperties;
@@ -558,7 +558,7 @@ function NodeCardBase({
   formatDate,
   formatUpdatedAt,
   onNavigate,
-  priorityToneClass,
+  priorityToneStyle,
   rightActions,
   cardRef,
   style,
@@ -611,7 +611,14 @@ function NodeCardBase({
           </div>
           <div className="flex justify-between">
             <span className="text-muted-foreground">중요도</span>
-            <span className={`rounded-full px-3 py-0.5 text-xs font-semibold ${priorityToneClass}`}>
+            <span
+              className="rounded-full px-3 py-0.5 text-xs font-semibold"
+              style={{
+                backgroundColor: priorityToneStyle.bg,
+                color: priorityToneStyle.color,
+                border: `1px solid ${priorityToneStyle.border}`,
+              }}
+            >
               {node.priority}
             </span>
           </div>
@@ -632,7 +639,7 @@ function SortableNodeCard({
   formatDate,
   formatUpdatedAt,
   onNavigate,
-  priorityToneClass,
+  priorityToneStyle,
 }: SortableNodeCardProps) {
   const {
     attributes,
@@ -658,7 +665,7 @@ function SortableNodeCard({
         formatDate={formatDate}
         formatUpdatedAt={formatUpdatedAt}
         onNavigate={() => {}}
-        priorityToneClass={priorityToneClass}
+        priorityToneStyle={priorityToneStyle}
       />
     </div>
   );
