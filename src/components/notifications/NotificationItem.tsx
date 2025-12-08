@@ -3,13 +3,25 @@ import { NotificationBadge } from "./NotificationBadge";
 import { TableCell, TableRow } from "../ui/table";
 import { cn } from "../ui/utils";
 
+export type NotificationEventType =
+  | "REVIEW_REQUEST"
+  | "REVIEW_COMPLETED"
+  | "REVIEW_REJECTED"
+  | "STATUS_CHANGED"
+  | "POST_CREATED"
+  | "POST_COMMENT_CREATED"
+  | "CS_QNA_CREATED"
+  | "CS_QNA_ANSWERED";
+
 export interface Notification {
   id: string;
   type: "task" | "project" | "team";
   title: string;
   description: string;
-  priority: "high" | "medium" | "low";
+  eventType: NotificationEventType;
   read: boolean;
+  userId: string;
+  createdAt: string;
   timeAgo: string;
   initials?: string;
   avatarUrl?: string;
@@ -28,8 +40,9 @@ export function NotificationItem({ notification, onMarkRead, onRemove }: Notific
     id,
     title,
     description,
-    priority,
+    eventType,
     read,
+    userId,
     timeAgo,
     initials,
     avatarUrl,
@@ -62,11 +75,17 @@ export function NotificationItem({ notification, onMarkRead, onRemove }: Notific
           <div>
             <p className="font-semibold">{title}</p>
             <p className="text-xs text-muted-foreground">{description}</p>
+            {actorName && (
+              <p className="mt-1 text-[11px] text-muted-foreground">
+                {actorName}
+                {userId ? ` · ${userId}` : null}
+              </p>
+            )}
           </div>
         </div>
       </TableCell>
       <TableCell className="p-2 align-middle text-center">
-        <NotificationBadge priority={priority} />
+        <NotificationBadge eventType={eventType} />
       </TableCell>
       <TableCell className="p-2 align-middle text-center">
         <span
