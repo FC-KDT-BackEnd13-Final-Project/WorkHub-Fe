@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader } from './ui/card'
 import { Button } from './ui/button'
 import { Input } from './ui/input'
 import { Label } from './ui/label'
+import { authApi } from '../lib/api' 
 
 interface LoginScreenProps {
     onSuccess?: () => void;
@@ -56,22 +57,41 @@ export function LoginScreen({
         if (!validateForm()) return
 
         setIsLoading(true)
+        setErrors({})
 
         try {
-            // Firebase authentication would go here
-            // Example: await signInWithEmailAndPassword(auth, userId, password)
+            const data = await authApi.login(userId, password)
 
-            // Simulate API call
-            await new Promise(resolve => setTimeout(resolve, 1000))
-
-            // Handle successful login (redirect to dashboard, etc.)
+            console.log('Login successful:', data)
+            
+            // 토큰 저장 (백엔드 응답 구조에 따라 수정 필요)
+            if (data.token) {
+                localStorage.setItem('authToken', data.token)
+            }
+            
+            // 유저 정보 저장
+            if (data.user) {
+                localStorage.setItem('user', JSON.stringify(data.user))
+            }
+            
             onSuccess?.()
 
-        } catch (error) {
+        } catch (error: any) {
             console.error('Login error:', error)
+            
+            let errorMessage = '로그인에 실패했습니다'
+            
+            if (error.response) {
+                errorMessage = error.response.data?.message || 
+                              error.response.data?.error || 
+                              '아이디 또는 비밀번호가 올바르지 않습니다'
+            } else if (error.request) {
+                errorMessage = '서버와 연결할 수 없습니다. 네트워크를 확인해주세요.'
+            }
+            
             setErrors({
-                userId: '아이디 또는 비밀번호가 올바르지 않습니다',
-                password: '아이디 또는 비밀번호가 올바르지 않습니다',
+                userId: errorMessage,
+                password: errorMessage,
             })
         } finally {
             setIsLoading(false)

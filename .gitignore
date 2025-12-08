@@ -1,8 +1,48 @@
-# Dependencies
+# ----------------------------
+# Node / Frontend 기본 무시 목록
+# ----------------------------
+
+# node_modules
 node_modules/
 
-# Build outputs
+# build / dist 산출물
+dist/
 build/
+out/
+.next/
+.nuxt/
+.vite/
+.cache/
 
-# IDE configs
+# temporary
+temp/
+tmp/
+
+# IDE / OS 파일
+.DS_Store
+Thumbs.db
+
+# 환경 변수 파일
+.env
+.env.*
+!.env.example
+
+# logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# lock 파일 무시 여부 (원하는 경우만)
+# package-lock.json
+# pnpm-lock.yaml
+# yarn.lock
+
+# storybook, test cache
+.storybook/
+coverage/
+.vscode/
 .idea/
+
+# TypeScript
+*.tsbuildinfo
