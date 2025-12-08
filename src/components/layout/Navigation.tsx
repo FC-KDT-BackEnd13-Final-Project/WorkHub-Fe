@@ -1,5 +1,6 @@
-import { useState, useEffect, ReactNode } from "react";
+import { useState, ReactNode } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
+import { useTheme } from "next-themes";
 import { Button } from "../ui/button";
 import { Moon, Sun, Menu, X } from "lucide-react";
 
@@ -10,20 +11,14 @@ interface NavigationProps {
 }
 
 export function Navigation({ onOpenSidebar, mobileMenuContent }: NavigationProps = {}) {
-  const [isDark, setIsDark] = useState(false);
+  const { resolvedTheme, setTheme } = useTheme();
+  const isDark = resolvedTheme === "dark";
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
 
-  useEffect(() => {
-    const isDarkMode = document.documentElement.classList.contains('dark');
-    setIsDark(isDarkMode);
-  }, []);
-
   const toggleTheme = () => {
-    const newTheme = !isDark;
-    setIsDark(newTheme);
-    document.documentElement.classList.toggle('dark', newTheme);
+    setTheme(isDark ? "light" : "dark");
   };
 
   const scrollToSection = (sectionId: string) => {

@@ -60,13 +60,11 @@ export function LoginScreen({
         try {
             // Firebase authentication would go here
             // Example: await signInWithEmailAndPassword(auth, userId, password)
-            console.log('Login attempt:', { userId, password })
 
             // Simulate API call
             await new Promise(resolve => setTimeout(resolve, 1000))
 
             // Handle successful login (redirect to dashboard, etc.)
-            console.log('Login successful')
             onSuccess?.()
 
         } catch (error) {
