@@ -20,13 +20,13 @@ import { Input } from "../ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
-import { Paperclip, Link as LinkIcon, MoreHorizontal, GripVertical } from "lucide-react";
+import { Paperclip, Link as LinkIcon, MoreHorizontal } from "lucide-react";
 import { Label } from "../ui/label";
 import { AutoResizeTextarea } from "../ui/auto-resize-textarea";
 
 // 프로젝트 내 노드(작업 카드)와 워크플로우를 관리하는 보드 화면
-type Priority = "낮음" | "보통" | "높음" | "긴급";
-type NodeStatus = "할 일" | "진행 중" | "검토 중" | "완료";
+type NodeStatus = "NOT_STARTED" | "IN_PROGRESS" | "PENDING_REVIEW" | "ON_HOLD";
+type ApprovalStatus = "PENDING" | "APPROVED" | "REJECTED";
 
 interface Node {
   id: string;
@@ -36,8 +36,9 @@ interface Node {
   tags: string[];
   filesCount: number;
   linksCount: number;
-  priority: Priority;
+  developer: string;
   status: NodeStatus;
+  approvalStatus: ApprovalStatus;
   updatedAt: string;
   startDate: string;
   endDate: string;
@@ -53,8 +54,9 @@ const defaultNodes: Node[] = [
     tags: ["#기획", "#리서치", "#이해관계자"],
     filesCount: 4,
     linksCount: 3,
-    priority: "높음",
-    status: "할 일",
+    developer: "김준호",
+    status: "IN_PROGRESS",
+    approvalStatus: "PENDING",
     updatedAt: "2024-12-01T09:00:00Z",
     startDate: "2024-11-01",
     endDate: "2024-12-05",
@@ -68,8 +70,9 @@ const defaultNodes: Node[] = [
     tags: ["#디자인", "#UX", "#UI"],
     filesCount: 6,
     linksCount: 2,
-    priority: "보통",
-    status: "진행 중",
+    developer: "박지민",
+    status: "IN_PROGRESS",
+    approvalStatus: "APPROVED",
     updatedAt: "2024-11-28T14:20:00Z",
     startDate: "2024-11-05",
     endDate: "2024-12-12",
@@ -83,8 +86,9 @@ const defaultNodes: Node[] = [
     tags: ["#개발", "#프론트엔드", "#API"],
     filesCount: 3,
     linksCount: 4,
-    priority: "긴급",
-    status: "검토 중",
+    developer: "이도윤",
+    status: "ON_HOLD",
+    approvalStatus: "REJECTED",
     updatedAt: "2024-12-02T11:45:00Z",
     startDate: "2024-11-10",
     endDate: "2024-12-22",
@@ -98,8 +102,9 @@ const defaultNodes: Node[] = [
     tags: ["#테스트", "#QA"],
     filesCount: 2,
     linksCount: 1,
-    priority: "높음",
-    status: "완료",
+    developer: "정서현",
+    status: "NOT_STARTED",
+    approvalStatus: "PENDING",
     updatedAt: "2024-12-03T08:15:00Z",
     startDate: "2024-12-01",
     endDate: "2024-12-29",
@@ -110,13 +115,62 @@ const defaultNodes: Node[] = [
 const createWorkflowFormState = () => ({
   title: "",
   description: "",
-  priority: "보통" as Priority,
+  developer: "",
   startDate: "",
   endDate: "",
+  approvalStatus: "PENDING" as ApprovalStatus,
 });
 
-const priorityOptions: Priority[] = ["낮음", "보통", "높음", "긴급"];
-const statusOptions: NodeStatus[] = ["할 일", "진행 중", "검토 중", "완료"];
+const statusOptions: NodeStatus[] = ["NOT_STARTED", "IN_PROGRESS", "PENDING_REVIEW", "ON_HOLD"];
+const approvalStatusOptions: ApprovalStatus[] = ["PENDING", "APPROVED", "REJECTED"];
+const approvalFilterOptions = ["전체", ...approvalStatusOptions] as const;
+type ApprovalFilter = (typeof approvalFilterOptions)[number];
+type StatusBadgeStyles = {
+  background: string;
+  text: string;
+  border: string;
+};
+
+const statusBadgeStyles: Record<NodeStatus, StatusBadgeStyles> = {
+  NOT_STARTED: {
+    background: "#F3F4F6", // gray-100
+    text: "#1F2937", // gray-800
+    border: "#D1D5DB", // gray-300
+  },
+  IN_PROGRESS: {
+    background: "#EFF6FF", // blue-50
+    text: "#1D4ED8", // blue-700
+    border: "#BFDBFE", // blue-200
+  },
+  PENDING_REVIEW: {
+    background: "#FFFBEB", // amber-50
+    text: "#B45309", // amber-700
+    border: "#FDE68A", // amber-200
+  },
+  ON_HOLD: {
+    background: "#FEF2F2", // red-50
+    text: "#B91C1C", // red-700
+    border: "#FECACA", // red-200
+  },
+};
+
+const approvalBadgeStyles: Record<ApprovalStatus, StatusBadgeStyles> = {
+  PENDING: {
+    background: "#FEF3C7", // Amber
+    text: "#F59E0B",
+    border: "#FDE68A",
+  },
+  APPROVED: {
+    background: "#ECFDF5",
+    text: "#16A34A",
+    border: "#A7F3D0",
+  },
+  REJECTED: {
+    background: "#FEF2F2",
+    text: "#DC2626",
+    border: "#FECACA",
+  },
+};
 
 export function ProjectNodesBoard() {
   const { projectId } = useParams<{ projectId: string }>();
@@ -125,6 +179,8 @@ export function ProjectNodesBoard() {
   console.log("ProjectNodesBoard - 현재 projectId:", projectId);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<"전체" | NodeStatus>("전체");
+  const [approvalFilter, setApprovalFilter] = useState<ApprovalFilter>("전체");
+  const [developerFilter, setDeveloperFilter] = useState<string>("전체");
   const [nodes, setNodes] = useState<Node[]>(defaultNodes);
   const [isWorkflowModalOpen, setIsWorkflowModalOpen] = useState(false);
   const [newWorkflow, setNewWorkflow] = useState(createWorkflowFormState);
@@ -132,6 +188,17 @@ export function ProjectNodesBoard() {
   const nextProjectNodeId = useRef(
     defaultNodes.reduce((max, node) => Math.max(max, node.projectNodeId), 0) + 1,
   );
+  const developerFilterOptions = useMemo(() => {
+    const names = new Set<string>();
+    nodes.forEach((node) => {
+      const trimmed = node.developer.trim();
+      if (trimmed) {
+        names.add(trimmed);
+      }
+    });
+    return ["전체", ...Array.from(names).sort()];
+  }, [nodes]);
+
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
@@ -148,9 +215,11 @@ export function ProjectNodesBoard() {
         node.description.toLowerCase().includes(term) ||
         node.tags.some((tag) => tag.toLowerCase().includes(term));
       const matchesStatus = statusFilter === "전체" || node.status === statusFilter;
-      return matchesSearch && matchesStatus;
+      const matchesApproval = approvalFilter === "전체" || node.approvalStatus === approvalFilter;
+      const matchesDeveloper = developerFilter === "전체" || node.developer === developerFilter;
+      return matchesSearch && matchesStatus && matchesApproval && matchesDeveloper;
     });
-  }, [nodes, search, statusFilter]);
+  }, [nodes, search, statusFilter, approvalFilter, developerFilter]);
 
   const formatDate = (value: string) => {
     if (!value) return "-";
@@ -167,13 +236,6 @@ export function ProjectNodesBoard() {
       hour: "2-digit",
       minute: "2-digit",
     });
-  };
-
-  const priorityTone: Record<Priority, { bg: string; color: string; border: string }> = {
-    낮음: { bg: "#ECFDF5", color: "#047857", border: "#A7F3D0" },
-    보통: { bg: "#FFFBEB", color: "#B45309", border: "#FCD34D" },
-    높음: { bg: "#FFF7ED", color: "#C2410C", border: "#FED7AA" },
-    긴급: { bg: "#FEF2F2", color: "#B91C1C", border: "#FECACA" },
   };
 
   const workflowBasePath = `/projects/${projectId ?? "project"}/nodes`;
@@ -246,6 +308,7 @@ export function ProjectNodesBoard() {
 
   const handleCreateWorkflow = () => {
     if (!newWorkflow.title.trim()) return;
+    if (!newWorkflow.developer.trim()) return;
     if (!newWorkflow.startDate || !newWorkflow.endDate) return;
     if (new Date(newWorkflow.endDate) <= new Date(newWorkflow.startDate)) return;
 
@@ -257,8 +320,9 @@ export function ProjectNodesBoard() {
       tags: [], // Tags are removed, so an empty array is passed
       filesCount: 0,
       linksCount: 0,
-      priority: newWorkflow.priority,
-      status: "할 일",
+      developer: newWorkflow.developer.trim(),
+      status: "NOT_STARTED",
+      approvalStatus: newWorkflow.approvalStatus,
       updatedAt: new Date().toISOString(),
       startDate: newWorkflow.startDate,
       endDate: newWorkflow.endDate,
@@ -421,28 +485,18 @@ export function ProjectNodesBoard() {
                         </div>
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor="workflowPriority" className="text-gray-700">
-                          중요도
+                        <Label htmlFor="workflowDeveloper" className="text-gray-700">
+                          개발 담당자
                         </Label>
-                        <Select
-                          value={newWorkflow.priority}
-                          onValueChange={(value) =>
-                            setNewWorkflow((prev) => ({ ...prev, priority: value as Priority }))
+                        <Input
+                          id="workflowDeveloper"
+                          value={newWorkflow.developer}
+                          onChange={(event) =>
+                            setNewWorkflow((prev) => ({ ...prev, developer: event.target.value }))
                           }
-                        >
-                                                  <SelectTrigger
-                                                    id="workflowPriority"
-                                                    className="h-9 rounded-md border border-border bg-input-background px-3 py-1 focus:bg-white focus:border-primary transition-colors"
-                                                  >
-                                                    <SelectValue placeholder="중요도" />
-                                                  </SelectTrigger>                          <SelectContent>
-                            {priorityOptions.map((option) => (
-                              <SelectItem key={option} value={option}>
-                                {option}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                          placeholder="담당자 이름을 입력하세요"
+                          className="h-9 rounded-md border border-border bg-input-background px-3 py-1 focus:bg-white focus:border-primary transition-colors"
+                        />
                       </div>
                     </div>
                     <div className="mt-6 pt-6 flex justify-between gap-2">
@@ -476,13 +530,37 @@ export function ProjectNodesBoard() {
         />
         <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as "전체" | NodeStatus)}>
           <SelectTrigger className="md:w-52">
-            <SelectValue placeholder="전체 상태" />
+            <SelectValue placeholder="상태" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="전체">전체 상태</SelectItem>
+            <SelectItem value="전체">상태</SelectItem>
             {statusOptions.map((option) => (
               <SelectItem key={option} value={option}>
                 {option}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select value={approvalFilter} onValueChange={(value) => setApprovalFilter(value as ApprovalFilter)}>
+          <SelectTrigger className="md:w-52">
+            <SelectValue placeholder="승인" />
+          </SelectTrigger>
+          <SelectContent>
+            {approvalFilterOptions.map((option) => (
+              <SelectItem key={option} value={option}>
+                {option === "전체" ? "승인" : option}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select value={developerFilter} onValueChange={(value) => setDeveloperFilter(value)}>
+          <SelectTrigger className="md:w-52">
+            <SelectValue placeholder="담당자" />
+          </SelectTrigger>
+          <SelectContent>
+            {developerFilterOptions.map((option) => (
+              <SelectItem key={option} value={option}>
+                {option === "전체" ? "담당자" : option}
               </SelectItem>
             ))}
           </SelectContent>
@@ -518,7 +596,6 @@ export function ProjectNodesBoard() {
                   formatDate={formatDate}
                   formatUpdatedAt={formatUpdatedAt}
                   onNavigate={(id) => navigate(`/projects/${projectId ?? "project"}/nodes/${id}`)}
-                  priorityToneStyle={priorityTone[node.priority]}
                 />
               ))}
             </div>
@@ -533,7 +610,6 @@ export function ProjectNodesBoard() {
               formatDate={formatDate}
               formatUpdatedAt={formatUpdatedAt}
               onNavigate={(id) => navigate(`/projects/${projectId ?? "project"}/nodes/${id}`)}
-              priorityToneStyle={priorityTone[node.priority]}
             />
           ))}
         </div>
@@ -547,7 +623,6 @@ interface NodeCardBaseProps {
   formatDate: (value: string) => string;
   formatUpdatedAt: (value: string) => string;
   onNavigate: (nodeId: string) => void;
-  priorityToneStyle: { bg: string; color: string; border: string };
   rightActions?: ReactNode;
   cardRef?: (element: HTMLDivElement | null) => void;
   style?: CSSProperties;
@@ -558,7 +633,6 @@ function NodeCardBase({
   formatDate,
   formatUpdatedAt,
   onNavigate,
-  priorityToneStyle,
   rightActions,
   cardRef,
   style,
@@ -579,10 +653,33 @@ function NodeCardBase({
             <p className="text-xs text-muted-foreground">최근 업데이트 · {formatUpdatedAt(node.updatedAt)}</p>
             <CardTitle className="text-xl">{node.title}</CardTitle>
           </div>
-          <div className="flex items-center gap-2">
-            <Badge variant={node.status === "완료" ? "default" : "secondary"}>{node.status}</Badge>
-            {rightActions}
-            <MoreHorizontal className="h-4 w-4 text-muted-foreground" />
+          <div className="flex items-start gap-3">
+            <div className="flex flex-col items-end gap-1 text-right">
+              <Badge
+                variant="outline"
+                style={{
+                  backgroundColor: statusBadgeStyles[node.status].background,
+                  color: statusBadgeStyles[node.status].text,
+                  borderColor: statusBadgeStyles[node.status].border,
+                }}
+              >
+                {node.status}
+              </Badge>
+              <Badge
+                variant="outline"
+                style={{
+                  backgroundColor: approvalBadgeStyles[node.approvalStatus].background,
+                  color: approvalBadgeStyles[node.approvalStatus].text,
+                  borderColor: approvalBadgeStyles[node.approvalStatus].border,
+                }}
+              >
+                {node.approvalStatus}
+              </Badge>
+            </div>
+            <div className="flex items-center gap-2">
+              {rightActions}
+              <MoreHorizontal className="h-4 w-4 text-muted-foreground" />
+            </div>
           </div>
         </div>
         <CardDescription>{node.description}</CardDescription>
@@ -610,17 +707,8 @@ function NodeCardBase({
             </span>
           </div>
           <div className="flex justify-between">
-            <span className="text-muted-foreground">중요도</span>
-            <span
-              className="rounded-full px-3 py-0.5 text-xs font-semibold"
-              style={{
-                backgroundColor: priorityToneStyle.bg,
-                color: priorityToneStyle.color,
-                border: `1px solid ${priorityToneStyle.border}`,
-              }}
-            >
-              {node.priority}
-            </span>
+            <span className="text-muted-foreground">개발 담당자</span>
+            <span className="font-medium">{node.developer || "-"}</span>
           </div>
         </div>
       </CardContent>
@@ -639,7 +727,6 @@ function SortableNodeCard({
   formatDate,
   formatUpdatedAt,
   onNavigate,
-  priorityToneStyle,
 }: SortableNodeCardProps) {
   const {
     attributes,
@@ -665,7 +752,6 @@ function SortableNodeCard({
         formatDate={formatDate}
         formatUpdatedAt={formatUpdatedAt}
         onNavigate={() => {}}
-        priorityToneStyle={priorityToneStyle}
       />
     </div>
   );
