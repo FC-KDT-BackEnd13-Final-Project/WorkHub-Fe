@@ -12,7 +12,13 @@ import {
 import { Input2 } from "../ui/input2";
 import { Button2 } from "../ui/button2";
 import { RichTextDemo } from "../RichTextDemo";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../ui/select";
 import { Search } from "lucide-react";
 
 // CS 문의 목록과 리치 텍스트 작성 화면을 관리
@@ -33,6 +39,35 @@ interface Customer {
       | "development"
       | "qa"; // 해시태그
 }
+
+// 타입/색상 관련 타입
+type PostType = Customer["type"]; // "공지" | "질문" | "일반"
+type TypeFilter = "all" | PostType;
+
+type StatusStyle = {
+  background: string;
+  text: string;
+  border: string;
+};
+
+// 공지 / 질문 / 일반 색상 매핑
+const statusStyles: Record<PostType, StatusStyle> = {
+  공지: {
+    background: "#EEF2FF", // indigo-50
+    text: "#4338CA", // indigo-700
+    border: "#C7D2FE", // indigo-200
+  },
+  질문: {
+    background: "#FFFBEB", // amber-50
+    text: "#B45309", // amber-700
+    border: "#FDE68A", // amber-200
+  },
+  일반: {
+    background: "#F9FAFB", // gray-50
+    text: "#374151", // gray-700
+    border: "#E5E7EB", // gray-200
+  },
+};
 
 // Mock data
 const mockCustomers: Customer[] = [
@@ -151,23 +186,30 @@ const mockCustomers: Customer[] = [
 
 export function ProjectPost2() {
   const [searchTerm, setSearchTerm] = useState("");
-  const [typeFilter, setTypeFilter] = useState<"all" | "notice" | "question" | "general">("all");
+  const [typeFilter, setTypeFilter] = useState<TypeFilter>("all");
   const [customers] = useState<Customer[]>(mockCustomers);
   const [isWriting, setIsWriting] = useState(false);
   const navigate = useNavigate();
-  const { projectId, nodeId } = useParams<{ projectId?: string; nodeId?: string }>();
+  const { projectId, nodeId } =
+      useParams<{ projectId?: string; nodeId?: string }>();
 
-  // 검색 필터
+  // 검색 + 타입 필터
   const filteredCustomers = customers.filter((customer) => {
     const term = searchTerm.toLowerCase().trim();
-    const matchesType = typeFilter === "all" || customer.type === typeFilter;
+    const matchesType =
+        typeFilter === "all" || customer.type === typeFilter;
+
     if (!term) return matchesType;
+
     const title = customer.title?.toLowerCase() ?? "";
     const content = customer.content?.toLowerCase() ?? "";
     const name = customer.customerName?.toLowerCase() ?? "";
+
     return (
-      matchesType &&
-      (name.includes(term) || title.includes(term) || content.includes(term))
+        matchesType &&
+        (name.includes(term) ||
+            title.includes(term) ||
+            content.includes(term))
     );
   });
 
@@ -194,14 +236,14 @@ export function ProjectPost2() {
           <div className="flex flex-col gap-4">
             <RichTextDemo
                 actionButtons={
-                    <div className="flex items-center gap-2">
-                      <Button2 variant="outline" onClick={() => setIsWriting(false)}>
-                        취소
-                      </Button2>
-                      <Button2 onClick={() => setIsWriting(false)}>
-                        등록
-                      </Button2>
-                    </div>
+                  <div className="flex items-center gap-2">
+                    <Button2 variant="outline" onClick={() => setIsWriting(false)}>
+                      취소
+                    </Button2>
+                    <Button2 onClick={() => setIsWriting(false)}>
+                      등록
+                    </Button2>
+                  </div>
                 }
             />
           </div>
@@ -214,27 +256,36 @@ export function ProjectPost2() {
         {/* Header */}
         <div className="flex flex-col gap-4 rounded-2xl bg-white p-4 shadow-sm md:flex-row md:items-center">
           <Input2
-            id="search"
-            placeholder="검색어를 입력하세요"
-            value={searchTerm}
-            onChange={(e) => {
-              setSearchTerm(e.target.value);
-              setCurrentPage(1);
-            }}
-            className="md:flex-1"
+              id="search"
+              placeholder="검색어를 입력하세요"
+              value={searchTerm}
+              onChange={(e) => {
+                setSearchTerm(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="md:flex-1"
           />
-          <Select value={typeFilter} onValueChange={(value) => setTypeFilter(value as typeof typeFilter)}>
+
+          {/* 타입 필터 Select */}
+          <Select
+              value={typeFilter}
+              onValueChange={(value) => setTypeFilter(value as TypeFilter)}
+          >
             <SelectTrigger className="h-9 rounded-md border border-border bg-input-background px-3 py-1 md:w-52">
               <SelectValue placeholder="모든 타입" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">전체</SelectItem>
-              <SelectItem value="notice">공지</SelectItem>
-              <SelectItem value="question">질문</SelectItem>
-              <SelectItem value="general">일반</SelectItem>
+              <SelectItem value="공지">공지</SelectItem>
+              <SelectItem value="질문">질문</SelectItem>
+              <SelectItem value="일반">일반</SelectItem>
             </SelectContent>
           </Select>
-          <Button2 className="h-9 px-4 text-sm md:w-auto" onClick={() => setIsWriting(true)}>
+
+          <Button2
+              className="h-9 px-4 text-sm md:w-auto"
+              onClick={() => setIsWriting(true)}
+          >
             문의 작성
           </Button2>
         </div>
@@ -257,88 +308,100 @@ export function ProjectPost2() {
                 </TableHeader>
 
                 <TableBody>
-                  {paginatedRows.map((customer, index) => (
-                    <TableRow
-                      key={customer.id}
-                      className="cursor-pointer"
-                      onClick={() => {
-                        const targetPath =
-                          projectId && nodeId
-                            ? `/projects/${projectId}/nodes/${nodeId}/posts/${customer.id}`
-                            : `/projectpost/${customer.id}`;
-                        navigate(targetPath, {
-                          state: { post: customer },
-                        });
-                      }}
-                    >
-                        {/* No (전체 인덱스 유지) */}
-                        <TableCell className="px-6 py-2 whitespace-nowrap">
-                          {indexOfFirstItem + index + 1}
-                        </TableCell>
+                  {paginatedRows.map((customer, index) => {
+                    const statusStyle = statusStyles[customer.type];
 
-                        {/* 작성자 */}
-                        <TableCell className="px-3 py-2 whitespace-nowrap">
-                          <div
-                              className="w-[80px] truncate"
-                              title={customer.customerName}
-                          >
-                            {customer.customerName}
-                          </div>
-                        </TableCell>
+                    return (
+                        <TableRow
+                            key={customer.id}
+                            className="cursor-pointer"
+                            onClick={() => {
+                              const targetPath =
+                                  projectId && nodeId
+                                      ? `/projects/${projectId}/nodes/${nodeId}/posts/${customer.id}`
+                                      : `/projectpost/${customer.id}`;
+                              navigate(targetPath, {
+                                state: { post: customer },
+                              });
+                            }}
+                        >
+                          {/* No (전체 인덱스 유지) */}
+                          <TableCell className="px-6 py-2 whitespace-nowrap">
+                            {indexOfFirstItem + index + 1}
+                          </TableCell>
 
-                        {/* 타입 */}
-                        <TableCell className="px-3 py-2 whitespace-nowrap">
+                          {/* 작성자 */}
+                          <TableCell className="px-3 py-2 whitespace-nowrap">
+                            <div
+                                className="w-[80px] truncate"
+                                title={customer.customerName}
+                            >
+                              {customer.customerName}
+                            </div>
+                          </TableCell>
+
+                          {/* 타입 - 색 배지 */}
+                          <TableCell className="px-3 py-2 whitespace-nowrap">
+                        <span
+                            className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium border"
+                            style={{
+                              backgroundColor: statusStyle.background,
+                              color: statusStyle.text,
+                              borderColor: statusStyle.border,
+                            }}
+                        >
                           {customer.type}
-                        </TableCell>
+                        </span>
+                          </TableCell>
 
-                        {/* 제목 (말줄임표) */}
-                        <TableCell className="px-3 py-2">
-                          <div
-                              className="block"
-                              style={{
-                                width: "200px",
-                                overflow: "hidden",
-                                textOverflow: "ellipsis",
-                                whiteSpace: "nowrap",
-                              }}
-                              title={customer.title}
-                          >
-                            {customer.title}
-                          </div>
-                        </TableCell>
+                          {/* 제목 (말줄임표) */}
+                          <TableCell className="px-3 py-2">
+                            <div
+                                className="block"
+                                style={{
+                                  width: "200px",
+                                  overflow: "hidden",
+                                  textOverflow: "ellipsis",
+                                  whiteSpace: "nowrap",
+                                }}
+                                title={customer.title}
+                            >
+                              {customer.title}
+                            </div>
+                          </TableCell>
 
-                        {/* 내용 (말줄임표) */}
-                        <TableCell className="px-3 py-2">
-                          <div
-                              className="block"
-                              style={{
-                                width: "260px",
-                                overflow: "hidden",
-                                textOverflow: "ellipsis",
-                                whiteSpace: "nowrap",
-                              }}
-                              title={customer.content}
-                          >
-                            {customer.content}
-                          </div>
-                        </TableCell>
+                          {/* 내용 (말줄임표) */}
+                          <TableCell className="px-3 py-2">
+                            <div
+                                className="block"
+                                style={{
+                                  width: "260px",
+                                  overflow: "hidden",
+                                  textOverflow: "ellipsis",
+                                  whiteSpace: "nowrap",
+                                }}
+                                title={customer.content}
+                            >
+                              {customer.content}
+                            </div>
+                          </TableCell>
 
-                        {/* 생성일 */}
-                        <TableCell className="px-3 py-2 whitespace-nowrap">
-                          {new Date(customer.createdDate).toLocaleDateString(
-                              "ko-KR"
-                          )}
-                        </TableCell>
+                          {/* 생성일 */}
+                          <TableCell className="px-3 py-2 whitespace-nowrap">
+                            {new Date(
+                                customer.createdDate
+                            ).toLocaleDateString("ko-KR")}
+                          </TableCell>
 
-                        {/* 수정일 */}
-                        <TableCell className="px-3 py-2 whitespace-nowrap">
-                          {new Date(customer.updatedDate).toLocaleDateString(
-                              "ko-KR"
-                          )}
-                        </TableCell>
-
-                      </TableRow>
-                  ))}
+                          {/* 수정일 */}
+                          <TableCell className="px-3 py-2 whitespace-nowrap">
+                            {new Date(
+                                customer.updatedDate
+                            ).toLocaleDateString("ko-KR")}
+                          </TableCell>
+                        </TableRow>
+                    );
+                  })}
                 </TableBody>
               </Table2>
             </div>
@@ -357,16 +420,18 @@ export function ProjectPost2() {
                 {"<"}
               </Button2>
 
-              {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-                  <Button2
-                      key={page}
-                      variant={page === currentPage ? "default" : "outline"}
-                      size="sm"
-                      onClick={() => setCurrentPage(page)}
-                  >
-                    {page}
-                  </Button2>
-              ))}
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map(
+                  (page) => (
+                      <Button2
+                          key={page}
+                          variant={page === currentPage ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => setCurrentPage(page)}
+                      >
+                        {page}
+                      </Button2>
+                  )
+              )}
 
               <Button2
                   variant="outline"
