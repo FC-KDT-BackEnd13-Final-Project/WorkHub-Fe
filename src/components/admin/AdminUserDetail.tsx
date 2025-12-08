@@ -29,9 +29,9 @@ export function AdminUserDetail() {
   const initPasswordModalPath = `${basePath}/init-password`;
   const removeUserModalPath = `${basePath}/remove-user`;
 
-  const [selectedRole, setSelectedRole] = useState(user?.role || "User"); // Default to current role or 'User'
+  const [selectedRole, setSelectedRole] = useState(user?.role || "User"); // 현재 역할이 없으면 기본값은 User
 
-  // State for Initialize Password modal steps
+  // 비밀번호 초기화 모달 단계를 관리
   const [passwordResetStep, setPasswordResetStep] = useState(1);
   const [authCode, setAuthCode] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -39,16 +39,16 @@ export function AdminUserDetail() {
 
   const closeModal = useCallback(() => {
     navigate(basePath, { replace: true });
-    setPasswordResetStep(1); // Reset step when modal closes
+    setPasswordResetStep(1); // 모달이 닫히면 단계 초기화
     setAuthCode("");
     setNewPassword("");
     setConfirmPassword("");
   }, [navigate, basePath]);
 
-  // Action handlers for modals
+  // 모달별 동작 핸들러
   const handleChangeRole = () => {
     console.log(`${user.name}의 역할을 ${selectedRole}로 변경`);
-    // Simulate API call
+    // API 동작을 가정한 딜레이
     setTimeout(() => {
       alert(`${user.name}의 역할이 ${selectedRole}로 변경되었습니다.`);
       closeModal();
@@ -57,7 +57,7 @@ export function AdminUserDetail() {
 
   const handleSendCode = () => {
     console.log(`${user.email}로 인증 코드를 전송`);
-    // Simulate API call
+    // API 동작을 가정한 딜레이
     setTimeout(() => {
       alert(`${user.email}로 인증 코드를 전송했습니다.`);
       setPasswordResetStep(2);
@@ -66,8 +66,8 @@ export function AdminUserDetail() {
 
   const handleVerifyCode = () => {
     console.log(`인증 코드 확인: ${authCode}`);
-    // Simulate API call
-    if (authCode === "123456") { // Simple dummy code
+    // API 동작을 가정한 딜레이
+    if (authCode === "123456") { // 단순 예시 코드
       alert("코드가 확인되었습니다.");
       setPasswordResetStep(3);
     } else {
@@ -85,7 +85,7 @@ export function AdminUserDetail() {
       return;
     }
     console.log(`${user.name}의 새 비밀번호 설정`);
-    // Simulate API call
+    // API 동작을 가정한 딜레이
     setTimeout(() => {
       alert("비밀번호가 성공적으로 변경되었습니다.");
       closeModal();
@@ -94,14 +94,33 @@ export function AdminUserDetail() {
 
   const handleRemoveUser = () => {
     console.log(`사용자 삭제: ${user.name}`);
-    // Simulate API call
+    // API 동작을 가정한 딜레이
     setTimeout(() => {
       alert(`${user.name} 사용자가 삭제되었습니다.`);
-      navigate("/admin/users", { replace: true }); // Navigate to user list after removal
+      navigate("/admin/users", { replace: true }); // 삭제 후 사용자 목록으로 이동
     }, 500);
   };
 
-  // Effect to reset password reset step if modal is closed via URL change
+  const isAnyModalOpen =
+    location.pathname === changeRoleModalPath ||
+    location.pathname === initPasswordModalPath ||
+    location.pathname === removeUserModalPath;
+
+  // ESC 키 입력으로 모달 닫기
+  useEffect(() => {
+    if (!isAnyModalOpen) {
+      return;
+    }
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        closeModal();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isAnyModalOpen, closeModal]);
+
+  // URL 변경으로 모달이 닫힐 때 비밀번호 초기화 단계 리셋
   useEffect(() => {
     if (location.pathname !== initPasswordModalPath) {
       setPasswordResetStep(1);
@@ -115,7 +134,7 @@ export function AdminUserDetail() {
   const canViewAllProjects = (user?.projects.length ?? 0) >= 4;
   const canViewFullHistory = activityHistory.length >= 20;
 
-  //유저 없음
+  // 유저 데이터를 찾을 수 없는 경우
   if (!user) {
     return (
       <div className="h-full flex items-center justify-center">
@@ -137,9 +156,192 @@ export function AdminUserDetail() {
     );
   }
 
+  const changeRoleModal = location.pathname === changeRoleModalPath ? (
+    <div className="fixed inset-0 z-50">
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="w-full" style={{ maxWidth: "var(--login-card-max-width, 42rem)" }}>
+          <Card className="login-theme border border-border shadow-lg">
+            <CardHeader className="space-y-2 pb-6">
+              <h2 className="text-xl text-center">회원 역할 변경</h2>
+              <p className="text-sm text-muted-foreground text-center">
+                {user.name}의 워크스페이스 역할과 권한을 업데이트하세요.
+              </p>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="new-role" className="text-gray-700">새 역할</Label>
+                  <Select value={selectedRole} onValueChange={setSelectedRole}>
+                    <SelectTrigger
+                      id="new-role"
+                      className="h-9 rounded-md border border-border bg-input-background px-3 py-1 focus:bg-white focus:border-primary transition-colors"
+                    >
+                      <SelectValue placeholder="역할을 선택하세요" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Admin">Admin</SelectItem>
+                      <SelectItem value="Client">Client</SelectItem>
+                      <SelectItem value="Developer">Developer</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div className="mt-6 pt-6 flex justify-between gap-2">
+                <Button variant="secondary" className="w-1/2" onClick={closeModal}>
+                  취소
+                </Button>
+                <Button className="w-1/2" onClick={handleChangeRole}>저장하기</Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    </div>
+  ) : null;
+
+  const initPasswordModal = location.pathname === initPasswordModalPath ? (
+    <div className="fixed inset-0 z-50">
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="w-full" style={{ maxWidth: "var(--login-card-max-width, 42rem)" }}>
+          <Card className="login-theme border border-border shadow-lg">
+            <CardHeader className="space-y-2 pb-6">
+              {passwordResetStep === 1 && (
+                <>
+                  <h2 className="text-xl text-center">비밀번호 초기화</h2>
+                  <p className="text-sm text-muted-foreground text-center">
+                    {user.email}로 비밀번호 재설정 링크를 전송합니다.
+                  </p>
+                </>
+              )}
+              {passwordResetStep === 2 && (
+                <>
+                  <h2 className="text-xl text-center">코드 확인</h2>
+                  <p className="text-sm text-muted-foreground text-center">
+                    {user.email}로 전송된 인증 코드를 입력하세요.
+                  </p>
+                </>
+              )}
+              {passwordResetStep === 3 && (
+                <>
+                  <h2 className="text-xl text-center">새 비밀번호 설정</h2>
+                  <p className="text-sm text-muted-foreground text-center">
+                    {user.name}의 새 비밀번호를 입력하고 확인하세요.
+                  </p>
+                </>
+              )}
+            </CardHeader>
+            <CardContent>
+              {passwordResetStep === 1 && (
+                <>
+                  <div className="space-y-2">
+                    <Label htmlFor="password-email" className="text-gray-700">이메일</Label>
+                    <Input
+                      id="password-email"
+                      value={user.email}
+                      disabled
+                      className="h-9 rounded-md border border-border bg-input-background px-3 py-1 focus:bg-white focus:border-primary transition-colors"
+                    />
+                  </div>
+                  <div className="mt-6 pt-6 flex justify-between gap-2">
+                    <Button variant="secondary" className="w-1/2" onClick={closeModal}>
+                      취소
+                    </Button>
+                    <Button className="w-1/2" onClick={handleSendCode}>코드 보내기</Button>
+                  </div>
+                </>
+              )}
+              {passwordResetStep === 2 && (
+                <>
+                  <div className="space-y-2">
+                    <Label htmlFor="auth-code" className="text-gray-700">인증 코드</Label>
+                    <Input
+                      id="auth-code"
+                      value={authCode}
+                      onChange={(e) => setAuthCode(e.target.value)}
+                      placeholder="코드를 입력하세요"
+                      className="h-9 rounded-md border border-border bg-input-background px-3 py-1 focus:bg-white focus:border-primary transition-colors"
+                    />
+                  </div>
+                  <div className="mt-6 pt-6 flex justify-between gap-2">
+                    <Button variant="secondary" className="w-1/2" onClick={() => setPasswordResetStep(1)}>
+                      뒤로
+                    </Button>
+                    <Button className="w-1/2" onClick={handleVerifyCode}>코드 확인</Button>
+                  </div>
+                </>
+              )}
+              {passwordResetStep === 3 && (
+                <>
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="new-password" className="text-gray-700">새 비밀번호</Label>
+                      <Input
+                        id="new-password"
+                        type="password"
+                        value={newPassword}
+                        onChange={(e) => setNewPassword(e.target.value)}
+                        className="h-9 rounded-md border border-border bg-input-background px-3 py-1 focus:bg-white focus:border-primary transition-colors"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="confirm-password" className="text-gray-700">새 비밀번호 확인</Label>
+                      <Input
+                        id="confirm-password"
+                        type="password"
+                        value={confirmPassword}
+                        onChange={(e) => setConfirmPassword(e.target.value)}
+                        className="h-9 rounded-md border border-border bg-input-background px-3 py-1 focus:bg-white focus:border-primary transition-colors"
+                      />
+                    </div>
+                  </div>
+                  <div className="mt-6 pt-6 flex justify-between gap-2">
+                    <Button variant="secondary" className="w-1/2" onClick={() => setPasswordResetStep(2)}>
+                      뒤로
+                    </Button>
+                    <Button className="w-1/2" onClick={handleSetNewPassword}>비밀번호 설정</Button>
+                  </div>
+                </>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    </div>
+  ) : null;
+
+  const removeUserModal = location.pathname === removeUserModalPath ? (
+    <div className="fixed inset-0 z-50">
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="w-full" style={{ maxWidth: "var(--login-card-max-width, 42rem)" }}>
+          <Card className="login-theme border border-border shadow-lg">
+            <CardHeader className="space-y-2 pb-6">
+              <h2 className="text-xl text-center">회원 삭제</h2>
+              <p className="text-sm text-muted-foreground text-center">
+                {user.name}의 WorkHub 접근 권한이 회수됩니다.
+              </p>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted-foreground text-center mb-4">
+                이 구성원을 영구적으로 삭제하기 전에 필요한 데이터를 모두 내보냈는지 확인하세요.
+                <br />
+                <span className="font-semibold">이 작업은 되돌릴 수 없습니다.</span>
+              </p>
+              <div className="mt-6 pt-6 flex justify-between gap-2">
+                <Button variant="secondary" className="w-1/2" onClick={closeModal}>
+                  취소
+                </Button>
+                <Button variant="destructive" className="w-1/2 text-white" onClick={handleRemoveUser}>회원 삭제</Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    </div>
+  ) : null;
   return (
-    <div className="space-y-6 pb-12 pt-6 min-h-0">
-      <div className="flex items-center gap-6 rounded-2xl bg-white p-6 shadow-sm">
+    <>
+      <div className="space-y-6 pb-12 pt-6 min-h-0">
+        <div className="flex items-center gap-6 rounded-2xl bg-white p-6 shadow-sm">
         <Avatar className="size-14">
           {user.avatarUrl ? (
             <AvatarImage src={user.avatarUrl} alt={user.name} className="object-cover" />
@@ -283,213 +485,33 @@ export function AdminUserDetail() {
         </div>
       </div>
 
-        <div className="flex items-center gap-3">
-          <Button
-            variant="secondary"
-            className="h-9 min-w-[120px] px-3 py-1 text-sm rounded-md border border-border"
-            onClick={() => navigate(changeRoleModalPath)}
-          >
-            역할 변경
-          </Button>
-          <Button
-            variant="secondary"
-            className="h-9 min-w-[120px] px-3 py-1 text-sm rounded-md border border-border"
-            onClick={() => navigate(initPasswordModalPath)}
-          >
-            비밀번호 초기화
-          </Button>
-          <Button
-            variant="destructive"
-            className="h-9 min-w-[120px] px-3 py-1 text-sm rounded-md border border-border"
-            onClick={() => navigate(removeUserModalPath)}
-          >
-            회원 삭제
-          </Button>
+      <div className="flex items-center gap-3">
+        <Button
+          variant="secondary"
+          className="h-9 min-w-[120px] px-3 py-1 text-sm rounded-md border border-border"
+          onClick={() => navigate(changeRoleModalPath)}
+        >
+          역할 변경
+        </Button>
+        <Button
+          variant="secondary"
+          className="h-9 min-w-[120px] px-3 py-1 text-sm rounded-md border border-border"
+          onClick={() => navigate(initPasswordModalPath)}
+        >
+          비밀번호 초기화
+        </Button>
+        <Button
+          variant="destructive"
+          className="h-9 min-w-[120px] px-3 py-1 text-sm rounded-md border border-border"
+          onClick={() => navigate(removeUserModalPath)}
+        >
+          회원 삭제
+        </Button>
       </div>
-
-      {/* Change Role Modal */}
-      {location.pathname === changeRoleModalPath && (
-        <div className="fixed inset-0 z-50">
-          <div className="min-h-screen flex items-center justify-center">
-            <div className="w-full" style={{ maxWidth: "var(--login-card-max-width, 42rem)" }}>
-              <Card className="login-theme border border-border shadow-lg">
-                <CardHeader className="space-y-2 pb-6">
-                  <h2 className="text-xl text-center">User 역할 변경</h2>
-                  <p className="text-sm text-muted-foreground text-center">
-                    {user.name}의 워크스페이스 역할과 권한을 업데이트하세요.
-                  </p>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="new-role" className="text-gray-700">새 역할</Label>
-                      <Select value={selectedRole} onValueChange={setSelectedRole}>
-                        <SelectTrigger
-                          id="new-role"
-                          className="h-9 rounded-md border border-border bg-input-background px-3 py-1 focus:bg-white focus:border-primary transition-colors"
-                        >
-                          <SelectValue placeholder="역할을 선택하세요" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="Admin">Admin</SelectItem>
-                          <SelectItem value="Client">Client</SelectItem>
-                          <SelectItem value="Developer">Developer</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-                  <div className="mt-6 pt-6 flex justify-between gap-2">
-                    <Button variant="secondary" className="w-1/2" onClick={closeModal}>
-                      취소
-                    </Button>
-                    <Button className="w-1/2" onClick={handleChangeRole}>Save Changes</Button>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Initialize Password Modal */}
-      {location.pathname === initPasswordModalPath && (
-        <div className="fixed inset-0 z-50">
-          <div className="min-h-screen flex items-center justify-center">
-            <div className="w-full" style={{ maxWidth: "var(--login-card-max-width, 42rem)" }}>
-              <Card className="login-theme border border-border shadow-lg">
-                <CardHeader className="space-y-2 pb-6">
-                  {passwordResetStep === 1 && (
-                    <>
-                      <h2 className="text-xl text-center">비밀번호 초기화</h2>
-                      <p className="text-sm text-muted-foreground text-center">
-                        {user.email}로 비밀번호 재설정 링크를 전송합니다.
-                      </p>
-                  </>
-                )}
-                {passwordResetStep === 2 && (
-                  <>
-                      <h2 className="text-xl text-center">코드 확인</h2>
-                      <p className="text-sm text-muted-foreground text-center">
-                        {user.email}로 전송된 인증 코드를 입력하세요.
-                      </p>
-                  </>
-                )}
-                {passwordResetStep === 3 && (
-                  <>
-                      <h2 className="text-xl text-center">새 비밀번호 설정</h2>
-                      <p className="text-sm text-muted-foreground text-center">
-                        {user.name}의 새 비밀번호를 입력하고 확인하세요.
-                      </p>
-                  </>
-                )}
-                </CardHeader>
-                <CardContent>
-                  {passwordResetStep === 1 && (
-                    <>
-                      <div className="space-y-2">
-                        <Label htmlFor="password-email" className="text-gray-700">이메일</Label>
-                        <Input
-                          id="password-email"
-                          value={user.email}
-                          disabled
-                          className="h-9 rounded-md border border-border bg-input-background px-3 py-1 focus:bg-white focus:border-primary transition-colors"
-                        />
-                      </div>
-                      <div className="mt-6 pt-6 flex justify-between gap-2">
-                        <Button variant="secondary" className="w-1/2" onClick={closeModal}>
-                          취소
-                        </Button>
-                        <Button className="w-1/2" onClick={handleSendCode}>코드 보내기</Button>
-                      </div>
-                    </>
-                  )}
-                  {passwordResetStep === 2 && (
-                    <>
-                      <div className="space-y-2">
-                        <Label htmlFor="auth-code" className="text-gray-700">인증 코드</Label>
-                        <Input
-                          id="auth-code"
-                          value={authCode}
-                          onChange={(e) => setAuthCode(e.target.value)}
-                          placeholder="코드를 입력하세요"
-                          className="h-9 rounded-md border border-border bg-input-background px-3 py-1 focus:bg-white focus:border-primary transition-colors"
-                        />
-                      </div>
-                      <div className="mt-6 pt-6 flex justify-between gap-2">
-                        <Button variant="secondary" className="w-1/2" onClick={() => setPasswordResetStep(1)}>
-                          뒤로
-                        </Button>
-                        <Button className="w-1/2" onClick={handleVerifyCode}>코드 확인</Button>
-                      </div>
-                    </>
-                  )}
-                  {passwordResetStep === 3 && (
-                    <>
-                      <div className="space-y-4">
-                        <div className="space-y-2">
-                          <Label htmlFor="new-password" className="text-gray-700">새 비밀번호</Label>
-                          <Input
-                            id="new-password"
-                            type="password"
-                            value={newPassword}
-                            onChange={(e) => setNewPassword(e.target.value)}
-                            className="h-9 rounded-md border border-border bg-input-background px-3 py-1 focus:bg-white focus:border-primary transition-colors"
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="confirm-password" className="text-gray-700">새 비밀번호 확인</Label>
-                          <Input
-                            id="confirm-password"
-                            type="password"
-                            value={confirmPassword}
-                            onChange={(e) => setConfirmPassword(e.target.value)}
-                            className="h-9 rounded-md border border-border bg-input-background px-3 py-1 focus:bg-white focus:border-primary transition-colors"
-                          />
-                        </div>
-                      </div>
-                      <div className="mt-6 pt-6 flex justify-between gap-2">
-                        <Button variant="secondary" className="w-1/2" onClick={() => setPasswordResetStep(2)}>
-                          뒤로
-                        </Button>
-                        <Button className="w-1/2" onClick={handleSetNewPassword}>비밀번호 설정</Button>
-                      </div>
-                    </>
-                  )}
-                </CardContent>
-              </Card>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Remove User Modal */}
-      {location.pathname === removeUserModalPath && (
-        <div className="fixed inset-0 z-50">
-          <div className="min-h-screen flex items-center justify-center">
-            <div className="w-full" style={{ maxWidth: "var(--login-card-max-width, 42rem)" }}>
-              <Card className="login-theme border border-border shadow-lg">
-                <CardHeader className="space-y-2 pb-6">
-                  <h2 className="text-xl text-center">User 삭제</h2>
-                  <p className="text-sm text-muted-foreground text-center">
-                    {user.name}의 WorkHub 접근 권한이 회수됩니다.
-                  </p>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-sm text-muted-foreground text-center mb-4">
-                    이 구성원을 영구적으로 삭제하기 전에 필요한 데이터를 모두 내보냈는지 확인하세요. 이 작업은 되돌릴 수 없습니다.
-                  </p>
-                  <div className="mt-6 pt-6 flex justify-between gap-2">
-                    <Button variant="secondary" className="w-1/2" onClick={closeModal}>
-                      취소
-                    </Button>
-                    <Button variant="destructive" className="w-1/2 text-white" onClick={handleRemoveUser}>User 삭제</Button>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
+    {changeRoleModal}
+    {initPasswordModal}
+    {removeUserModal}
+    </>
   );
 }
