@@ -29,7 +29,7 @@ export function AdminUserDetail() {
   const initPasswordModalPath = `${basePath}/init-password`;
   const removeUserModalPath = `${basePath}/remove-user`;
 
-  const [selectedRole, setSelectedRole] = useState(user?.role || "User"); // 현재 역할이 없으면 기본값은 User
+  const [selectedRole, setSelectedRole] = useState(user?.role || "Client"); // 현재 역할이 없으면 기본값은 Client
 
   // 비밀번호 초기화 모달 단계를 관리
   const [passwordResetStep, setPasswordResetStep] = useState(1);
@@ -171,19 +171,19 @@ export function AdminUserDetail() {
               <div className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="new-role" className="text-gray-700">새 역할</Label>
-                  <Select value={selectedRole} onValueChange={setSelectedRole}>
-                    <SelectTrigger
-                      id="new-role"
+                      <Select value={selectedRole} onValueChange={setSelectedRole}>
+                        <SelectTrigger
+                          id="new-role"
                       className="h-9 rounded-md border border-border bg-input-background px-3 py-1 focus:bg-white focus:border-primary transition-colors"
                     >
                       <SelectValue placeholder="역할을 선택하세요" />
                     </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Admin">Admin</SelectItem>
-                      <SelectItem value="Client">Client</SelectItem>
-                      <SelectItem value="Developer">Developer</SelectItem>
-                    </SelectContent>
-                  </Select>
+                        <SelectContent>
+                          <SelectItem value="Client">Client</SelectItem>
+                          <SelectItem value="Developer">Developer</SelectItem>
+                          <SelectItem value="Admin">Admin</SelectItem>
+                        </SelectContent>
+                      </Select>
                 </div>
               </div>
               <div className="mt-6 pt-6 flex justify-between gap-2">
@@ -363,7 +363,18 @@ export function AdminUserDetail() {
           <div className="mt-2 flex flex-wrap gap-2 text-sm">
             <Badge variant="secondary">{user.company}</Badge>
             <Badge variant="secondary">{user.role}</Badge>
-            <Badge variant={user.status === "Active" ? "default" : "secondary"}>{user.status === "Active" ? "활성" : "대기"}</Badge>
+            <Badge
+              variant="outline"
+              style={{
+                backgroundColor: statusStyles[user.status]?.bg ?? statusStyles.INACTIVE.bg,
+                color: statusStyles[user.status]?.color ?? statusStyles.INACTIVE.color,
+                border: `1px solid ${
+                  statusStyles[user.status]?.border ?? statusStyles.INACTIVE.border
+                }`,
+              }}
+            >
+              {statusStyles[user.status]?.label ?? statusStyles.INACTIVE.label}
+            </Badge>
             <span className="text-muted-foreground">마지막 활동 · {user.lastActive}</span>
           </div>
         </div>
@@ -375,7 +386,7 @@ export function AdminUserDetail() {
             <div className="flex items-center justify-between">
               <div>
                 <h3 className="text-lg font-semibold">배정된 프로젝트</h3>
-                <p className="text-sm text-muted-foreground">현재 이 구성원에게 배정된 프로젝트입니다.</p>
+                <p className="text-sm text-muted-foreground">현재 담당하고 있는 프로젝트입니다.</p>
               </div>
               <Button
                 variant="link"
@@ -396,6 +407,7 @@ export function AdminUserDetail() {
               <div
                 key={project.id}
                 className="cursor-pointer rounded-2xl border border-white/70 bg-white/90 shadow-sm backdrop-blur transition-shadow hover:shadow-lg"
+                onClick={() => navigate(`/projects/${project.id}/nodes`)}
               >
                 <div className="space-y-2 px-6 pt-6">
                   <div className="flex items-center justify-between">
@@ -515,3 +527,23 @@ export function AdminUserDetail() {
     </>
   );
 }
+const statusStyles = {
+  ACTIVE: {
+    label: "활성",
+    bg: "#ECFDF5",
+    color: "#15803D",
+    border: "#A7F3D0",
+  },
+  INACTIVE: {
+    label: "비활성",
+    bg: "#F9FAFB",
+    color: "#374151",
+    border: "#E5E7EB",
+  },
+  SUSPENDED: {
+    label: "정지",
+    bg: "#FEF2F2",
+    color: "#B91C1C",
+    border: "#FECACA",
+  },
+} as const;

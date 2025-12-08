@@ -51,7 +51,18 @@ export function AdminUserHistory() {
           <div className="mt-2 flex flex-wrap gap-2 text-sm">
             <Badge variant="secondary">{user.company}</Badge>
             <Badge variant="secondary">{user.role}</Badge>
-            <Badge variant={user.status === "Active" ? "default" : "secondary"}>{user.status === "Active" ? "활성" : "대기"}</Badge>
+            <Badge
+              variant="outline"
+              style={{
+                backgroundColor: statusStyles[user.status]?.bg ?? statusStyles.INACTIVE.bg,
+                color: statusStyles[user.status]?.color ?? statusStyles.INACTIVE.color,
+                border: `1px solid ${
+                  statusStyles[user.status]?.border ?? statusStyles.INACTIVE.border
+                }`,
+              }}
+            >
+              {statusStyles[user.status]?.label ?? statusStyles.INACTIVE.label}
+            </Badge>
             <span className="text-muted-foreground">마지막 활동 · {user.lastActive}</span>
           </div>
         </div>
@@ -60,7 +71,7 @@ export function AdminUserHistory() {
       <div className="rounded-2xl bg-white p-6 shadow-sm min-h-0">
         <div className="border-b pb-4">
           <h3 className="text-lg font-semibold">활동 내역 · 전체</h3>
-          <p className="text-sm text-muted-foreground">이 구성원의 전체 활동 기록입니다.</p>
+          <p className="text-sm text-muted-foreground">전체 활동 기록입니다</p>
         </div>
         <div className="space-y-4 overflow-y-auto pt-4 max-h-[640px] pr-1">
           {activityHistory.map((activity) => (
@@ -82,3 +93,23 @@ export function AdminUserHistory() {
     </div>
   );
 }
+const statusStyles = {
+  ACTIVE: {
+    label: "활성",
+    bg: "#ECFDF5",
+    color: "#15803D",
+    border: "#A7F3D0",
+  },
+  INACTIVE: {
+    label: "비활성",
+    bg: "#F9FAFB",
+    color: "#374151",
+    border: "#E5E7EB",
+  },
+  SUSPENDED: {
+    label: "정지",
+    bg: "#FEF2F2",
+    color: "#B91C1C",
+    border: "#FECACA",
+  },
+} as const;

@@ -101,8 +101,8 @@ export function NotificationsPage() {
   };
 
   return (
-    <div className="space-y-6 pb-12 pt-6 min-h-0">
-      <div className="rounded-2xl bg-white p-3 shadow-sm">
+    <div className="space-y-6 pb-12 min-h-0">
+      <div className="rounded-2xl bg-white p-6 shadow-sm">
         <h1 className="text-3xl font-semibold tracking-tight">Notifications</h1>
         <p className="mt-2 text-muted-foreground">
           업데이트, 멘션, 알림을 확인하고 필요한 조치를 진행하세요.
