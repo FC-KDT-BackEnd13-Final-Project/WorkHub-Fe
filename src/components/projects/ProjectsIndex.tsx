@@ -1,6 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "../ui/card";
 import { Input } from "../ui/input";
 import { Button } from "../ui/button";
 import { Badge } from "../ui/badge";
@@ -18,12 +24,61 @@ import { format } from "date-fns";
 import { companyUsers } from "../admin/userData";
 
 // 상태 옵션
-const statusOptions = ["전체 상태", "진행 중", "완료", "보류", "취소"] as const;
+const statusOptions = [
+  "ALL",
+  "CONTRACT",
+  "IN_PROGRESS",
+  "DELIVERY",
+  "MAINTENANCE",
+  "COMPLETED",
+  "CANCELLED",
+] as const;
 
-// 정렬 옵션: createdAt 기준
+// 정렬 옵션: startDate 기준
 const sortOptions = ["최신순", "오래된순"] as const;
 
-type Status = "진행 중" | "완료" | "보류" | "취소";
+type StatusFilter = (typeof statusOptions)[number];
+type ProjectStatus = Exclude<StatusFilter, "ALL">;
+
+type StatusStyle = {
+  background: string;
+  text: string;
+  border: string;
+};
+
+const statusStyles: Record<ProjectStatus, StatusStyle> = {
+  CONTRACT: {
+    background: "#EEF2FF", // indigo-50
+    text: "#4338CA", // indigo-700
+    border: "#C7D2FE", // indigo-200
+  },
+  IN_PROGRESS: {
+    background: "#EFF6FF", // blue-50
+    text: "#1D4ED8", // blue-700
+    border: "#BFDBFE", // blue-200
+  },
+  DELIVERY: {
+    background: "#FFFBEB", // amber-50
+    text: "#B45309", // amber-700
+    border: "#FDE68A", // amber-200
+  },
+  MAINTENANCE: {
+    background: "#F0FDFA", // teal-50
+    text: "#0F766E", // teal-700
+    border: "#99F6E4", // teal-200
+  },
+  COMPLETED: {
+    background: "#ECFDF5", // green-50
+    text: "#047857", // green-700
+    border: "#A7F3D0", // green-200
+  },
+  CANCELLED: {
+    background: "#FEF2F2", // red-50
+    text: "#B91C1C", // red-700
+    border: "#FECACA", // red-200
+  },
+};
+
 type SortOption = (typeof sortOptions)[number];
 
 type Project = {
@@ -39,11 +94,10 @@ type Project = {
   startDate: string;
   endDate: string;
   progress: number;
-  status: Status;
+  status: ProjectStatus;
   teamSize: number;
   tasks: number;
   description: string;
-  createdAt: string;
 };
 
 const initialProjects: Project[] = [
@@ -56,11 +110,10 @@ const initialProjects: Project[] = [
     startDate: "2024-09-01",
     endDate: "2024-12-15",
     progress: 75,
-    status: "진행 중",
+    status: "IN_PROGRESS",
     teamSize: 5,
     tasks: 24,
     description: "모던한 디자인과 향상된 사용자 경험을 갖춘 회사 웹사이트 전면 개편",
-    createdAt: "2024-09-10T10:00:00Z",
   },
   {
     id: "prj-2",
@@ -71,11 +124,10 @@ const initialProjects: Project[] = [
     startDate: "2024-08-12",
     endDate: "2024-12-30",
     progress: 45,
-    status: "보류",
+    status: "CANCELLED",
     teamSize: 8,
     tasks: 32,
     description: "안전한 결제 연동을 갖춘 고객 참여용 iOS·Android 네이티브 앱 개발",
-    createdAt: "2024-08-20T13:20:00Z",
   },
   {
     id: "prj-3",
@@ -86,11 +138,10 @@ const initialProjects: Project[] = [
     startDate: "2024-07-01",
     endDate: "2024-12-10",
     progress: 90,
-    status: "완료",
+    status: "COMPLETED",
     teamSize: 3,
     tasks: 18,
     description: "소셜 미디어와 이메일에 집중한 Q4 옴니채널 디지털 마케팅 캠페인",
-    createdAt: "2024-07-05T09:00:00Z",
   },
   {
     id: "prj-4",
@@ -101,11 +152,10 @@ const initialProjects: Project[] = [
     startDate: "2024-06-10",
     endDate: "2024-12-01",
     progress: 100,
-    status: "완료",
+    status: "COMPLETED",
     teamSize: 4,
     tasks: 20,
     description: "레거시 온프레미스 데이터베이스를 확장형 클라우드 인프라로 이전",
-    createdAt: "2024-06-15T15:30:00Z",
   },
 ];
 
@@ -132,8 +182,7 @@ const getOneYearLaterISO = (dateString: string) => {
 
 export function ProjectsIndex() {
   const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] =
-      useState<(typeof statusOptions)[number]>("전체 상태");
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("ALL");
   const [projects, setProjects] = useState<Project[]>(initialProjects);
   const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
   const [newProject, setNewProject] = useState({
@@ -146,7 +195,7 @@ export function ProjectsIndex() {
     endDate: "",
   });
 
-  // 정렬: 기본값 = 최신순 (createdAt 기준)
+  // 정렬: 기본값 = 최신순 (startDate 기준)
   const [sortOption, setSortOption] = useState<SortOption>("최신순");
 
   // 계약기간 필터(달력에서 직접 선택, 최대 1년)
@@ -195,7 +244,9 @@ export function ProjectsIndex() {
   const removeDeveloper = (developerToRemove: string) => {
     setNewProject((prev) => ({
       ...prev,
-      developers: prev.developers.filter((developer) => developer !== developerToRemove),
+      developers: prev.developers.filter(
+          (developer) => developer !== developerToRemove,
+      ),
     }));
   };
 
@@ -205,7 +256,7 @@ export function ProjectsIndex() {
     const filtered = projects.filter((project) => {
       // 상태 필터
       const matchesStatus =
-          statusFilter === "전체 상태" || project.status === statusFilter;
+          statusFilter === "ALL" || project.status === statusFilter;
 
       // 검색어 필터 (이름, 브랜드, 매니저)
       const managerText =
@@ -237,17 +288,17 @@ export function ProjectsIndex() {
       return matchesStatus && matchesSearch && matchesPeriod;
     });
 
-    // 정렬 (생성일 기준 createdAt)
+    // 정렬 (시작일 기준 startDate)
     const sorted = [...filtered].sort((a, b) => {
-      const aTime = new Date(a.createdAt).getTime();
-      const bTime = new Date(b.createdAt).getTime();
+      const aTime = new Date(a.startDate).getTime();
+      const bTime = new Date(b.startDate).getTime();
 
       if (sortOption === "최신순") {
-        // 최근에 생성된 카드가 위로
+        // 시작일이 더 최근인 프로젝트가 위로
         return bTime - aTime;
       }
       if (sortOption === "오래된순") {
-        // 오래전에 생성된 카드가 위로
+        // 시작일이 더 오래된 프로젝트가 위로
         return aTime - bTime;
       }
 
@@ -273,7 +324,8 @@ export function ProjectsIndex() {
   }, [companyDirectory, companySearchTerm]);
 
   const handleCreateProject = () => {
-    if (!newProject.name || !newProject.brand || newProject.managers.length === 0) return;
+    if (!newProject.name || !newProject.brand || newProject.managers.length === 0)
+      return;
     if (!newProject.startDate || !newProject.endDate) return;
     if (new Date(newProject.endDate) <= new Date(newProject.startDate)) return;
 
@@ -287,10 +339,9 @@ export function ProjectsIndex() {
       startDate: newProject.startDate,
       endDate: newProject.endDate,
       progress: 0,
-      status: "진행 중",
+      status: "IN_PROGRESS",
       teamSize: newProject.managers.length + newProject.developers.length,
       tasks: 0,
-      createdAt: new Date().toISOString(), // 🔥 생성 시각 기준 정렬용
     };
 
     setProjects((prev) => [...prev, project]);
@@ -381,7 +432,10 @@ export function ProjectsIndex() {
                               id="projectName"
                               value={newProject.name}
                               onChange={(e) =>
-                                  setNewProject((prev) => ({ ...prev, name: e.target.value }))
+                                  setNewProject((prev) => ({
+                                    ...prev,
+                                    name: e.target.value,
+                                  }))
                               }
                               className="h-9 rounded-md border border-border bg-input-background px-3 py-1 focus:bg-white focus:border-primary transition-colors"
                           />
@@ -389,7 +443,10 @@ export function ProjectsIndex() {
 
                         {/* 프로젝트 설명 */}
                         <div className="space-y-2">
-                          <Label htmlFor="projectDescription" className="text-gray-700">
+                          <Label
+                              htmlFor="projectDescription"
+                              className="text-gray-700"
+                          >
                             프로젝트 설명
                           </Label>
                           <AutoResizeTextarea
@@ -429,7 +486,9 @@ export function ProjectsIndex() {
                                 type="button"
                                 variant="outline"
                                 className="h-9 whitespace-nowrap px-4"
-                                onClick={() => setIsCompanyLookupOpen((prev) => !prev)}
+                                onClick={() =>
+                                    setIsCompanyLookupOpen((prev) => !prev)
+                                }
                             >
                               조회
                             </Button>
@@ -439,7 +498,9 @@ export function ProjectsIndex() {
                                 <Input
                                     placeholder="회사명을 검색하세요"
                                     value={companySearchTerm}
-                                    onChange={(e) => setCompanySearchTerm(e.target.value)}
+                                    onChange={(e) =>
+                                        setCompanySearchTerm(e.target.value)
+                                    }
                                     className="h-9 rounded-md border border-border bg-input-background px-3 py-1 focus:bg-white focus:border-primary transition-colors"
                                 />
                                 <div className="max-h-48 overflow-y-auto space-y-1 pt-1 pb-1">
@@ -473,7 +534,9 @@ export function ProjectsIndex() {
                             <Input
                                 id="manager"
                                 value={currentManagerInput}
-                                onChange={(e) => setCurrentManagerInput(e.target.value)}
+                                onChange={(e) =>
+                                    setCurrentManagerInput(e.target.value)
+                                }
                                 onKeyDown={(e) => {
                                   if (e.key === "Enter" && currentManagerInput.trim()) {
                                     addManager();
@@ -482,7 +545,11 @@ export function ProjectsIndex() {
                                 className="h-9 flex-grow rounded-md border border-border bg-input-background px-3 py-1 focus:bg-white focus:border-primary transition-colors"
                                 placeholder="매니저 이름을 입력하세요"
                             />
-                            <Button type="button" onClick={addManager} className="h-9 px-4">
+                            <Button
+                                type="button"
+                                onClick={addManager}
+                                className="h-9 px-4"
+                            >
                               추가
                             </Button>
                           </div>
@@ -515,16 +582,25 @@ export function ProjectsIndex() {
                             <Input
                                 id="developer"
                                 value={currentDeveloperInput}
-                                onChange={(e) => setCurrentDeveloperInput(e.target.value)}
+                                onChange={(e) =>
+                                    setCurrentDeveloperInput(e.target.value)
+                                }
                                 onKeyDown={(e) => {
-                                  if (e.key === "Enter" && currentDeveloperInput.trim()) {
+                                  if (
+                                      e.key === "Enter" &&
+                                      currentDeveloperInput.trim()
+                                  ) {
                                     addDeveloper();
                                   }
                                 }}
                                 className="h-9 flex-grow rounded-md border border-border bg-input-background px-3 py-1 focus:bg-white focus:border-primary transition-colors"
                                 placeholder="개발자 이름을 입력하세요"
                             />
-                            <Button type="button" onClick={addDeveloper} className="h-9 px-4">
+                            <Button
+                                type="button"
+                                onClick={addDeveloper}
+                                className="h-9 px-4"
+                            >
                               추가
                             </Button>
                           </div>
@@ -653,11 +729,11 @@ export function ProjectsIndex() {
           <Select
               value={statusFilter}
               onValueChange={(value) =>
-                  setStatusFilter(value as (typeof statusOptions)[number])
+                  setStatusFilter(value as StatusFilter)
               }
           >
             <SelectTrigger className="h-9 rounded-md bg-input-background px-3 py-1 md:w-40">
-              <SelectValue placeholder="전체 상태" />
+              <SelectValue placeholder="ALL" />
             </SelectTrigger>
             <SelectContent>
               {statusOptions.map((option) => (
@@ -670,7 +746,9 @@ export function ProjectsIndex() {
 
           {/* 계약기간 (시작/종료 하나의 폼) */}
           <div className="flex items-center gap-2">
-            <Label className="whitespace-nowrap text-xs md:text-sm">계약기간</Label>
+            <Label className="whitespace-nowrap text-xs md:text-sm">
+              계약기간
+            </Label>
             <div className="flex items-center gap-1">
               {/* 기간 시작 */}
               <Input
@@ -705,7 +783,7 @@ export function ProjectsIndex() {
             </div>
           </div>
 
-          {/* 정렬 옵션 (createdAt 기준) */}
+          {/* 정렬 옵션 (startDate 기준) */}
           <Select
               value={sortOption}
               onValueChange={(value) => setSortOption(value as SortOption)}
@@ -733,66 +811,76 @@ export function ProjectsIndex() {
 
         {/* 프로젝트 카드 리스트 */}
         <div className="grid gap-4 lg:grid-cols-3">
-          {filteredProjects.map((project) => (
-              <Card
-                  key={project.id}
-                  className="cursor-pointer rounded-2xl border border-white/70 bg-white/90 shadow-sm backdrop-blur transition-shadow hover:shadow-lg"
-                  onClick={() => navigate(`/projects/${project.id}/nodes`)}
-              >
-                <CardHeader className="space-y-2">
-                  <div className="flex items-center justify-between">
+          {filteredProjects.map((project) => {
+            const badgeColors = statusStyles[project.status];
+            return (
+                <Card
+                    key={project.id}
+                    className="cursor-pointer rounded-2xl border border-white/70 bg-white/90 shadow-sm backdrop-blur transition-shadow hover:shadow-lg"
+                    onClick={() => navigate(`/projects/${project.id}/nodes`)}
+                >
+                  <CardHeader className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-xs text-muted-foreground">{project.brand}</p>
+                        <CardTitle className="text-xl">{project.name}</CardTitle>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          개발자 · {getDeveloperDisplay(project)}
+                        </p>
+                      </div>
+                      <Badge
+                          variant="outline"
+                          style={{
+                            backgroundColor: badgeColors.background,
+                            color: badgeColors.text,
+                            borderColor: badgeColors.border,
+                          }}
+                      >
+                        {project.status}
+                      </Badge>
+                    </div>
+                    <CardDescription>{project.description}</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="grid gap-2 text-sm">
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">고객 담당자</span>
+                        <span className="font-medium">
+                      {getManagerDisplay(project)}
+                    </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">팀 규모</span>
+                        <span className="font-medium">{project.teamSize}명</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">워크플로 단계</span>
+                        <span className="font-medium">{project.tasks}건</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">시작일</span>
+                        <span className="font-medium">
+                      {format(new Date(project.startDate), "MMM dd, yyyy")}
+                    </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">마감일</span>
+                        <span className="font-medium">
+                      {format(new Date(project.endDate), "MMM dd, yyyy")}
+                    </span>
+                      </div>
+                    </div>
                     <div>
-                      <p className="text-xs text-muted-foreground">{project.brand}</p>
-                      <CardTitle className="text-xl">{project.name}</CardTitle>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        개발자 · {getDeveloperDisplay(project)}
-                      </p>
+                      <div className="flex items-center justify-between text-sm font-medium">
+                        <span>진행률</span>
+                        <span>{project.progress}%</span>
+                      </div>
+                      <Progress value={project.progress} className="mt-2" />
                     </div>
-                    <Badge
-                        variant={project.status === "완료" ? "default" : "secondary"}
-                    >
-                      {project.status}
-                    </Badge>
-                  </div>
-                  <CardDescription>{project.description}</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="grid gap-2 text-sm">
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">고객 담당자</span>
-                      <span className="font-medium">{getManagerDisplay(project)}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">팀 규모</span>
-                      <span className="font-medium">{project.teamSize}명</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">워크플로 단계</span>
-                      <span className="font-medium">{project.tasks}건</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">시작일</span>
-                      <span className="font-medium">
-                    {format(new Date(project.startDate), "MMM dd, yyyy")}
-                  </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">마감일</span>
-                      <span className="font-medium">
-                    {format(new Date(project.endDate), "MMM dd, yyyy")}
-                  </span>
-                    </div>
-                  </div>
-                  <div>
-                    <div className="flex items-center justify-between text-sm font-medium">
-                      <span>진행률</span>
-                      <span>{project.progress}%</span>
-                    </div>
-                    <Progress value={project.progress} className="mt-2" />
-                  </div>
-                </CardContent>
-              </Card>
-          ))}
+                  </CardContent>
+                </Card>
+            );
+          })}
         </div>
       </div>
   );
