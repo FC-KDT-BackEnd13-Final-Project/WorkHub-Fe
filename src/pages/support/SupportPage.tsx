@@ -108,6 +108,7 @@ export function SupportPage() {
           </div>
         </div>
       ) : (
+        <>
         <Card2>
           <CardContent className="space-y-6">
             <Table2>
@@ -163,9 +164,15 @@ export function SupportPage() {
             </Table2>
           </CardContent>
         </Card2>
+        <div className="flex justify-end">
+          <Button2 variant="outline" onClick={() => navigate(-1)}>
+            ← 뒤로가기
+          </Button2>
+        </div>
+        </>
       )}
       {!isWriting && filteredTickets.length > 0 && (
-        <div className="flex flex-col items-center gap-2 border-t pt-4 text-sm text-muted-foreground">
+            <div className="flex flex-col items-center gap-2 pt-4 text-sm text-muted-foreground">
           <div className="flex items-center justify-center gap-2">
             <Button2
               variant="outline"

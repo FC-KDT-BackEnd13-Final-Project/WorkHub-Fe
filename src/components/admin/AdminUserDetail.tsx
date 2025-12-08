@@ -380,6 +380,11 @@ export function AdminUserDetail() {
         </div>
       </div>
 
+      <div className="flex justify-end">
+        <Button variant="outline" onClick={() => navigate(-1)}>
+          ← 뒤로가기
+        </Button>
+      </div>
       <div className="grid gap-6 lg:grid-cols-2 min-h-0">
         <div className="rounded-2xl bg-white p-6 shadow-sm">
           <div className="border-b pb-4">
@@ -494,9 +499,8 @@ export function AdminUserDetail() {
               </div>
             ))}
           </div>
+          </div>
         </div>
-      </div>
-
       <div className="flex items-center gap-3">
         <Button
           variant="secondary"

@@ -11,9 +11,9 @@ interface NavigationProps {
 
 export function ProjectMenu2({ activeTab, onTabChange }: NavigationProps) {
   return (
-      <Card2 className="mb-6 pb-6">
-        <CardContent className="pt-6">
-          <div className="flex gap-2 justify-center">
+      <Card2 className="my-9 py-6 border-0 shadow-none">
+        <CardContent className="py-9">
+          <div className="flex gap-2 justify-center py-9">
 
             {/* Create Project Checklist */}
           <Button2

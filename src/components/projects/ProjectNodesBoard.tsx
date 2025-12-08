@@ -614,6 +614,11 @@ export function ProjectNodesBoard() {
           ))}
         </div>
       )}
+      <div className="flex justify-end">
+        <Button variant="outline" onClick={() => navigate(-1)}>
+          ← 뒤로가기
+        </Button>
+      </div>
     </div>
   );
 }
