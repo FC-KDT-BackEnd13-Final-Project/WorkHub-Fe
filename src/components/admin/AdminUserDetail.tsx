@@ -29,7 +29,11 @@ export function AdminUserDetail() {
   const initPasswordModalPath = `${basePath}/init-password`;
   const removeUserModalPath = `${basePath}/remove-user`;
 
-  const [selectedRole, setSelectedRole] = useState(user?.role || "Client"); // 현재 역할이 없으면 기본값은 Client
+  const [selectedRole, setSelectedRole] = useState(user?.role || "Client"); // 기본값은 Client
+
+  const [selectedStatus, setSelectedStatus] = useState<keyof typeof statusStyles>(
+      (user?.status as keyof typeof statusStyles) || "ACTIVE",
+  );
 
   // 비밀번호 초기화 모달 단계를 관리
   const [passwordResetStep, setPasswordResetStep] = useState(1);
@@ -47,12 +51,17 @@ export function AdminUserDetail() {
 
   // 모달별 동작 핸들러
   const handleChangeRole = () => {
-    console.log(`${user.name}의 역할을 ${selectedRole}로 변경`);
-    // API 동작을 가정한 딜레이
-    setTimeout(() => {
-      alert(`${user.name}의 역할이 ${selectedRole}로 변경되었습니다.`);
-      closeModal();
-    }, 500);
+    if (!user) return;
+
+    // 목업 데이터 기준으로 현재 user 객체 직접 수정
+    (user as any).role = selectedRole;
+    (user as any).status = selectedStatus;
+
+    console.log(
+        `${user.name}의 권한을 ${selectedRole}, 상태를 ${statusStyles[selectedStatus].label}(으)로 변경`,
+    );
+
+    closeModal();
   };
 
   const handleSendCode = () => {
@@ -162,21 +171,21 @@ export function AdminUserDetail() {
         <div className="w-full" style={{ maxWidth: "var(--login-card-max-width, 42rem)" }}>
           <Card className="login-theme border border-border shadow-lg">
             <CardHeader className="space-y-2 pb-6">
-              <h2 className="text-xl text-center">회원 역할 변경</h2>
+              <h2 className="text-xl text-center">권한/상태 변경</h2>
               <p className="text-sm text-muted-foreground text-center">
-                {user.name}의 워크스페이스 역할과 권한을 업데이트하세요.
+                {user.name}의 워크스페이스 권한과 계정 상태를 업데이트하세요.
               </p>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="new-role" className="text-gray-700">새 역할</Label>
+                  <Label htmlFor="new-role" className="text-gray-700">권한</Label>
                       <Select value={selectedRole} onValueChange={setSelectedRole}>
                         <SelectTrigger
                           id="new-role"
                       className="h-9 rounded-md border border-border bg-input-background px-3 py-1 focus:bg-white focus:border-primary transition-colors"
                     >
-                      <SelectValue placeholder="역할을 선택하세요" />
+                      <SelectValue placeholder="권한을 선택하세요" />
                     </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="Client">Client</SelectItem>
@@ -185,12 +194,40 @@ export function AdminUserDetail() {
                         </SelectContent>
                       </Select>
                 </div>
+
+                {/* 👇 새로 추가: 계정 상태 */}
+                <div className="space-y-2">
+                  <Label htmlFor="new-status" className="text-gray-700">
+                    계정 상태
+                  </Label>
+                  <Select
+                      value={selectedStatus}
+                      onValueChange={(value) =>
+                          setSelectedStatus(value as keyof typeof statusStyles)
+                      }
+                  >
+                    <SelectTrigger
+                        id="new-status"
+                        className="h-9 rounded-md border border-border bg-input-background px-3 py-1 focus:bg-white focus:border-primary transition-colors"
+                    >
+                      <SelectValue placeholder="상태를 선택하세요" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="ACTIVE">활성</SelectItem>
+                      <SelectItem value="INACTIVE">비활성</SelectItem>
+                      <SelectItem value="SUSPENDED">정지</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
+
               <div className="mt-6 pt-6 flex justify-between gap-2">
                 <Button variant="secondary" className="w-1/2" onClick={closeModal}>
                   취소
                 </Button>
-                <Button className="w-1/2" onClick={handleChangeRole}>저장하기</Button>
+                <Button className="w-1/2" onClick={handleChangeRole}>
+                  저장하기
+                </Button>
               </div>
             </CardContent>
           </Card>
@@ -507,7 +544,7 @@ export function AdminUserDetail() {
           className="h-9 min-w-[120px] px-3 py-1 text-sm rounded-md border border-border"
           onClick={() => navigate(changeRoleModalPath)}
         >
-          역할 변경
+          권한/상태 변경
         </Button>
         <Button
           variant="secondary"
