@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Card2, CardContent } from "../ui/card2";
 import {
@@ -19,26 +19,50 @@ import {
   SelectTrigger,
   SelectValue,
 } from "../ui/select";
-import { Search } from "lucide-react";
+import { CornerDownRight, Search } from "lucide-react";
+import { loadRepliesMap, type ReplyMap, type PostReplyItem } from "../../utils/postRepliesStorage";
+import { mockProjectPosts, type ProjectPostSummary } from "../../data/mockProjectPosts";
+
+const replyTypeStyle: StatusStyle = {
+  background: "#F1F5F9",
+  text: "#0F172A",
+  border: "#E2E8F0",
+};
+
+const stripHtml = (value: string) =>
+  value
+    .replace(/<[^>]*>/g, " ")
+    .replace(/&nbsp;/gi, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+const formatDateOnly = (value: string) => {
+  if (!value) return "";
+  const parsed = new Date(value);
+  if (!Number.isNaN(parsed.getTime())) {
+    const year = parsed.getFullYear();
+    const month = String(parsed.getMonth() + 1).padStart(2, "0");
+    const day = String(parsed.getDate()).padStart(2, "0");
+    return `${year}.${month}.${day}`;
+  }
+
+  const dateMatch = value.match(/(\d{4})[\.\s년]+(\d{1,2})[\.\s월]+(\d{1,2})/);
+  if (dateMatch) {
+    const [, y, m, d] = dateMatch;
+    return `${y}.${m.padStart(2, "0")}.${d.padStart(2, "0")}`;
+  }
+
+  const markerIndex = value.search(/오전|오후/i);
+  const sliced = markerIndex !== -1 ? value.slice(0, markerIndex) : value;
+  const normalized = sliced.replace(/\s+/g, " ").replace(/\.$/, "").trim();
+  return normalized;
+};
+
+const formatReplyDate = (value: string) => formatDateOnly(value);
+const formatPostDate = (value: string) => formatDateOnly(value);
 
 // CS 문의 목록과 리치 텍스트 작성 화면을 관리
-interface Customer {
-  id: string;
-  customerName: string; // 작성자
-  type: "공지" | "질문" | "일반"; // 타입
-  title: string; // 제목
-  content: string; // 내용
-  createdDate: string; // 생성일
-  updatedDate: string; // 수정일
-  hashtag:
-      | "req"
-      | "def"
-      | "wireframe"
-      | "design"
-      | "publishing"
-      | "development"
-      | "qa"; // 해시태그
-}
+type Customer = ProjectPostSummary;
 
 // 타입/색상 관련 타입
 type PostType = Customer["type"]; // "공지" | "질문" | "일반"
@@ -53,9 +77,9 @@ type StatusStyle = {
 // 공지 / 질문 / 일반 색상 매핑
 const statusStyles: Record<PostType, StatusStyle> = {
   공지: {
-    background: "#EEF2FF", // indigo-50
-    text: "#4338CA", // indigo-700
-    border: "#C7D2FE", // indigo-200
+    background: "#FEF2F2", // red-50
+    text: "#B91C1C", // red-700
+    border: "#FECACA", // red-200
   },
   질문: {
     background: "#FFFBEB", // amber-50
@@ -63,135 +87,35 @@ const statusStyles: Record<PostType, StatusStyle> = {
     border: "#FDE68A", // amber-200
   },
   일반: {
-    background: "#F9FAFB", // gray-50
-    text: "#374151", // gray-700
-    border: "#E5E7EB", // gray-200
+    background: "#EFF6FF", // blue-50
+    text: "#1D4ED8", // blue-700
+    border: "#BFDBFE", // blue-200
   },
 };
 
 // Mock data
-const mockCustomers: Customer[] = [
-  {
-    id: "1",
-    customerName: "abcd",
-    type: "질문",
-    title: "제목입니다. 제목이 길어졌을 때 어떻게 보이는지 테스트용입니다.",
-    content:
-        "내용입니다. 이 내용도 길어졌을 때 말줄임표(...)가 잘 나오는지 확인하기 위한 더미 텍스트입니다.",
-    createdDate: "2025-11-20",
-    updatedDate: "2025-11-21",
-    hashtag: "req",
-  },
-  {
-    id: "2",
-    customerName: "abcd",
-    type: "공지",
-    title: "공지 제목입니다.",
-    content: "공지 내용입니다.",
-    createdDate: "2025-11-20",
-    updatedDate: "2025-11-21",
-    hashtag: "design",
-  },
-  {
-    id: "3",
-    customerName: "abcd",
-    type: "일반",
-    title: "일반 글 제목입니다.",
-    content: "일반 글 내용입니다.",
-    createdDate: "2025-11-20",
-    updatedDate: "2025-11-21",
-    hashtag: "development",
-  },
-  {
-    id: "4",
-    customerName: "abcd",
-    type: "질문",
-    title: "질문입니다.",
-    content: "질문 내용입니다.",
-    createdDate: "2025-11-20",
-    updatedDate: "2025-11-21",
-    hashtag: "qa",
-  },
-  {
-    id: "5",
-    customerName: "abcd",
-    type: "질문",
-    title: "제목입니다.",
-    content: "내용입니다.",
-    createdDate: "2025-11-20",
-    updatedDate: "2025-11-21",
-    hashtag: "wireframe",
-  },
-  {
-    id: "6",
-    customerName: "abcd",
-    type: "질문",
-    title: "제목입니다.",
-    content: "내용입니다.",
-    createdDate: "2025-11-20",
-    updatedDate: "2025-11-21",
-    hashtag: "publishing",
-  },
-  {
-    id: "7",
-    customerName: "abcd",
-    type: "질문",
-    title: "제목입니다.",
-    content: "내용입니다.",
-    createdDate: "2025-11-20",
-    updatedDate: "2025-11-21",
-    hashtag: "publishing",
-  },
-  {
-    id: "8",
-    customerName: "abcd",
-    type: "질문",
-    title: "제목입니다.",
-    content: "내용입니다.",
-    createdDate: "2025-11-20",
-    updatedDate: "2025-11-21",
-    hashtag: "publishing",
-  },
-  {
-    id: "9",
-    customerName: "abcd",
-    type: "질문",
-    title: "제목입니다.",
-    content: "내용입니다.",
-    createdDate: "2025-11-20",
-    updatedDate: "2025-11-21",
-    hashtag: "publishing",
-  },
-  {
-    id: "10",
-    customerName: "abcd",
-    type: "질문",
-    title: "제목입니다.",
-    content: "내용입니다.",
-    createdDate: "2025-11-20",
-    updatedDate: "2025-11-21",
-    hashtag: "publishing",
-  },
-  {
-    id: "11",
-    customerName: "abcde",
-    type: "질문",
-    title: "제목입니다!",
-    content: "내용입니다.",
-    createdDate: "2025-11-20",
-    updatedDate: "2025-11-21",
-    hashtag: "publishing",
-  },
-];
+const mockCustomers: Customer[] = mockProjectPosts;
 
 export function ProjectPost2() {
   const [searchTerm, setSearchTerm] = useState("");
   const [typeFilter, setTypeFilter] = useState<TypeFilter>("all");
   const [customers] = useState<Customer[]>(mockCustomers);
   const [isWriting, setIsWriting] = useState(false);
+  const [replyMap, setReplyMap] = useState<ReplyMap>({});
   const navigate = useNavigate();
   const { projectId, nodeId } =
       useParams<{ projectId?: string; nodeId?: string }>();
+  const navigateToDetail = (post: Customer, reply?: PostReplyItem) => {
+    const targetPath =
+        projectId && nodeId
+            ? `/projects/${projectId}/nodes/${nodeId}/posts/${post.id}`
+            : `/projectpost/${post.id}`;
+    navigate(targetPath, {
+      state: reply
+          ? { post, reply, isReplyView: true }
+          : { post },
+    });
+  };
 
   // 검색 + 타입 필터
   const filteredCustomers = customers.filter((customer) => {
@@ -229,12 +153,25 @@ export function ProjectPost2() {
       indexOfLastItem
   );
 
+  useEffect(() => {
+    const refreshReplies = () => {
+      setReplyMap(loadRepliesMap());
+    };
+    refreshReplies();
+    if (typeof window !== "undefined") {
+      window.addEventListener("focus", refreshReplies);
+      return () => window.removeEventListener("focus", refreshReplies);
+    }
+    return undefined;
+  }, []);
+
   // isWriting 상태가 true일 때 글쓰기 UI 보여주기 위해 RichTextDemo 리턴
   if (isWriting) {
     return (
         <div className="w-full max-w-[1800px] mx-auto p-6 space-y-6">
           <div className="flex flex-col gap-4">
             <RichTextDemo
+                showTypeSelector
                 actionButtons={
                   <div className="flex items-center gap-2">
                     <Button2 variant="outline" onClick={() => setIsWriting(false)}>
@@ -310,96 +247,152 @@ export function ProjectPost2() {
                 <TableBody>
                   {paginatedRows.map((customer, index) => {
                     const statusStyle = statusStyles[customer.type];
+                    const replies = replyMap[customer.id] ?? [];
 
                     return (
-                        <TableRow
-                            key={customer.id}
-                            className="cursor-pointer"
-                            onClick={() => {
-                              const targetPath =
-                                  projectId && nodeId
-                                      ? `/projects/${projectId}/nodes/${nodeId}/posts/${customer.id}`
-                                      : `/projectpost/${customer.id}`;
-                              navigate(targetPath, {
-                                state: { post: customer },
-                              });
-                            }}
-                        >
-                          {/* No (전체 인덱스 유지) */}
-                          <TableCell className="px-6 py-2 whitespace-nowrap">
-                            {indexOfFirstItem + index + 1}
-                          </TableCell>
+                        <Fragment key={customer.id}>
+                          <TableRow
+                              className="cursor-pointer"
+                              onClick={() => navigateToDetail(customer)}
+                          >
+                            {/* No (전체 인덱스 유지) */}
+                            <TableCell className="px-6 py-2 whitespace-nowrap">
+                              {indexOfFirstItem + index + 1}
+                            </TableCell>
 
-                          {/* 작성자 */}
-                          <TableCell className="px-3 py-2 whitespace-nowrap">
-                            <div
-                                className="w-[80px] truncate"
-                                title={customer.customerName}
-                            >
-                              {customer.customerName}
-                            </div>
-                          </TableCell>
+                            {/* 작성자 */}
+                            <TableCell className="px-3 py-2 whitespace-nowrap">
+                              <div
+                                  className="w-[80px] truncate"
+                                  title={customer.customerName}
+                              >
+                                {customer.customerName}
+                              </div>
+                            </TableCell>
 
-                          {/* 타입 - 색 배지 */}
-                          <TableCell className="px-3 py-2 whitespace-nowrap">
-                        <span
-                            className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium border"
-                            style={{
-                              backgroundColor: statusStyle.background,
-                              color: statusStyle.text,
-                              borderColor: statusStyle.border,
-                            }}
-                        >
-                          {customer.type}
-                        </span>
-                          </TableCell>
+                            {/* 타입 - 색 배지 */}
+                            <TableCell className="px-3 py-2 whitespace-nowrap">
+                          <span
+                              className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium border"
+                              style={{
+                                backgroundColor: statusStyle.background,
+                                color: statusStyle.text,
+                                borderColor: statusStyle.border,
+                              }}
+                          >
+                            {customer.type}
+                          </span>
+                            </TableCell>
 
-                          {/* 제목 (말줄임표) */}
-                          <TableCell className="px-3 py-2">
-                            <div
-                                className="block"
-                                style={{
-                                  width: "200px",
-                                  overflow: "hidden",
-                                  textOverflow: "ellipsis",
-                                  whiteSpace: "nowrap",
-                                }}
-                                title={customer.title}
-                            >
-                              {customer.title}
-                            </div>
-                          </TableCell>
+                            {/* 제목 (말줄임표) */}
+                            <TableCell className="px-3 py-2">
+                              <div
+                                  className="block"
+                                  style={{
+                                    width: "200px",
+                                    overflow: "hidden",
+                                    textOverflow: "ellipsis",
+                                    whiteSpace: "nowrap",
+                                  }}
+                                  title={customer.title}
+                              >
+                                {customer.title}
+                              </div>
+                            </TableCell>
 
-                          {/* 내용 (말줄임표) */}
-                          <TableCell className="px-3 py-2">
-                            <div
-                                className="block"
-                                style={{
-                                  width: "260px",
-                                  overflow: "hidden",
-                                  textOverflow: "ellipsis",
-                                  whiteSpace: "nowrap",
-                                }}
-                                title={customer.content}
-                            >
-                              {customer.content}
-                            </div>
-                          </TableCell>
+                            {/* 내용 (말줄임표) */}
+                            <TableCell className="px-3 py-2">
+                              <div
+                                  className="block"
+                                  style={{
+                                    width: "260px",
+                                    overflow: "hidden",
+                                    textOverflow: "ellipsis",
+                                    whiteSpace: "nowrap",
+                                  }}
+                                  title={customer.content}
+                              >
+                                {customer.content}
+                              </div>
+                            </TableCell>
 
                           {/* 생성일 */}
                           <TableCell className="px-3 py-2 whitespace-nowrap">
-                            {new Date(
-                                customer.createdDate
-                            ).toLocaleDateString("ko-KR")}
+                            {formatPostDate(customer.createdDate)}
                           </TableCell>
 
                           {/* 수정일 */}
                           <TableCell className="px-3 py-2 whitespace-nowrap">
-                            {new Date(
-                                customer.updatedDate
-                            ).toLocaleDateString("ko-KR")}
+                            {formatPostDate(customer.updatedDate)}
                           </TableCell>
-                        </TableRow>
+                          </TableRow>
+                          {replies.length > 0 &&
+                            replies.map((reply) => {
+                              const formattedCreatedDate = formatReplyDate(reply.createdAt) || reply.createdAt;
+                              const formattedUpdatedDate = formatReplyDate(reply.updatedAt || reply.createdAt) || reply.updatedAt || reply.createdAt;
+                              return (
+                              <TableRow
+                                  key={`${customer.id}-${reply.id}`}
+                                  className="bg-muted/20 cursor-pointer"
+                                  onClick={() => navigateToDetail(customer, reply)}
+                              >
+                                <TableCell className="px-6 py-2" />
+                                <TableCell className="px-3 py-2 whitespace-nowrap">
+                                  <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                                    <CornerDownRight className="h-4 w-4 text-primary" />
+                                    <span>{reply.author}</span>
+                                  </div>
+                                </TableCell>
+                                <TableCell className="px-3 py-2 whitespace-nowrap">
+                                  <span
+                                    className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium border"
+                                    style={{
+                                      backgroundColor: replyTypeStyle.background,
+                                      color: replyTypeStyle.text,
+                                      borderColor: replyTypeStyle.border,
+                                    }}
+                                  >
+                                    답글
+                                  </span>
+                                </TableCell>
+                                <TableCell className="px-3 py-2">
+                                  <div
+                                    className="block"
+                                    style={{
+                                      width: "200px",
+                                      overflow: "hidden",
+                                      textOverflow: "ellipsis",
+                                      whiteSpace: "nowrap",
+                                    }}
+                                    title={reply.title || "무제 답글"}
+                                  >
+                                    {reply.title || "무제 답글"}
+                                  </div>
+                                </TableCell>
+                                <TableCell className="px-3 py-2">
+                                  <div
+                                    className="block"
+                                    style={{
+                                      width: "260px",
+                                      overflow: "hidden",
+                                      textOverflow: "ellipsis",
+                                      whiteSpace: "nowrap",
+                                    }}
+                                    title={stripHtml(reply.content || "") || "내용 없음"}
+                                  >
+                                    {stripHtml(reply.content || "") || "내용 없음"}
+                                  </div>
+                                </TableCell>
+                                <TableCell className="px-3 py-2 whitespace-nowrap text-sm">
+                                  {formattedCreatedDate}
+                                </TableCell>
+                                <TableCell className="px-3 py-2 whitespace-nowrap text-sm">
+                                  {formattedUpdatedDate}
+                                </TableCell>
+                              </TableRow>
+                              );
+                            })}
+                        </Fragment>
                     );
                   })}
                 </TableBody>
