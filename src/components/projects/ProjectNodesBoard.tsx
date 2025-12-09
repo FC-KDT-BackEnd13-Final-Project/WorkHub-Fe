@@ -686,9 +686,6 @@ export function ProjectNodesBoard() {
               formatDate={formatDate}
               formatUpdatedAt={formatUpdatedAt}
               onNavigate={(id) => navigate(`/projects/${projectId ?? "project"}/nodes/${id}`)}
-              rightActions={
-                <NodeActionMenu node={node} onEdit={handleEditNode} onDelete={handleDeleteNode} />
-              }
             />
           ))}
         </div>
@@ -770,12 +767,11 @@ function NodeCardBase({
                 {node.approvalStatus}
               </Badge>
             </div>
-            <div
-              className="flex items-center gap-2"
-              data-node-card-action={rightActions ? "true" : undefined}
-            >
-              {rightActions ?? <MoreHorizontal className="h-4 w-4 text-muted-foreground" />}
-            </div>
+            {rightActions && (
+              <div className="flex items-center gap-2" data-node-card-action="true">
+                {rightActions}
+              </div>
+            )}
           </div>
         </div>
         <CardDescription>{node.description}</CardDescription>
