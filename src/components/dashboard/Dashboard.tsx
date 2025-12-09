@@ -1,25 +1,60 @@
 import { useEffect, useRef, useState } from "react";
-import {
-  LayoutDashboard,
-  Users,
-  CheckCircle,
-  TrendingUp,
-  PlusCircle,
-  PenSquare,
-  Trash2,
-  MoveRight,
-  EyeOff,
-} from "lucide-react";
+import { LayoutDashboard, Users, CheckCircle, TrendingUp, PlusCircle, PenSquare, Trash2, MoveRight, EyeOff } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
-import { BrandProjectStats } from "./BrandProjectStats";
-import { UserGrowthStats } from "./UserGrowthStats";
+import { companyUsers } from "../admin/userData";
+
+const statusSlices = [
+  { label: "Planning", value: 12, color: "#0ea5e9" },
+  { label: "Design", value: 16, color: "#6366f1" },
+  { label: "Development", value: 28, color: "#10b981" },
+  { label: "QA", value: 10, color: "#f97316" },
+  { label: "Release", value: 6, color: "#ec4899" },
+  { label: "Maintenance", value: 8, color: "#22d3ee" },
+];
+
+const donutTotal = statusSlices.reduce((sum, slice) => sum + slice.value, 0);
+const donutSegments = (() => {
+  let cumulative = 0;
+  return statusSlices.map((slice) => {
+    const percentage = (slice.value / donutTotal) * 100;
+    const dasharray = `${percentage} ${100 - percentage}`;
+    const dashoffset = 25 - cumulative;
+    cumulative += percentage;
+    return { slice, dasharray, dashoffset };
+  });
+})();
+
+const totalUsers = companyUsers.length;
+const totalCompanies = Array.from(new Set(companyUsers.map((user) => user.company).filter(Boolean))).length;
+const totalProjects = (() => {
+  const ids = new Set<string>();
+  companyUsers.forEach((user) => {
+    user.projects?.forEach((project) => {
+      if (project?.id) {
+        ids.add(project.id);
+      }
+    });
+  });
+  return ids.size;
+})();
 
 const summaryMetrics = [
-  { title: "전체 프로젝트", value: "24", change: "지난달 대비 +2", icon: LayoutDashboard },
-  { title: "진행 중인 작업", value: "142", change: "지난주 대비 +18", icon: CheckCircle },
-  { title: "팀 구성원", value: "32", change: "이번 달 신규 +4", icon: Users },
-  { title: "완료율", value: "87%", change: "지난달 대비 +5%", icon: TrendingUp },
+  { title: "총 유저", value: totalUsers.toLocaleString("ko-KR"), change: "등록된 전체 사용자", icon: Users },
+  { title: "총 회사", value: totalCompanies.toLocaleString("ko-KR"), change: "등록된 고객사 수", icon: LayoutDashboard },
+  { title: "총 프로젝트", value: totalProjects.toLocaleString("ko-KR"), change: "진행/완료 포함", icon: CheckCircle },
 ];
+
+const trendMonths = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+const trendSeries = {
+  users: [8, 12, 15, 18, 20, 22, 24, 26, 27, 28, 29, 30],
+  projects: [6, 9, 8, 12, 14, 16, 18, 19, 21, 23, 25, 26],
+};
+
+const trendColors = {
+  users: { stroke: "#a855f7", gradient: "#22d3ee" },
+  projects: { stroke: "#0ea5e9", gradient: "#f97316" },
+} as const;
 
 const historyEvents = [
   { id: 1, type: "create", message: "웹사이트 리디자인 페이즈2 킥오프 회의", timestamp: "오늘 · 09:10" },
@@ -108,6 +143,7 @@ export function Dashboard() {
   const INITIAL_HISTORY_COUNT = 8;
   const HISTORY_BATCH_SIZE = 3;
   const [visibleHistoryCount, setVisibleHistoryCount] = useState(INITIAL_HISTORY_COUNT);
+  const [trendTab, setTrendTab] = useState<"users" | "projects">("users");
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const sentinelRef = useRef<HTMLDivElement>(null);
 
@@ -145,84 +181,242 @@ export function Dashboard() {
 
   const visibleHistoryEvents = historyEvents.slice(0, visibleHistoryCount);
   const enableHistoryScroll = visibleHistoryEvents.length > 5;
+  const activeTrend = trendSeries[trendTab];
+  const chartLeft = 25;
+  const chartRight = 380;
+  const chartTop = 20;
+  const chartBottom = 160;
+  const chartHeight = chartBottom - chartTop;
+  const axisMax = 30;
+  const axisLabels = [30, 20, 10, 0];
+  const linePoints = activeTrend.map((value, idx) => {
+    const x = chartLeft + (idx / Math.max(trendMonths.length - 1, 1)) * (chartRight - chartLeft);
+    const y = chartBottom - (Math.min(value, axisMax) / axisMax) * chartHeight;
+    return { x, y };
+  });
+  const pathPoints = linePoints.map((point) => `${point.x},${point.y}`).join(" ");
+  const areaPath =
+    pathPoints && linePoints.length >= 2
+      ? `${pathPoints} ${linePoints[linePoints.length - 1].x},${chartBottom} ${linePoints[0].x},${chartBottom}`
+      : "";
+  const trendPalette = trendColors[trendTab];
 
   return (
     <div className="space-y-8 pb-12">
       <div className="rounded-2xl bg-white p-6 shadow-sm">
         <h1 className="text-3xl font-semibold tracking-tight">Dashboard</h1>
         <p className="mt-2 text-muted-foreground">
-          실시간 지표를 확인하세요. 전체 프로젝트, 완료된 작업, 오늘의 성과를 한눈에 볼 수 있습니다.
+          실시간 지표를 확인하세요. 전체 사용자, 회사, 프로젝트의 통계를 한눈에 볼 수 있습니다.
         </p>
       </div>
-      <div className="space-y-6">
-        <div className="grid gap-6 lg:grid-cols-2 items-stretch">
-          <div className="h-[360px] rounded-2xl border border-white/70 bg-white/90 shadow-sm backdrop-blur p-6 flex flex-col">
-            <div>
-              <h2 className="text-2xl font-semibold text-foreground">통합 프로젝트 통계</h2>
-              <p className="text-sm text-muted-foreground mb-4">
-                워크스페이스 전반의 핵심 지표입니다.
-              </p>
-            </div>
-            <div className="mt-6 grid gap-4 md:grid-cols-2">
-              {summaryMetrics.map((stat) => (
-                <Card key={stat.title} className="text-card-foreground flex flex-col gap-6 rounded-xl border border-white/70 bg-white/90 shadow-sm backdrop-blur">
-                  <CardHeader className="flex flex-row items-center justify-between pb-2">
-                    <div>
-                      <CardTitle className="text-xs text-muted-foreground uppercase tracking-wide">{stat.title}</CardTitle>
-                      <div className="mt-1 text-2xl font-semibold">{stat.value}</div>
-                    </div>
-                    <div className="rounded-xl bg-primary/10 p-3 text-primary">
-                      <stat.icon className="h-4 w-4" aria-hidden />
-                    </div>
-                  </CardHeader>
-                  <CardContent className="pt-0">
-                    <p className="text-xs text-muted-foreground">{stat.change}</p>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
+      <div className="space-y-4">
+        <div className="grid gap-4 md:grid-cols-3">
+          {summaryMetrics.map((stat) => (
+            <Card key={stat.title} className="text-card-foreground flex flex-col gap-6 rounded-xl border border-white/70 bg-white/90 shadow-sm backdrop-blur">
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <div>
+                  <CardTitle className="text-xs text-muted-foreground uppercase tracking-wide">{stat.title}</CardTitle>
+                    <div className="mt-1 text-2xl font-semibold">{stat.value}</div>
+                  </div>
+                  <div className="rounded-full bg-primary/10 text-primary w-16 h-16 flex items-center justify-center">
+                    <stat.icon className="h-8 w-8" aria-hidden />
+                  </div>
+                </CardHeader>
+                <CardContent className="pt-0">
+                  <p className="text-xs text-muted-foreground">{stat.change}</p>
+                </CardContent>
+              </Card>
+            ))}
           </div>
-          <div className="h-[360px] rounded-2xl border border-white/70 bg-white/90 shadow-sm backdrop-blur p-6 flex flex-col">
-            <div className="flex items-center justify-between">
+
+        <div className="grid gap-4 lg:grid-cols-2 py-6">
+          <Card className="rounded-xl border border-white/70 bg-white/90 shadow-sm backdrop-blur">
+            <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-4 border-b border-white/60 pb-4">
               <div>
-                <h2 className="text-2xl font-semibold text-foreground">최근 히스토리</h2>
-                <p className="text-sm text-muted-foreground mb-1">워크스페이스 전반의 활동 로그입니다.</p>
+                <CardTitle className="text-xl font-semibold text-foreground">사용자 & 프로젝트 트렌드</CardTitle>
+                <p className="text-xs text-muted-foreground">최근 12개월간 주요 지표 변화를 확인하세요.</p>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                {(["users", "projects"] as const).map((tab) => (
+                  <button
+                    key={tab}
+                    onClick={() => setTrendTab(tab)}
+                    className={`rounded-full px-3 py-1 text-xs ${
+                      trendTab === tab ? "bg-primary text-primary-foreground" : "bg-muted text-foreground"
+                    }`}
+                  >
+                    {tab === "users" ? "Users" : "Projects"}
+                  </button>
+                ))}
+              </div>
+            </CardHeader>
+            <CardContent className="pt-6">
+              <div className="h-52 w-full">
+                <svg viewBox="0 0 400 200" className="h-full w-full overflow-visible">
+                  <defs>
+                    <linearGradient id="lineGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                      <stop offset="0%" stopColor={trendPalette.gradient} stopOpacity="0.3" />
+                      <stop offset="100%" stopColor={trendPalette.stroke} stopOpacity="0" />
+                    </linearGradient>
+                    <linearGradient id="lineStroke" x1="0%" y1="0%" x2="100%" y2="0%">
+                      <stop offset="0%" stopColor={trendPalette.gradient} />
+                      <stop offset="100%" stopColor={trendPalette.stroke} />
+                    </linearGradient>
+                  </defs>
+                  {trendMonths.map((_, idx) => (
+                    <line
+                      key={`v-${idx}`}
+                      x1={chartLeft + (idx / Math.max(trendMonths.length - 1, 1)) * (chartRight - chartLeft)}
+                      y1={chartTop}
+                      x2={chartLeft + (idx / Math.max(trendMonths.length - 1, 1)) * (chartRight - chartLeft)}
+                      y2={chartBottom}
+                      className="stroke-slate-200"
+                      strokeWidth="1"
+                      strokeDasharray="2 4"
+                    />
+                  ))}
+                  {axisLabels.map((label, idx) => {
+                    const y = chartTop + (idx / (axisLabels.length - 1)) * chartHeight;
+                    return (
+                      <g key={`h-${idx}`}>
+                        <line x1={chartLeft} x2={chartRight} y1={y} y2={y} className="stroke-slate-100" strokeWidth="1" strokeDasharray="4 4" />
+                        <text x={chartLeft - 6} y={y + 4} className="text-xs text-muted-foreground" textAnchor="end">
+                          {label.toLocaleString()}
+                        </text>
+                      </g>
+                    );
+                  })}
+                  {areaPath && (
+                    <polyline
+                      fill="url(#lineGradient)"
+                      stroke="none"
+                      points={areaPath}
+                    />
+                  )}
+                  {pathPoints && (
+                    <polyline
+                      fill="none"
+                      stroke="url(#lineStroke)"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      points={pathPoints}
+                    />
+                  )}
+                  {linePoints.map((point, idx) => (
+                    <circle
+                      key={`point-${idx}`}
+                      cx={point.x}
+                      cy={point.y}
+                      r="3"
+                      fill="#fff"
+                      stroke={trendPalette.stroke}
+                      strokeWidth="1.5"
+                    />
+                  ))}
+                  {trendMonths.map((month, idx) => (
+                    <text
+                      key={month}
+                      x={chartLeft + (idx / Math.max(trendMonths.length - 1, 1)) * (chartRight - chartLeft)}
+                      y="190"
+                      className="text-xs fill-slate-500"
+                      textAnchor="middle"
+                    >
+                      {month}
+                    </text>
+                  ))}
+                </svg>
+              </div>
+            </CardContent>
+          </Card>
+        <Card className="rounded-xl border border-white/70 bg-white/90 shadow-sm backdrop-blur">
+          <CardHeader className="flex flex-row items-center justify-between pb-4 border-b border-white/60">
+            <div>
+              <CardTitle className="text-xl font-semibold text-foreground">Project Status Distribution</CardTitle>
+              <p className="text-xs text-muted-foreground">현재 진행 중인 프로젝트 단계별 비율입니다.</p>
+            </div>
+          </CardHeader>
+          <CardContent className="pt-6 flex flex-col gap-6">
+            <div className="relative mx-auto h-32 w-32">
+              <svg viewBox="0 0 36 36" className="h-full w-full">
+                <circle cx="18" cy="18" r="14.5" fill="none" stroke="#e2e8f0" strokeWidth="4" />
+                {donutSegments.map(({ slice, dasharray, dashoffset }) => (
+                  <circle
+                    key={slice.label}
+                    cx="18"
+                    cy="18"
+                    r="15.915"
+                    fill="none"
+                    stroke={slice.color}
+                    strokeWidth="4"
+                    strokeDasharray={dasharray}
+                    strokeDashoffset={dashoffset}
+                    transform="rotate(-90 18 18)"
+                  />
+                ))}
+              </svg>
+              <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+                <div className="rounded-full bg-white px-4 py-3 text-center shadow-sm">
+                  <p className="text-xs text-muted-foreground">총 프로젝트</p>
+                  <p className="text-xl font-semibold text-foreground">{donutTotal}</p>
+                </div>
               </div>
             </div>
-            <div className="flex justify-end mt-2">
-              <button className="text-xs font-medium text-primary hover:underline">전체 보기</button>
+            <div className="space-y-3">
+              {statusSlices.map((slice) => {
+                const percent = Math.round((slice.value / donutTotal) * 100);
+                return (
+                  <div key={slice.label} className="flex items-center gap-3 px-4 py-3 rounded-xl bg-white/90 shadow-sm text-sm">
+                    <span className="h-2 w-2 rounded-full" style={{ backgroundColor: slice.color }} />
+                    <span className="w-28">{slice.label}</span>
+                    <div className="flex-1 h-2 rounded-full bg-muted overflow-hidden">
+                      <div className="h-full rounded-full" style={{ backgroundColor: slice.color, width: `${percent}%` }} />
+                    </div>
+                    <span className="w-12 text-right text-xs text-muted-foreground">{percent}%</span>
+                  </div>
+                );
+              })}
             </div>
-            <div className="mt-6 flex-1 min-h-0 overflow-hidden">
-              <div
-                ref={scrollContainerRef}
-                className={`space-y-3 h-full pr-1 ${enableHistoryScroll ? "overflow-y-auto" : ""}`}
-              >
-                {visibleHistoryEvents.map((event) => {
-                  const palette = historyPalette[event.type] ?? historyPalette.create;
-                  return (
-                    <div key={event.id} className="flex flex-col gap-2 rounded-xl bg-white p-2 shadow-sm">
-                      <div className="flex flex-row items-start gap-2">
-                        <div
-                          className="rounded-full p-2 flex items-center justify-center"
-                          style={{ backgroundColor: palette.iconBg, color: palette.iconColor }}
-                        >
-                          {palette.icon}
-                        </div>
-                        <div className="flex-1">
-                          <p className="text-sm font-medium text-black">{event.message}</p>
-                          <p className="text-xs text-black/70">{event.timestamp}</p>
-                        </div>
+          </CardContent>
+        </Card>
+        </div>
+
+        <Card className="rounded-xl border border-white/70 bg-white/90 shadow-sm backdrop-blur">
+          <CardHeader className="flex items-center justify-between pb-4 border-b border-white/60">
+            <div>
+              <CardTitle className="text-xl font-semibold text-foreground">최근 히스토리</CardTitle>
+              <p className="text-xs text-muted-foreground">워크스페이스 전반의 활동 로그입니다.</p>
+            </div>
+            <button className="text-xs font-medium text-primary hover:underline">전체 보기</button>
+          </CardHeader>
+          <CardContent className="pt-4 flex-1 min-h-0 overflow-hidden">
+            <div
+              ref={scrollContainerRef}
+              className={`space-y-3 h-full pr-1 ${enableHistoryScroll ? "overflow-y-auto" : ""}`}
+            >
+              {visibleHistoryEvents.map((event) => {
+                const palette = historyPalette[event.type] ?? historyPalette.create;
+                return (
+                  <div key={event.id} className="flex flex-col gap-2 rounded-xl bg-white p-2 shadow-sm">
+                    <div className="flex flex-row items-start gap-2">
+                      <div
+                        className="rounded-full p-2 flex items-center justify-center"
+                        style={{ backgroundColor: palette.iconBg, color: palette.iconColor }}
+                      >
+                        {palette.icon}
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-sm font-medium text-black">{event.message}</p>
+                        <p className="text-xs text-black/70">{event.timestamp}</p>
                       </div>
                     </div>
-                  );
-                })}
-                <div ref={sentinelRef} />
-              </div>
+                  </div>
+                );
+              })}
+              <div ref={sentinelRef} />
             </div>
-          </div>
-        </div>
-        <BrandProjectStats />
-        <UserGrowthStats />
+          </CardContent>
+        </Card>
       </div>
     </div>
   );
