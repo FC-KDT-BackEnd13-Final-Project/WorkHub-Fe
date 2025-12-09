@@ -1,7 +1,11 @@
 import { useEffect, useRef, useState } from "react";
-import { LayoutDashboard, Users, CheckCircle, TrendingUp, PlusCircle, PenSquare, Trash2, MoveRight, EyeOff } from "lucide-react";
+import { format } from "date-fns";
+import { useNavigate } from "react-router-dom";
+import { LayoutDashboard, Users, CheckCircle, TrendingUp } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { companyUsers } from "../admin/userData";
+import logoImage from "../../../image/logo.png";
+import { historyEvents, historyPalette } from "../../data/historyData";
 
 const statusSlices = [
   { label: "Planning", value: 12, color: "#0ea5e9" },
@@ -56,96 +60,30 @@ const trendColors = {
   projects: { stroke: "#0ea5e9", gradient: "#f97316" },
 } as const;
 
-const historyEvents = [
-  { id: 1, type: "create", message: "웹사이트 리디자인 페이즈2 킥오프 회의", timestamp: "오늘 · 09:10" },
-  { id: 2, type: "update", message: "프로젝트 예산안_최종.xlsx 업로드", timestamp: "오늘 · 08:45" },
-  { id: 3, type: "delete", message: "모바일 QA 체크리스트 검수 완료", timestamp: "어제 · 19:20" },
-  { id: 4, type: "move", message: "새 팀원 2명이 포털에 로그인했습니다", timestamp: "어제 · 08:05" },
-  { id: 5, type: "hide", message: "데이터 시각화 대시보드 초안 공유", timestamp: "11월 20일 · 15:40" },
-  { id: 6, type: "create", message: "Sprint51_Report.pdf 업로드", timestamp: "11월 19일 · 18:10" },
-  { id: 7, type: "update", message: "CX 팀 대시보드 리팩토링 완료", timestamp: "11월 18일 · 17:20" },
-  { id: 8, type: "move", message: "파트너 온보딩 플로우 개선안 리뷰", timestamp: "11월 17일 · 11:05" },
-  { id: 9, type: "hide", message: "비즈니스 제안서 v3.pdf 업로드", timestamp: "11월 15일 · 16:55" },
-  { id: 10, type: "create", message: "외부 컨설턴트 3명이 초기 접근", timestamp: "11월 14일 · 09:40" },
-  { id: 11, type: "update", message: "CRM 마이그레이션 점검 완료", timestamp: "11월 13일 · 20:10" },
-  { id: 12, type: "delete", message: "신규 API 문서화 작업 공유", timestamp: "11월 12일 · 14:25" },
-  { id: 13, type: "move", message: "서비스 UX_최종시안.fig 업로드", timestamp: "11월 11일 · 18:40" },
-  { id: 14, type: "hide", message: "계약 담당자 3명이 재로그인했습니다", timestamp: "11월 10일 · 09:15" },
-  { id: 15, type: "create", message: "데이터 이관 자동화 시나리오 완료", timestamp: "11월 09일 · 21:05" },
-  { id: 16, type: "update", message: "보안 점검 결과 공유 및 피드백 수렴", timestamp: "11월 08일 · 13:20" },
-  { id: 17, type: "move", message: "북미 세일즈 손익 보고서 업로드", timestamp: "11월 07일 · 19:30" },
-  { id: 18, type: "hide", message: "CX팀 신규 플로우 QA 로그 공유", timestamp: "11월 06일 · 14:45" },
-  { id: 19, type: "delete", message: "협력사 4명이 워크스페이스에 접속", timestamp: "11월 05일 · 10:20" },
-  { id: 20, type: "create", message: "인프라 점검 체크리스트 완료", timestamp: "11월 04일 · 23:10" },
-  { id: 21, type: "update", message: "OKR_Q4_트래킹.xlsx 업로드", timestamp: "11월 03일 · 18:05" },
-];
-
-const historyPalette: Record<
-  string,
-  {
-    icon: JSX.Element;
-    iconBg: string;
-    iconColor: string;
-    cardBg: string;
-    border: string;
-    textColor: string;
-    subTextColor: string;
-  }
-> = {
-  create: {
-    icon: <PlusCircle className="h-4 w-4" />,
-    iconBg: "#DCFCE7",
-    iconColor: "#047857",
-    cardBg: "linear-gradient(135deg, #ECFDF5 0%, #FFFFFF 100%)",
-    border: "#A7F3D0",
-    textColor: "#064E3B",
-    subTextColor: "#10B981",
-  },
-  update: {
-    icon: <PenSquare className="h-4 w-4" />,
-    iconBg: "#DBEAFE",
-    iconColor: "#1D4ED8",
-    cardBg: "linear-gradient(135deg, #EFF6FF 0%, #FFFFFF 100%)",
-    border: "#BFDBFE",
-    textColor: "#1E3A8A",
-    subTextColor: "#3B82F6",
-  },
-  delete: {
-    icon: <Trash2 className="h-4 w-4" />,
-    iconBg: "#FEE2E2",
-    iconColor: "#B91C1C",
-    cardBg: "linear-gradient(135deg, #FEF2F2 0%, #FFFFFF 100%)",
-    border: "#FECACA",
-    textColor: "#7F1D1D",
-    subTextColor: "#F97316",
-  },
-  move: {
-    icon: <MoveRight className="h-4 w-4" />,
-    iconBg: "#FEF3C7",
-    iconColor: "#B45309",
-    cardBg: "linear-gradient(135deg, #FFF7ED 0%, #FFFFFF 100%)",
-    border: "#FCD34D",
-    textColor: "#92400E",
-    subTextColor: "#D97706",
-  },
-  hide: {
-    icon: <EyeOff className="h-4 w-4" />,
-    iconBg: "#F8FAFC",
-    iconColor: "#475569",
-    cardBg: "linear-gradient(135deg, #F8FAFC 0%, #FFFFFF 100%)",
-    border: "#E2E8F0",
-    textColor: "#0F172A",
-    subTextColor: "#475569",
-  },
-};
-
 export function Dashboard() {
+  const navigate = useNavigate();
   const INITIAL_HISTORY_COUNT = 8;
   const HISTORY_BATCH_SIZE = 3;
   const [visibleHistoryCount, setVisibleHistoryCount] = useState(INITIAL_HISTORY_COUNT);
   const [trendTab, setTrendTab] = useState<"users" | "projects">("users");
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const sentinelRef = useRef<HTMLDivElement>(null);
+  const todayHistoryEvents = historyEvents.filter((event) => event.timestamp.includes("오늘"));
+  const getInitials = (value?: string) => {
+    if (!value) return "NA";
+    const cleaned = value.trim();
+    if (!cleaned) return "NA";
+    const parts = cleaned.split(/\s+/);
+    const first = parts[0]?.[0] ?? "";
+    const second = parts[1]?.[0] ?? cleaned[1] ?? "";
+    return (first + (second ?? "")).slice(0, 2).toUpperCase();
+  };
+  const getAvatarUrl = (seed?: string) => (seed ? `https://i.pravatar.cc/80?u=${encodeURIComponent(seed)}` : undefined);
+  const isSystemActor = (name?: string) => {
+    if (!name) return true;
+    const normalized = name.toLowerCase();
+    return ["시스템", "bot", "센터"].some((keyword) => normalized.includes(keyword.toLowerCase()));
+  };
 
   useEffect(() => {
     const scrollContainer = scrollContainerRef.current;
@@ -160,10 +98,10 @@ export function Dashboard() {
         entries.forEach((entry) => {
           if (entry.isIntersecting) {
             setVisibleHistoryCount((prev) => {
-              if (prev >= historyEvents.length) {
+              if (prev >= todayHistoryEvents.length) {
                 return prev;
               }
-              return Math.min(historyEvents.length, prev + HISTORY_BATCH_SIZE);
+              return Math.min(todayHistoryEvents.length, prev + HISTORY_BATCH_SIZE);
             });
           }
         });
@@ -179,7 +117,7 @@ export function Dashboard() {
     return () => observer.disconnect();
   }, []);
 
-  const visibleHistoryEvents = historyEvents.slice(0, visibleHistoryCount);
+  const visibleHistoryEvents = todayHistoryEvents.slice(0, visibleHistoryCount);
   const enableHistoryScroll = visibleHistoryEvents.length > 5;
   const activeTrend = trendSeries[trendTab];
   const chartLeft = 25;
@@ -336,7 +274,7 @@ export function Dashboard() {
               <p className="text-xs text-muted-foreground">현재 진행 중인 프로젝트 단계별 비율입니다.</p>
             </div>
           </CardHeader>
-          <CardContent className="pt-6 flex flex-col gap-6">
+          <CardContent className="pt-6 flex flex-col gap-4">
             <div className="relative mx-auto h-32 w-32">
               <svg viewBox="0 0 36 36" className="h-full w-full">
                 <circle cx="18" cy="18" r="14.5" fill="none" stroke="#e2e8f0" strokeWidth="4" />
@@ -382,38 +320,102 @@ export function Dashboard() {
         </div>
 
         <Card className="rounded-xl border border-white/70 bg-white/90 shadow-sm backdrop-blur">
-          <CardHeader className="flex items-center justify-between pb-4 border-b border-white/60">
+          <CardHeader className="flex flex-row items-center justify-between gap-4 pb-4 border-b border-white/60">
             <div>
               <CardTitle className="text-xl font-semibold text-foreground">최근 히스토리</CardTitle>
               <p className="text-xs text-muted-foreground">워크스페이스 전반의 활동 로그입니다.</p>
             </div>
-            <button className="text-xs font-medium text-primary hover:underline">전체 보기</button>
+            <button className="text-xs font-medium text-primary hover:underline" onClick={() => navigate("/history")}>
+              전체 보기
+            </button>
           </CardHeader>
-          <CardContent className="pt-4 flex-1 min-h-0 overflow-hidden">
+          <CardContent className="pt-4">
             <div
               ref={scrollContainerRef}
-              className={`space-y-3 h-full pr-1 ${enableHistoryScroll ? "overflow-y-auto" : ""}`}
+              className={`relative w-full pr-1 ${enableHistoryScroll ? "max-h-96 overflow-y-auto" : ""}`}
             >
-              {visibleHistoryEvents.map((event) => {
-                const palette = historyPalette[event.type] ?? historyPalette.create;
-                return (
-                  <div key={event.id} className="flex flex-col gap-2 rounded-xl bg-white p-2 shadow-sm">
-                    <div className="flex flex-row items-start gap-2">
-                      <div
-                        className="rounded-full p-2 flex items-center justify-center"
-                        style={{ backgroundColor: palette.iconBg, color: palette.iconColor }}
-                      >
-                        {palette.icon}
-                      </div>
-                      <div className="flex-1">
-                        <p className="text-sm font-medium text-black">{event.message}</p>
-                        <p className="text-xs text-black/70">{event.timestamp}</p>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-              <div ref={sentinelRef} />
+              <table className="w-full caption-bottom text-sm">
+                <thead className="[&_tr]:border-b">
+                  <tr className="hover:bg-muted/50 border-b transition-colors">
+                    <th className="text-foreground h-10 px-2 text-left align-middle font-medium whitespace-nowrap w-2/5">
+                      활동 내용
+                    </th>
+                    <th className="text-foreground h-10 px-2 align-middle font-medium whitespace-nowrap w-1/5 text-center">
+                      대상
+                    </th>
+                    <th className="text-foreground h-10 px-2 align-middle font-medium whitespace-nowrap w-1/6 text-center">
+                      실행자
+                    </th>
+                    <th className="text-foreground h-10 px-2 align-middle font-medium whitespace-nowrap w-1/6 text-center">
+                      작업 유형
+                    </th>
+                    <th className="text-foreground h-10 px-2 align-middle font-medium whitespace-nowrap w-1/6 text-center">
+                      발생 시각
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="[&_tr:last-child]:border-0">
+                  {visibleHistoryEvents.map((event) => {
+                    const palette = historyPalette[event.type] ?? historyPalette.create;
+                    return (
+                      <tr key={event.id} className="hover:bg-muted/50 border-b transition-colors">
+                        <td className="p-2 align-middle whitespace-nowrap">
+                          <div className="flex items-center gap-3">
+                            <div className="relative h-12 w-12 overflow-hidden rounded-xl border border-white/70 shadow-sm">
+                            {isSystemActor(event.updatedBy) ? (
+                              <img src={logoImage} alt="WorkHub 로고" className="h-full w-full object-cover" />
+                            ) : event.updatedBy ? (
+                              <img
+                                src={getAvatarUrl(event.updatedBy)}
+                                alt={event.updatedBy}
+                                className="h-full w-full object-cover"
+                              />
+                              ) : (
+                                <div className="flex h-full w-full items-center justify-center bg-slate-100 text-sm font-semibold text-foreground">
+                                  {getInitials(event.updatedBy)}
+                                </div>
+                              )}
+                            </div>
+                            <div className="space-y-1">
+                              <p className="font-medium text-foreground">{event.message}</p>
+                              <p className="text-xs text-muted-foreground">{event.timestamp}</p>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="p-2 align-middle whitespace-nowrap text-center text-sm text-muted-foreground">
+                          {event.target ?? "—"}
+                        </td>
+                        <td className="p-2 align-middle whitespace-nowrap text-center">
+                          <span className="inline-flex items-center justify-center rounded-md border px-2 py-0.5 text-xs font-medium bg-secondary text-secondary-foreground border-transparent">
+                            {event.updatedBy ?? "시스템"}
+                          </span>
+                        </td>
+                        <td className="p-2 align-middle whitespace-nowrap text-center">
+                          <span
+                            className="inline-flex items-center justify-center rounded-md border px-2 py-0.5 text-xs font-medium w-fit whitespace-nowrap shrink-0"
+                            style={{ backgroundColor: palette.iconBg, color: palette.iconColor, borderColor: palette.iconBg }}
+                          >
+                            {event.type.toUpperCase()}
+                          </span>
+                        </td>
+                        <td className="p-2 align-middle whitespace-nowrap text-center text-sm text-muted-foreground">
+                          {format(new Date(event.updatedAt), "yyyy.MM.dd HH:mm")}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                  <tr ref={sentinelRef}>
+                    <td colSpan={5} />
+                  </tr>
+                  {visibleHistoryEvents.length === 0 && (
+                    <tr>
+                      <td colSpan={5} className="p-8 text-center text-sm text-muted-foreground">
+                        오늘 업데이트된 히스토리가 없습니다.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
             </div>
           </CardContent>
         </Card>
