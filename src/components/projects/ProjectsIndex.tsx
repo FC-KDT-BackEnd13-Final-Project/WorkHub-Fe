@@ -817,7 +817,15 @@ export function ProjectsIndex() {
                 <Card
                     key={project.id}
                     className="cursor-pointer rounded-2xl border border-white/70 bg-white/90 shadow-sm backdrop-blur transition-shadow hover:shadow-lg"
-                    onClick={() => navigate(`/projects/${project.id}/nodes`)}
+                    onClick={() =>
+                        navigate(`/projects/${project.id}/nodes`, {
+                          state: {
+                            projectName: project.name,      // 예: "모바일 앱 개발"
+                            // 필요하면 brand도 같이 보낼 수 있음
+                            // brand: project.brand,
+                          },
+                        })
+                    }
                 >
                   <CardHeader className="space-y-2">
                     <div className="flex items-center justify-between">
