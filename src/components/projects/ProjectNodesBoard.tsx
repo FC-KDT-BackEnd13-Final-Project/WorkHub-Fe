@@ -1,4 +1,4 @@
-import { CSSProperties, ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { CSSProperties, MouseEvent, PointerEvent, ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import {
   DndContext,
@@ -20,9 +20,16 @@ import { Input } from "../ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
-import { Paperclip, Link as LinkIcon, MoreHorizontal } from "lucide-react";
+import { Paperclip, Link as LinkIcon, MoreHorizontal
+} from "lucide-react";
 import { Label } from "../ui/label";
 import { AutoResizeTextarea } from "../ui/auto-resize-textarea";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "../ui/dropdown-menu";
 
 // 프로젝트 내 노드(작업 카드)와 워크플로우를 관리하는 보드 화면
 type NodeStatus = "NOT_STARTED" | "IN_PROGRESS" | "PENDING_REVIEW" | "ON_HOLD";
@@ -187,6 +194,7 @@ export function ProjectNodesBoard() {
   const [isWorkflowModalOpen, setIsWorkflowModalOpen] = useState(false);
   const [newWorkflow, setNewWorkflow] = useState(createWorkflowFormState);
   const [isReorderMode, setIsReorderMode] = useState(false);
+  const [editingNode, setEditingNode] = useState<Node | null>(null);
   const nextProjectNodeId = useRef(
     defaultNodes.reduce((max, node) => Math.max(max, node.projectNodeId), 0) + 1,
   );
@@ -200,6 +208,8 @@ export function ProjectNodesBoard() {
     });
     return ["전체", ...Array.from(names).sort()];
   }, [nodes]);
+
+  const isEditingWorkflow = Boolean(editingNode);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -259,6 +269,8 @@ export function ProjectNodesBoard() {
 
   const openWorkflowModal = useCallback(() => {
     console.log("openWorkflowModal 호출, 현재 isWorkflowModalOpen:", isWorkflowModalOpen);
+    setEditingNode(null);
+    setNewWorkflow(createWorkflowFormState());
     if (!isWorkflowModalOpen) {
       setIsWorkflowModalOpen(true);
     }
@@ -274,6 +286,7 @@ export function ProjectNodesBoard() {
       setIsWorkflowModalOpen(false);
     }
     setNewWorkflow(createWorkflowFormState());
+    setEditingNode(null);
     if (location.pathname !== workflowBasePath) {
       console.log("workflowBasePath로 이동:", workflowBasePath);
       navigate(workflowBasePath, { replace: true });
@@ -281,6 +294,7 @@ export function ProjectNodesBoard() {
   }, [isWorkflowModalOpen, location.pathname, navigate, workflowBasePath]);
 
   useEffect(() => {
+    if (editingNode) return;
     const shouldOpen = location.pathname === workflowModalPath;
     console.log("useEffect [location.pathname, workflowModalPath] 실행");
     console.log("  location.pathname:", location.pathname);
@@ -290,7 +304,7 @@ export function ProjectNodesBoard() {
     if (!shouldOpen) {
       setNewWorkflow(createWorkflowFormState());
     }
-  }, [location.pathname, workflowModalPath]);
+  }, [editingNode, location.pathname, workflowModalPath]);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -308,30 +322,49 @@ export function ProjectNodesBoard() {
     };
   }, [closeWorkflowModal, isWorkflowModalOpen]);
 
-  const handleCreateWorkflow = () => {
+  const handleSaveWorkflow = () => {
     if (!newWorkflow.title.trim()) return;
     if (!newWorkflow.developer.trim()) return;
     if (!newWorkflow.startDate || !newWorkflow.endDate) return;
     if (new Date(newWorkflow.endDate) <= new Date(newWorkflow.startDate)) return;
 
-    const node: Node = {
-      id: crypto.randomUUID(),
-      projectNodeId: nextProjectNodeId.current++,
-      title: newWorkflow.title,
-      description: newWorkflow.description,
-      tags: [], // Tags are removed, so an empty array is passed
-      filesCount: 0,
-      linksCount: 0,
-      developer: newWorkflow.developer.trim(),
-      status: "NOT_STARTED",
-      approvalStatus: newWorkflow.approvalStatus,
-      updatedAt: new Date().toISOString(),
-      startDate: newWorkflow.startDate,
-      endDate: newWorkflow.endDate,
-      hasNotification: true,
-    };
+    if (editingNode) {
+      setNodes((prev) =>
+        prev.map((node) => {
+          if (node.id !== editingNode.id) return node;
+          return {
+            ...node,
+            title: newWorkflow.title,
+            description: newWorkflow.description,
+            developer: newWorkflow.developer.trim(),
+            startDate: newWorkflow.startDate,
+            endDate: newWorkflow.endDate,
+            approvalStatus: newWorkflow.approvalStatus,
+            updatedAt: new Date().toISOString(),
+          };
+        }),
+      );
+    } else {
+      const node: Node = {
+        id: crypto.randomUUID(),
+        projectNodeId: nextProjectNodeId.current++,
+        title: newWorkflow.title,
+        description: newWorkflow.description,
+        tags: [], // Tags are removed, so an empty array is passed
+        filesCount: 0,
+        linksCount: 0,
+        developer: newWorkflow.developer.trim(),
+        status: "NOT_STARTED",
+        approvalStatus: newWorkflow.approvalStatus,
+        updatedAt: new Date().toISOString(),
+        startDate: newWorkflow.startDate,
+        endDate: newWorkflow.endDate,
+        hasNotification: true,
+      };
 
-    setNodes((prev) => [node, ...prev]);
+      setNodes((prev) => [node, ...prev]);
+    }
+
     setNewWorkflow(createWorkflowFormState());
     closeWorkflowModal();
   };
@@ -383,6 +416,38 @@ export function ProjectNodesBoard() {
     [syncNodeOrder],
   );
 
+  const handleEditNode = useCallback(
+    (node: Node) => {
+      setEditingNode(node);
+      setNewWorkflow({
+        title: node.title,
+        description: node.description,
+        developer: node.developer,
+        startDate: node.startDate,
+        endDate: node.endDate,
+        approvalStatus: node.approvalStatus,
+      });
+      setIsWorkflowModalOpen(true);
+      if (location.pathname !== workflowBasePath) {
+        navigate(workflowBasePath, { replace: true });
+      }
+    },
+    [location.pathname, navigate, workflowBasePath],
+  );
+
+  const handleDeleteNode = useCallback(
+    (node: Node) => {
+      const message = `"${node.title}" 단계를 삭제할까요? 이 작업은 되돌릴 수 없습니다.`;
+      if (window.confirm(message)) {
+        setNodes((prev) => prev.filter((item) => item.id !== node.id));
+        if (editingNode && editingNode.id === node.id) {
+          closeWorkflowModal();
+        }
+      }
+    },
+    [closeWorkflowModal, editingNode],
+  );
+
   return (
     <div className="space-y-6 pb-12">
       {isWorkflowModalOpen && (
@@ -393,9 +458,13 @@ export function ProjectNodesBoard() {
             <div className="w-full" style={{ maxWidth: "var(--login-card-max-width, 42rem)" }}>
               <Card className="login-theme border border-border shadow-lg">
                 <CardHeader className="space-y-2 pb-6">
-                  <h2 className="text-xl text-center">새 워크플로 만들기</h2>
+                  <h2 className="text-xl text-center">
+                    {isEditingWorkflow ? "워크플로 수정" : "새 워크플로 만들기"}
+                  </h2>
                   <p className="text-sm text-muted-foreground text-center">
-                    새로운 워크플로 단계를 작성하고 세부 정보를 입력하세요.
+                    {isEditingWorkflow
+                      ? "선택한 워크플로 단계를 업데이트하고 저장하세요."
+                      : "새로운 워크플로 단계를 작성하고 세부 정보를 입력하세요."}
                   </p>
                 </CardHeader>
                   <CardContent>
@@ -505,8 +574,8 @@ export function ProjectNodesBoard() {
                       <Button variant="secondary" className="w-1/2" onClick={closeWorkflowModal}>
                         취소
                       </Button>
-                      <Button className="w-1/2" onClick={handleCreateWorkflow}>
-                        생성
+                      <Button className="w-1/2" onClick={handleSaveWorkflow}>
+                        {isEditingWorkflow ? "저장" : "생성"}
                       </Button>
                     </div>
                   </CardContent>
@@ -600,6 +669,9 @@ export function ProjectNodesBoard() {
                   formatDate={formatDate}
                   formatUpdatedAt={formatUpdatedAt}
                   onNavigate={(id) => navigate(`/projects/${projectId ?? "project"}/nodes/${id}`)}
+                  rightActions={
+                    <NodeActionMenu node={node} onEdit={handleEditNode} onDelete={handleDeleteNode} />
+                  }
                 />
               ))}
             </div>
@@ -614,6 +686,9 @@ export function ProjectNodesBoard() {
               formatDate={formatDate}
               formatUpdatedAt={formatUpdatedAt}
               onNavigate={(id) => navigate(`/projects/${projectId ?? "project"}/nodes/${id}`)}
+              rightActions={
+                <NodeActionMenu node={node} onEdit={handleEditNode} onDelete={handleDeleteNode} />
+              }
             />
           ))}
         </div>
@@ -646,12 +721,22 @@ function NodeCardBase({
   cardRef,
   style,
 }: NodeCardBaseProps) {
+  const handleCardClick = (event: MouseEvent<HTMLDivElement>) => {
+    if (rightActions) {
+      const target = event.target as HTMLElement;
+      if (target.closest('[data-node-card-action="true"]')) {
+        return;
+      }
+    }
+    onNavigate(node.id);
+  };
+
   return (
     <Card
       ref={cardRef}
       style={style}
       className="relative cursor-pointer rounded-2xl border border-white/70 bg-white/90 shadow-sm backdrop-blur transition-shadow hover:shadow-lg"
-      onClick={() => onNavigate(node.id)}
+      onClick={handleCardClick}
     >
       {node.hasNotification && (
         <span className="absolute top-3 right-3 h-2 w-2 rounded-full" style={{ backgroundColor: "var(--point-color)" }} />
@@ -685,9 +770,11 @@ function NodeCardBase({
                 {node.approvalStatus}
               </Badge>
             </div>
-            <div className="flex items-center gap-2">
-              {rightActions}
-              <MoreHorizontal className="h-4 w-4 text-muted-foreground" />
+            <div
+              className="flex items-center gap-2"
+              data-node-card-action={rightActions ? "true" : undefined}
+            >
+              {rightActions ?? <MoreHorizontal className="h-4 w-4 text-muted-foreground" />}
             </div>
           </div>
         </div>
@@ -725,6 +812,66 @@ function NodeCardBase({
   );
 }
 
+interface NodeActionMenuProps {
+  node: Node;
+  onEdit: (node: Node) => void;
+  onDelete: (node: Node) => void;
+}
+
+function NodeActionMenu({ node, onEdit, onDelete }: NodeActionMenuProps) {
+  const stopPointer = (event: PointerEvent<HTMLButtonElement>) => {
+    event.stopPropagation();
+  };
+
+  const handleTriggerClick = (event: MouseEvent<HTMLButtonElement>) => {
+    event.stopPropagation();
+  };
+
+  const handleEdit = (event: Event) => {
+    event.stopPropagation();
+    onEdit(node);
+  };
+
+  const handleDelete = (event: Event) => {
+    event.stopPropagation();
+    onDelete(node);
+  };
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button
+          type="button"
+          aria-label="워크플로 액션"
+          className="rounded-full p-1 text-muted-foreground transition hover:bg-muted"
+          onClick={handleTriggerClick}
+          onPointerDown={stopPointer}
+        >
+          <MoreHorizontal className="h-4 w-4" />
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent
+        align="end"
+        alignOffset={-18}
+        sideOffset={6}
+        className="min-w-0 w-auto"
+        style={{ minWidth: "auto", width: "auto" }}
+      >
+        <DropdownMenuItem onSelect={handleEdit}>
+          수정
+        </DropdownMenuItem>
+        <DropdownMenuItem
+          onSelect={handleDelete}
+          variant="destructive"
+          className="text-destructive"
+        >
+          삭제
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
 interface SortableNodeCardProps extends NodeCardBaseProps {}
 
 function StaticNodeCard(props: NodeCardBaseProps) {
@@ -736,6 +883,7 @@ function SortableNodeCard({
   formatDate,
   formatUpdatedAt,
   onNavigate,
+  rightActions,
 }: SortableNodeCardProps) {
   const {
     attributes,
@@ -761,6 +909,7 @@ function SortableNodeCard({
         formatDate={formatDate}
         formatUpdatedAt={formatUpdatedAt}
         onNavigate={() => {}}
+        rightActions={rightActions}
       />
     </div>
   );
