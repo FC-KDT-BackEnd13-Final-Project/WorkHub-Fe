@@ -2,6 +2,29 @@ import { ReactNode } from "react";
 import { Card2, CardContent } from "../ui/card2";
 import { Badge2 } from "../ui/badge2";
 
+const typeBadgeStyles: Record<string, { backgroundColor: string; color: string; borderColor: string }> = {
+  공지: {
+    backgroundColor: "#EEF2FF",
+    color: "#4338CA",
+    borderColor: "#C7D2FE",
+  },
+  질문: {
+    backgroundColor: "#FFFBEB",
+    color: "#B45309",
+    borderColor: "#FDE68A",
+  },
+  일반: {
+    backgroundColor: "#F9FAFB",
+    color: "#374151",
+    borderColor: "#E5E7EB",
+  },
+  답글: {
+    backgroundColor: "#F1F5F9",
+    color: "#0F172A",
+    borderColor: "#E2E8F0",
+  },
+};
+
 interface PostCardProps {
   post: {
     title: string;
@@ -15,6 +38,17 @@ interface PostCardProps {
 
 // 게시글 카드 UI를 재사용하기 위한 컴포넌트 (본문/비교 모달에서 공유)
 export function PostCard({ post, metaItems, headerLabel, extraMenu }: PostCardProps) {
+  const contentHtml = (() => {
+    if (!post.content) return "";
+    const hasHtmlTag = /<[^>]+>/.test(post.content);
+    return hasHtmlTag ? post.content : post.content.replace(/\n/g, "<br />");
+  })();
+  const badgeStyle = typeBadgeStyles[post.type] ?? {
+    backgroundColor: "#F3F4F6",
+    color: "#111827",
+    borderColor: "#E5E7EB",
+  };
+
   return (
     <Card2>
       <CardContent className="space-y-4 p-6">
@@ -26,7 +60,13 @@ export function PostCard({ post, metaItems, headerLabel, extraMenu }: PostCardPr
           )}
           <div className="flex items-center justify-between gap-3 flex-wrap">
             <div className="flex items-center gap-2">
-              <Badge2 variant="outline">{post.type}</Badge2>
+              <Badge2
+                variant="outline"
+                style={badgeStyle}
+                className={badgeStyle ? "border" : undefined}
+              >
+                {post.type}
+              </Badge2>
             </div>
             {extraMenu}
           </div>
@@ -43,9 +83,10 @@ export function PostCard({ post, metaItems, headerLabel, extraMenu }: PostCardPr
           </div>
         </div>
         <div className="space-y-3">
-          <div className="prose max-w-none text-base leading-relaxed whitespace-pre-line">
-            {post.content}
-          </div>
+          <div
+            className="prose max-w-none text-base leading-relaxed"
+            dangerouslySetInnerHTML={{ __html: contentHtml }}
+          />
         </div>
       </CardContent>
     </Card2>

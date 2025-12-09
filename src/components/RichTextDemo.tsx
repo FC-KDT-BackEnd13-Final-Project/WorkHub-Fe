@@ -2,65 +2,139 @@ import React, { ReactNode, useRef, useState } from "react";
 import { RichTextEditor } from "./RichTextEditor";
 import { Card, CardContent } from "./ui/card";
 import { Button } from "./ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 
-interface RichTextDemoProps {
-    actionButtons?: ReactNode;
+export interface RichTextDraft {
+    title: string;
+    content: string;
+    attachments: File[];
+    links: { url: string; description: string }[];
+    type: "공지" | "질문" | "일반";
 }
 
-export function RichTextDemo({ actionButtons }: RichTextDemoProps) {
-    const [content, setContent] = useState("");
-    const [title, setTitle] = useState("");
-    const [attachments, setAttachments] = useState<File[]>([]);
-    const [links, setLinks] = useState<{ url: string; description: string }[]>([]);
+interface RichTextDemoActionHelpers {
+    draft: RichTextDraft;
+    clear: () => void;
+}
+
+interface RichTextDemoProps {
+    actionButtons?: ReactNode | ((helpers: RichTextDemoActionHelpers) => ReactNode);
+    onChange?: (draft: RichTextDraft) => void;
+    initialDraft?: Partial<RichTextDraft>;
+    showTypeSelector?: boolean;
+}
+
+export function RichTextDemo({ actionButtons, onChange, initialDraft, showTypeSelector = false }: RichTextDemoProps) {
+    const defaultDraft: RichTextDraft = {
+        title: initialDraft?.title ?? "",
+        content: initialDraft?.content ?? "",
+        attachments: initialDraft?.attachments ?? [],
+        links: initialDraft?.links ?? [],
+        type: initialDraft?.type ?? "질문",
+    };
+    const [draft, setDraft] = useState<RichTextDraft>(defaultDraft);
     const [isAddingLink, setIsAddingLink] = useState(false);
     const [linkForm, setLinkForm] = useState({ url: "", description: "" });
     const fileInputRef = useRef<HTMLInputElement | null>(null);
 
+    const setDraftWithNotify = (updater: (prev: RichTextDraft) => RichTextDraft) => {
+        setDraft((prev) => {
+            const nextDraft = updater(prev);
+            onChange?.(nextDraft);
+            return nextDraft;
+        });
+    };
+
     const handleContentChange = (newContent: string) => {
-        setContent(newContent);
+        setDraftWithNotify((prev) => ({ ...prev, content: newContent }));
     };
 
     const clearEditor = () => {
-        setContent("");
+        if (fileInputRef.current) {
+            fileInputRef.current.value = "";
+        }
+        setIsAddingLink(false);
+        setLinkForm({ url: "", description: "" });
+        setDraftWithNotify(() => ({ ...defaultDraft }));
     };
 
     const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
         const files = Array.from(event.target.files ?? []);
         if (files.length === 0) return;
-        setAttachments((prev) => [...prev, ...files]);
+        setDraftWithNotify((prev) => ({ ...prev, attachments: [...prev.attachments, ...files] }));
         if (fileInputRef.current) {
             fileInputRef.current.value = "";
         }
     };
 
     const removeAttachment = (index: number) => {
-        setAttachments((prev) => prev.filter((_, i) => i !== index));
+        setDraftWithNotify((prev) => ({
+            ...prev,
+            attachments: prev.attachments.filter((_, i) => i !== index),
+        }));
     };
 
     const handleAddLink = () => {
         const trimmedUrl = linkForm.url.trim();
         const trimmedDesc = linkForm.description.trim();
         if (!trimmedUrl) return;
-        setLinks((prev) => [...prev, { url: trimmedUrl, description: trimmedDesc }]);
+        setDraftWithNotify((prev) => ({
+            ...prev,
+            links: [...prev.links, { url: trimmedUrl, description: trimmedDesc }],
+        }));
         setLinkForm({ url: "", description: "" });
         setIsAddingLink(false);
     };
 
     const removeLink = (index: number) => {
-        setLinks((prev) => prev.filter((_, i) => i !== index));
+        setDraftWithNotify((prev) => ({
+            ...prev,
+            links: prev.links.filter((_, i) => i !== index),
+        }));
     };
+
+    const renderedActionButtons =
+        typeof actionButtons === "function"
+            ? actionButtons({ draft, clear: clearEditor })
+            : actionButtons;
 
     return (
         <div className="space-y-6">
             {/* Editor Card */}
             <Card>
                 <CardContent className="space-y-4 pt-6">
+                    {showTypeSelector && (
+                        <div className="space-y-2">
+                            <p className="text-sm font-medium text-muted-foreground">게시글 타입</p>
+                            <Select
+                                value={draft.type}
+                                onValueChange={(value) =>
+                                    setDraftWithNotify((prev) => ({
+                                        ...prev,
+                                        type: value as RichTextDraft["type"],
+                                    }))
+                                }
+                            >
+                                <SelectTrigger className="w-full md:w-48">
+                                    <SelectValue placeholder="타입 선택" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="공지">공지</SelectItem>
+                                    <SelectItem value="질문">질문</SelectItem>
+                                    <SelectItem value="일반">일반</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                    )}
+
                     {/* 제목 입력 */}
                     <input
                         type="text"
                         placeholder="제목을 입력하세요"
-                        value={title}
-                        onChange={(e) => setTitle(e.target.value)}
+                        value={draft.title}
+                        onChange={(e) =>
+                            setDraftWithNotify((prev) => ({ ...prev, title: e.target.value }))
+                        }
                         className="w-full rounded-md border border-border bg-background px-3 py-2 text-xl focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring"
                     />
 
@@ -68,7 +142,7 @@ export function RichTextDemo({ actionButtons }: RichTextDemoProps) {
                     <RichTextEditor
                         placeholder="내용을 입력하세요."
                         onChange={handleContentChange}
-                        initialContent={content}
+                        initialContent={draft.content}
                         className="w-full"
                     />
 
@@ -126,9 +200,9 @@ export function RichTextDemo({ actionButtons }: RichTextDemoProps) {
                             </div>
                         )}
 
-                        {(attachments.length > 0 || links.length > 0) && (
+                        {(draft.attachments.length > 0 || draft.links.length > 0) && (
                             <div className="space-y-2">
-                                {attachments.map((file, index) => (
+                                {draft.attachments.map((file, index) => (
                                     <div
                                         key={`${file.name}-${index}`}
                                         className="flex w-full items-center justify-between rounded-md border bg-background px-3 py-2 text-sm"
@@ -144,7 +218,7 @@ export function RichTextDemo({ actionButtons }: RichTextDemoProps) {
                                         </Button>
                                     </div>
                                 ))}
-                                {links.map((link, index) => (
+                                {draft.links.map((link, index) => (
                                     <div
                                         key={`${link.url}-${index}`}
                                         className="flex w-full items-center justify-between rounded-md border bg-background px-3 py-2 text-sm"
@@ -182,7 +256,7 @@ export function RichTextDemo({ actionButtons }: RichTextDemoProps) {
                             내용 초기화
                         </Button>
                         <div className="flex gap-2">
-                            {actionButtons}
+                            {renderedActionButtons}
                         </div>
                     </div>
                 </CardContent>

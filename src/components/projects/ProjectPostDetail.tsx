@@ -4,9 +4,16 @@ import { Card2, CardContent } from "../ui/card2";
 import { Badge2 } from "../ui/badge2";
 import { Button2 } from "../ui/button2";
 import { Textarea2 } from "../ui/textarea2";
-import { MoreVertical, Pencil, Trash2, CornerDownRight, History, X } from "lucide-react";
+import { MoreVertical, Pencil, Trash2, CornerDownRight, History } from "lucide-react";
 import { PostCard } from "./PostCard";
+import { RichTextDemo, type RichTextDraft } from "../RichTextDemo";
 import { postRevisionsByPostId, type PostRevision } from "../../data/postRevisions";
+import {
+    loadRepliesForPost,
+    saveRepliesForPost,
+    type PostReplyItem,
+} from "../../utils/postRepliesStorage";
+import { mockProjectPosts } from "../../data/mockProjectPosts";
 
 const COMMENTS_PER_PAGE = 5;
 
@@ -14,13 +21,14 @@ const COMMENTS_PER_PAGE = 5;
 interface PostPayload {
     id: string;
     customerName: string;
-    type: "notice" | "question" | "general";
+    type: "공지" | "질문" | "일반";
     title: string;
     content: string;
     createdDate: string;
     updatedDate: string;
     hashtag: string;
     isOwner?: boolean;
+    parentId?: string | null; // 원글이면 null, 답글이면 원글 id
 }
 
 interface CommentItem {
@@ -45,39 +53,133 @@ interface ProjectPostDetailProps {
 }
 
 export function ProjectPostDetail({
-    initialPost,
-    backPath,
-    showBackButton = true,
-    startInEditMode = false,
-}: ProjectPostDetailProps = {}) {
+                                      initialPost,
+                                      backPath,
+                                      showBackButton = true,
+                                      startInEditMode = false,
+                                  }: ProjectPostDetailProps = {}) {
     const navigate = useNavigate();
-    const { projectId, nodeId, postId } = useParams<{ projectId?: string; nodeId?: string; postId?: string }>();
+    const { projectId, nodeId, postId } = useParams<{
+        projectId?: string;
+        nodeId?: string;
+        postId?: string;
+    }>();
     const location = useLocation();
-    const statePost = (location.state as { post?: PostPayload })?.post;
-    const post: PostPayload = statePost || initialPost || {
-        id: postId ?? "",
-        customerName: "",
-        type: "general",
-        title: "",
-        content: "",
-        createdDate: "",
-        updatedDate: "",
-        hashtag: "",
-        isOwner: true,
-    };
-    const [postContent, setPostContent] = useState(post.content);
+    const stateData = location.state as { post?: PostPayload; reply?: PostReplyItem } | undefined;
+    const statePost = stateData?.post;
+
+    const fallbackPost =
+        !statePost && !initialPost && postId
+            ? mockProjectPosts.find((item) => item.id === postId)
+            : undefined;
+
+    const post: PostPayload =
+        statePost ||
+        initialPost ||
+        (fallbackPost
+            ? {
+                id: fallbackPost.id,
+                customerName: fallbackPost.customerName,
+                type: fallbackPost.type,
+                title: fallbackPost.title,
+                content: fallbackPost.content,
+                createdDate: fallbackPost.createdDate,
+                updatedDate: fallbackPost.updatedDate,
+                hashtag: fallbackPost.hashtag,
+                isOwner: true,
+            }
+            : {
+                id: postId ?? "",
+                customerName: "",
+                type: "일반",
+                title: "",
+                content: "",
+                createdDate: "",
+                updatedDate: "",
+                hashtag: "",
+                isOwner: true,
+            });
+
+    const [postTitleState, setPostTitleState] = useState(post.title);
+    const [postContentState, setPostContentState] = useState(post.content);
+    const [postTypeState, setPostTypeState] = useState<PostPayload["type"]>(post.type);
+    const [postAttachments, setPostAttachments] = useState<File[]>([]);
+    const [postLinks, setPostLinks] = useState<{ url: string; description: string }[]>([]);
     const [isPostEditing, setIsPostEditing] = useState(startInEditMode);
+    const [postEditorKey, setPostEditorKey] = useState(0);
+    const [postEditDraft, setPostEditDraft] = useState<RichTextDraft>({
+        title: post.title,
+        content: post.content,
+        attachments: [],
+        links: [],
+        type: post.type,
+    });
     const isPostOwner = post.isOwner ?? true; // 임시: 작성자로 가정
-    const [postMenuOpen, setPostMenuOpen] = useState(false); //  게시글 메뉴 열림 여부
+    const [postMenuOpen, setPostMenuOpen] = useState(false); // 게시글 메뉴 열림 여부
+
     const [commentPage, setCommentPage] = useState(1);
+
     // 게시글 수정 이력 모달 및 선택된 버전 상태
     const [isHistoryOpen, setIsHistoryOpen] = useState(false);
     const [selectedRevision, setSelectedRevision] = useState<PostRevision | null>(null);
     const revisions = postRevisionsByPostId[post.id] ?? postRevisionsByPostId.default;
 
+    const createEmptyReplyDraft = (): RichTextDraft => ({
+        title: "",
+        content: "",
+        attachments: [],
+        links: [],
+        type: "일반",
+    });
+
+    const [replyDraft, setReplyDraft] = useState<RichTextDraft>(createEmptyReplyDraft);
+    const [isReplying, setIsReplying] = useState(false);
+    const [replyEditorKey, setReplyEditorKey] = useState(0);
+
+    const postStorageKey = post.id || "default-post";
+    const [postReplies, setPostReplies] = useState<PostReplyItem[]>(() =>
+        loadRepliesForPost(postStorageKey),
+    );
+
+    const replyFromState = stateData?.reply;
+    const [focusedReply, setFocusedReply] = useState<PostReplyItem | null>(
+        replyFromState ?? null,
+    );
+    const [focusedReplyMenuOpen, setFocusedReplyMenuOpen] = useState(false);
+    const [editingReply, setEditingReply] = useState<PostReplyItem | null>(null);
+
+    const startPostEditing = () => {
+        setPostEditDraft({
+            title: postTitleState,
+            content: postContentState,
+            attachments: postAttachments,
+            links: postLinks,
+            type: postTypeState,
+        });
+        setPostEditorKey((prev) => prev + 1);
+        setIsPostEditing(true);
+    };
+
     useEffect(() => {
-        setPostContent(post.content);
-    }, [post.content]);
+        setPostTitleState(post.title);
+        setPostContentState(post.content);
+        setPostTypeState(post.type);
+    }, [post.title, post.content, post.type]);
+
+    useEffect(() => {
+        if (startInEditMode) {
+            startPostEditing();
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [startInEditMode]);
+
+    useEffect(() => {
+        setPostReplies(loadRepliesForPost(postStorageKey));
+    }, [postStorageKey]);
+
+    useEffect(() => {
+        setFocusedReply(replyFromState ?? null);
+    }, [replyFromState?.id]);
 
     const [comments, setComments] = useState<CommentItem[]>([
         {
@@ -90,6 +192,7 @@ export function ProjectPostDetail({
         },
     ]);
     const [newComment, setNewComment] = useState("");
+
     const topLevelComments = comments.filter((c) => (c.parentId ?? null) === null);
     const totalCommentPages = Math.max(1, Math.ceil(topLevelComments.length / COMMENTS_PER_PAGE));
     const paginatedTopLevel = topLevelComments.slice(
@@ -103,23 +206,38 @@ export function ProjectPostDetail({
 
     const listPath =
         backPath ??
-        (projectId && nodeId
-            ? `/projects/${projectId}/nodes/${nodeId}/posts`
-            : undefined);
+        (projectId && nodeId ? `/projects/${projectId}/nodes/${nodeId}/posts` : undefined);
+
+    const formatDateOnly = (value?: string) => {
+        if (!value) return "";
+        const parsed = new Date(value);
+        if (Number.isNaN(parsed.getTime())) return value;
+        const year = parsed.getFullYear();
+        const month = String(parsed.getMonth() + 1).padStart(2, "0");
+        const day = String(parsed.getDate()).padStart(2, "0");
+        return `${year}.${month}.${day}`;
+    };
 
     const postMetaItems = [
         post.customerName ? `작성자: ${post.customerName}` : undefined,
-        post.updatedDate
-            ? `수정일: ${post.updatedDate}`
-            : post.createdDate
-                ? `수정일: ${post.createdDate}`
-                : undefined,
+        post.createdDate ? `작성일: ${formatDateOnly(post.createdDate)}` : undefined,
+        post.updatedDate ? `수정일: ${formatDateOnly(post.updatedDate)}` : undefined,
     ].filter(Boolean) as string[];
 
     const currentPostCardData = {
-        title: post.title,
-        content: postContent || post.content,
-        type: post.type,
+        title: postTitleState,
+        content: postContentState,
+        type: postTypeState,
+    };
+
+    const formatReplyDisplayDate = (value: string) => {
+        if (!value) return "";
+        const parsed = new Date(value);
+        return Number.isNaN(parsed.getTime()) ? value : parsed.toLocaleString("ko-KR");
+    };
+    const getReplyUpdatedLabel = (reply: PostReplyItem) => {
+        if (!reply.updatedAt) return null;
+        return formatReplyDisplayDate(reply.updatedAt);
     };
 
     const navigateBackToList = () => {
@@ -130,8 +248,138 @@ export function ProjectPostDetail({
         }
     };
 
+    const resetReplyDraft = () => {
+        setReplyDraft(createEmptyReplyDraft());
+        setReplyEditorKey((prev) => prev + 1);
+    };
+
+    const startReplying = () => {
+        setEditingReply(null);
+        setFocusedReplyMenuOpen(false);
+        resetReplyDraft();
+        setIsReplying(true);
+    };
+
+    const startEditingReply = (target: PostReplyItem) => {
+        setFocusedReplyMenuOpen(false);
+        setEditingReply(target);
+        setIsReplying(false);
+        setReplyDraft({
+            title: target.title,
+            content: target.content,
+            attachments: [],
+            links: target.links,
+        });
+        setReplyEditorKey((prev) => prev + 1);
+    };
+
+    const exitReplyEditor = () => {
+        setIsReplying(false);
+        setEditingReply(null);
+        setFocusedReplyMenuOpen(false);
+        resetReplyDraft();
+    };
+
+    const cancelPostEditing = () => {
+        setIsPostEditing(false);
+    };
+
+    const handlePostDraftChange = (draft: RichTextDraft) => {
+        setPostEditDraft(draft);
+    };
+
+    const submitPostEdit = () => {
+        const trimmedTitle = postEditDraft.title.trim() || "무제";
+        if (!trimmedTitle && !postEditDraft.content.trim()) {
+            return;
+        }
+
+        setPostTitleState(trimmedTitle);
+        setPostContentState(postEditDraft.content);
+        setPostAttachments(postEditDraft.attachments);
+        setPostLinks(postEditDraft.links);
+        setPostTypeState(postEditDraft.type);
+        post.title = trimmedTitle;
+        post.content = postEditDraft.content;
+        post.type = postEditDraft.type;
+        post.updatedDate = new Date().toISOString();
+        setIsPostEditing(false);
+    };
+
+    const normalizeHtml = (value: string) =>
+        value
+            .replace(/<[^>]*>/g, " ")
+            .replace(/&nbsp;/gi, " ")
+            .replace(/\s+/g, " ")
+            .trim();
+
+    const handleSubmitReplyDraft = () => {
+        const hasBody = normalizeHtml(replyDraft.content).length > 0;
+        const replyTitle = replyDraft.title.trim();
+        if (!hasBody && !replyTitle) {
+            return;
+        }
+
+        const normalized = {
+            title: replyTitle || "무제 답글",
+            content: replyDraft.content,
+            attachments: replyDraft.attachments.map((file) => ({
+                name: file.name,
+                size: file.size,
+            })),
+            links: replyDraft.links,
+        };
+
+        if (editingReply) {
+            const updatedReply: PostReplyItem = {
+                ...editingReply,
+                ...normalized,
+                updatedAt: new Date().toISOString(),
+            };
+            setPostReplies((prev) => {
+                const updated = prev.map((reply) =>
+                    reply.id === editingReply.id ? updatedReply : reply,
+                );
+                saveRepliesForPost(postStorageKey, updated);
+                return updated;
+            });
+            setFocusedReply(updatedReply);
+            exitReplyEditor();
+            return;
+        }
+
+        const now = new Date();
+        const newReply: PostReplyItem = {
+            id: `reply-${Date.now()}`,
+            ...normalized,
+            createdAt: now.toISOString(),
+            author: "나",
+            updatedAt: undefined,
+        };
+        setPostReplies((prev) => {
+            const updated = [newReply, ...prev];
+            saveRepliesForPost(postStorageKey, updated);
+            return updated;
+        });
+        setFocusedReply(newReply);
+        exitReplyEditor();
+    };
+
+    const deleteFocusedReply = () => {
+        if (!focusedReply) return;
+        setPostReplies((prev) => {
+            const updated = prev.filter((reply) => reply.id !== focusedReply.id);
+            saveRepliesForPost(postStorageKey, updated);
+            return updated;
+        });
+        setFocusedReply(null);
+        setFocusedReplyMenuOpen(false);
+        if (editingReply && editingReply.id === focusedReply.id) {
+            exitReplyEditor();
+        }
+    };
+
     const handleHistoryOpen = () => {
-        // 메뉴 상태를 초기화하고 누구나 이력 모달을 볼 수 있게 연다
         setSelectedRevision(null);
         setPostMenuOpen(false);
         setIsHistoryOpen(true);
@@ -192,8 +440,8 @@ export function ProjectPostDetail({
                             type="button"
                             className="flex w-full items-center px-4 py-2 hover:bg-muted"
                             onClick={() => {
-                                setIsPostEditing(true);
                                 setPostMenuOpen(false);
+                                startPostEditing();
                             }}
                         >
                             <Pencil className="w-4 h-4" />
@@ -239,10 +487,98 @@ export function ProjectPostDetail({
         );
     }
 
+    const isEditingReply = Boolean(editingReply);
+
+    if (isPostEditing) {
+        const canSubmitPost = Boolean(
+            postEditDraft.title.trim() || normalizeHtml(postEditDraft.content),
+        );
+
+        return (
+            <div className="w-full max-w-5xl mx-auto p-6 space-y-6">
+                <div className="space-y-1">
+                    <h1 className="text-2xl font-semibold">게시글 수정</h1>
+                </div>
+                <RichTextDemo
+                    key={postEditorKey}
+                    initialDraft={postEditDraft}
+                    onChange={(draft) => {
+                        handlePostDraftChange(draft);
+                    }}
+                    showTypeSelector
+                    actionButtons={({ clear }) => (
+                        <div className="flex items-center gap-2">
+                            <Button2
+                                variant="outline"
+                                onClick={() => {
+                                    clear();
+                                    cancelPostEditing();
+                                }}
+                            >
+                                취소
+                            </Button2>
+                            <Button2 onClick={submitPostEdit} disabled={!canSubmitPost}>
+                                저장
+                            </Button2>
+                        </div>
+                    )}
+                />
+            </div>
+        );
+    }
+
+    if (isReplying || isEditingReply) {
+        const canSubmitReply = Boolean(
+            replyDraft.title.trim() || normalizeHtml(replyDraft.content),
+        );
+
+        return (
+            <div className="w-full max-w-5xl mx-auto p-6 space-y-6">
+                <div className="space-y-1">
+                    <h1 className="text-2xl font-semibold">
+                        {isEditingReply ? "답글 수정" : "답글 작성"}
+                    </h1>
+                </div>
+                <RichTextDemo
+                    key={replyEditorKey}
+                    initialDraft={
+                        isEditingReply && editingReply
+                            ? {
+                                title: editingReply.title,
+                                content: editingReply.content,
+                                attachments: [],
+                                links: editingReply.links,
+                            }
+                            : undefined
+                    }
+                    onChange={setReplyDraft}
+                    showTypeSelector={false}
+                    actionButtons={({ clear }) => (
+                        <div className="flex items-center gap-2">
+                            <Button2
+                                variant="outline"
+                                onClick={() => {
+                                    clear();
+                                    exitReplyEditor();
+                                }}
+                            >
+                                취소
+                            </Button2>
+                            <Button2 onClick={handleSubmitReplyDraft} disabled={!canSubmitReply}>
+                                {isEditingReply ? "수정 완료" : "등록"}
+                            </Button2>
+                        </div>
+                    )}
+                />
+            </div>
+        );
+    }
+
     // ───────────── 댓글 CRUD 핸들러 ─────────────
 
     const handleAddComment = () => {
         if (!newComment.trim()) return;
+
         const nextTopLevelCount = topLevelComments.length + 1;
         const nextPage = Math.max(1, Math.ceil(nextTopLevelCount / COMMENTS_PER_PAGE));
 
@@ -280,7 +616,7 @@ export function ProjectPostDetail({
                     ? {
                         ...comment,
                         content,
-                        updatedAt: new Date().toLocaleString("ko-KR"), // 수정 시간 저장
+                        updatedAt: new Date().toLocaleString("ko-KR"),
                         isEditing: false,
                         menuOpen: false,
                     }
@@ -353,18 +689,18 @@ export function ProjectPostDetail({
                         {/* 상단: 작성자 / 시간 / ⋮ 메뉴 */}
                         <div className="flex items-start justify-between gap-3">
                             <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                                <span className="font-semibold text-foreground text-sm">
-                                    {comment.author}
-                                </span>
+                <span className="font-semibold text-foreground text-sm">
+                  {comment.author}
+                </span>
                                 <span>{comment.createdAt}</span>
                                 {comment.updatedAt && (
                                     <span className="text-[11px] text-muted-foreground">
-                                        · 수정: {comment.updatedAt}
-                                    </span>
+                    · 수정: {comment.updatedAt}
+                  </span>
                                 )}
                             </div>
 
-                            {/* 누구나 ⋮ 메뉴는 보이고, 답글은 항상 / 수정·삭제는 작성자만 */}
+                            {/* ⋮ 메뉴 (누구나 볼 수 있고, 수정/삭제는 작성자만) */}
                             <div className="relative">
                                 <button
                                     type="button"
@@ -406,24 +742,6 @@ export function ProjectPostDetail({
                                     </div>
                                 )}
                             </div>
-                            {post.isOwner && !isPostEditing && (
-                                <div className="flex items-center gap-2 text-sm text-primary">
-                                    <button
-                                        type="button"
-                                        className="hover:underline"
-                                        onClick={() => setIsPostEditing(true)}
-                                    >
-                                        수정
-                                    </button>
-                                    <button
-                                        type="button"
-                                        className="hover:underline"
-                                        onClick={navigateBackToList}
-                                    >
-                                        삭제
-                                    </button>
-                                </div>
-                            )}
                         </div>
 
                         {/* 내용 or 수정 모드 */}
@@ -503,14 +821,14 @@ export function ProjectPostDetail({
                                 {/* 상단: 작성자 / 시간 / ⋮ 메뉴 */}
                                 <div className="flex items-start justify-between gap-3">
                                     <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                                        <span className="font-semibold text-foreground text-sm">
-                                            {reply.author}
-                                        </span>
+                    <span className="font-semibold text-foreground text-sm">
+                      {reply.author}
+                    </span>
                                         <span>{reply.createdAt}</span>
                                         {reply.updatedAt && (
                                             <span className="text-[11px] text-muted-foreground">
-                                                · 수정: {reply.updatedAt}
-                                            </span>
+                        · 수정: {reply.updatedAt}
+                      </span>
                                         )}
                                     </div>
 
@@ -616,10 +934,7 @@ export function ProjectPostDetail({
                                             >
                                                 취소
                                             </Button2>
-                                            <Button2
-                                                size="sm"
-                                                onClick={() => handleSubmitReply(reply.id)}
-                                            >
+                                            <Button2 size="sm" onClick={() => handleSubmitReply(reply.id)}>
                                                 답글 등록
                                             </Button2>
                                         </div>
@@ -638,65 +953,104 @@ export function ProjectPostDetail({
     return (
         <div className="w-full max-w-5xl mx-auto p-6 space-y-2">
             {/* 게시글 카드 */}
-            {isPostOwner && isPostEditing ? (
-                <Card2>
-                    <CardContent className="space-y-4 p-6">
-                        <div className="space-y-2">
-                            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                                현재 버전 (편집 중)
-                            </p>
-                            <div className="flex items-center justify-between gap-3 flex-wrap">
-                                <div className="flex items-center gap-2">
-                                    <Badge2 variant="outline">{post.type}</Badge2>
-                                </div>
-                            </div>
-                            <h2 className="text-2xl font-semibold">{post.title}</h2>
-                            <div className="text-sm text-muted-foreground flex flex-wrap gap-3">
-                                {postMetaItems.map((meta, index) => (
-                                    <span key={`${meta}-${index}`} className="whitespace-nowrap">
-                                        {meta}
-                                    </span>
-                                ))}
-                            </div>
-                        </div>
-                        <div className="space-y-2">
-                            <Textarea2
-                                rows={6}
-                                value={postContent}
-                                onChange={(e) => setPostContent(e.target.value)}
-                            />
-                            <div className="flex justify-end gap-2">
-                                <Button2
-                                    variant="outline"
-                                    onClick={() => {
-                                        setPostContent(post.content);
-                                        setIsPostEditing(false);
-                                    }}
-                                >
-                                    취소
-                                </Button2>
-                                <Button2
-                                    onClick={() => {
-                                        const now = new Date().toLocaleString("ko-KR");
-                                        post.content = postContent;
-                                        post.updatedDate = now;
+            <PostCard
+                headerLabel="현재 버전"
+                post={currentPostCardData}
+                metaItems={postMetaItems}
+                extraMenu={postActionMenu}
+            />
 
-                                        setIsPostEditing(false);
-                                    }}
+            {/* 선택된 답글 카드 */}
+            {focusedReply && (
+                <div className="space-y-4">
+                    <PostCard
+                        headerLabel="선택된 답글"
+                        post={{
+                            title: focusedReply.title,
+                            content: focusedReply.content,
+                            type: "답글",
+                        }}
+                        metaItems={[
+                            focusedReply.author && `작성자: ${focusedReply.author}`,
+                            focusedReply.createdAt && `작성일: ${formatReplyDisplayDate(focusedReply.createdAt)}`,
+                            focusedReply.updatedAt && `수정일: ${getReplyUpdatedLabel(focusedReply)}`,
+                        ].filter(Boolean) as string[]}
+                        extraMenu={
+                            <div className="relative">
+                                <button
+                                    type="button"
+                                    className="p-1 rounded-full hover:bg-muted text-muted-foreground hover:text-foreground"
+                                    onClick={() => setFocusedReplyMenuOpen((prev) => !prev)}
+                                    aria-label="답글 메뉴 열기"
                                 >
-                                    저장
-                                </Button2>
+                                    <MoreVertical className="w-4 h-4" />
+                                </button>
+                                {focusedReplyMenuOpen && (
+                                    <div className="absolute right-0 mt-2 w-32 rounded-md border bg-background shadow-lg text-sm overflow-hidden z-20">
+                                        <button
+                                            type="button"
+                                            className="flex w-full items-center px-4 py-2 hover:bg-muted"
+                                            onClick={() => {
+                                                setFocusedReplyMenuOpen(false);
+                                                startEditingReply(focusedReply);
+                                            }}
+                                        >
+                                            <Pencil className="w-4 h-4" />
+                                            <span className="pl-2">수정하기</span>
+                                        </button>
+                                        <button
+                                            type="button"
+                                            className="flex w-full items-center px-4 py-2 text-destructive hover:bg-muted"
+                                            onClick={() => {
+                                                setFocusedReplyMenuOpen(false);
+                                                deleteFocusedReply();
+                                            }}
+                                        >
+                                            <Trash2 className="w-4 h-4" />
+                                            <span className="pl-2">삭제하기</span>
+                                        </button>
+                                    </div>
+                                )}
                             </div>
-                        </div>
-                    </CardContent>
-                </Card2>
-            ) : (
-                <PostCard
-                    headerLabel="현재 버전"
-                    post={currentPostCardData}
-                    metaItems={postMetaItems}
-                    extraMenu={postActionMenu}
-                />
+                        }
+                    />
+                    {(focusedReply.attachments.length > 0 || focusedReply.links.length > 0) && (
+                        <Card2>
+                            <CardContent className="space-y-2 p-4 text-sm">
+                                {focusedReply.attachments.length > 0 && (
+                                    <div>
+                                        <p className="font-medium">첨부 파일</p>
+                                        <ul className="list-disc pl-5 text-muted-foreground">
+                                            {focusedReply.attachments.map((file, index) => (
+                                                <li key={`${file.name}-${index}`}>{file.name}</li>
+                                            ))}
+                                        </ul>
+                                    </div>
+                                )}
+                                {focusedReply.links.length > 0 && (
+                                    <div>
+                                        <p className="font-medium">링크</p>
+                                        <ul className="list-disc pl-5 text-muted-foreground">
+                                            {focusedReply.links.map((link, index) => (
+                                                <li key={`${link.url}-${index}`}>
+                                                    {link.description ? `${link.description} - ` : ""}
+                                                    <a
+                                                        href={link.url}
+                                                        target="_blank"
+                                                        rel="noreferrer"
+                                                        className="text-primary underline"
+                                                    >
+                                                        {link.url}
+                                                    </a>
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    </div>
+                                )}
+                            </CardContent>
+                        </Card2>
+                    )}
+                </div>
             )}
 
             {/* 댓글 카드 */}
@@ -722,57 +1076,64 @@ export function ProjectPostDetail({
                             <Button2 className="ml-auto" onClick={handleAddComment}>
                                 댓글 등록
                             </Button2>
+                        </div>
+                    </div>
+                </CardContent>
+            </Card2>
+
+            {/* 댓글 페이지네이션 */}
+            {topLevelComments.length > 0 && (
+                <div className="flex flex-col items-center gap-2 border-t pt-4 text-sm text-muted-foreground">
+                    <div className="flex items-center justify-center gap-2">
+                        <Button2
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setCommentPage((prev) => Math.max(prev - 1, 1))}
+                            disabled={commentPage === 1}
+                            aria-label="이전 댓글 페이지"
+                        >
+                            {"<"}
+                        </Button2>
+                        {Array.from({ length: totalCommentPages }, (_, index) => index + 1).map(
+                            (page) => (
+                                <Button2
+                                    key={page}
+                                    variant={page === commentPage ? "default" : "outline"}
+                                    size="sm"
+                                    onClick={() => setCommentPage(page)}
+                                >
+                                    {page}
+                                </Button2>
+                            ),
+                        )}
+                        <Button2
+                            variant="outline"
+                            size="sm"
+                            onClick={() =>
+                                setCommentPage((prev) => Math.min(prev + 1, totalCommentPages))
+                            }
+                            disabled={commentPage === totalCommentPages}
+                            aria-label="다음 댓글 페이지"
+                        >
+                            {">"}
+                        </Button2>
                     </div>
                 </div>
-            </CardContent>
-        </Card2>
+            )}
 
-        {topLevelComments.length > 0 && (
-            <div className="flex flex-col items-center gap-2 border-t pt-4 text-sm text-muted-foreground">
-                <div className="flex items-center justify-center gap-2">
-                    <Button2
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setCommentPage((prev) => Math.max(prev - 1, 1))}
-                        disabled={commentPage === 1}
-                        aria-label="이전 댓글 페이지"
-                    >
-                        {"<"}
-                    </Button2>
-                    {Array.from({ length: totalCommentPages }, (_, index) => index + 1).map((page) => (
-                        <Button2
-                            key={page}
-                            variant={page === commentPage ? "default" : "outline"}
-                            size="sm"
-                            onClick={() => setCommentPage(page)}
-                        >
-                            {page}
-                        </Button2>
-                    ))}
-                    <Button2
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setCommentPage((prev) => Math.min(prev + 1, totalCommentPages))}
-                        disabled={commentPage === totalCommentPages}
-                        aria-label="다음 댓글 페이지"
-                    >
-                        {">"}
-                    </Button2>
-                </div>
-            </div>
-        )}
+            {/* 하단 버튼들 */}
             {showBackButton && (
                 <div className="mt-2 flex w-full justify-between">
                     <Button2
                         variant="outline"
-                        onClick={() => navigateBackToList()}
+                        onClick={startReplying}
                         className="ml-auto w-auto"
                     >
                         답글쓰기
                     </Button2>
                     <Button2
                         variant="outline"
-                        onClick={() => navigateBackToList()}
+                        onClick={navigateBackToList}
                         className="ml-auto w-auto"
                     >
                         목록으로
@@ -780,6 +1141,7 @@ export function ProjectPostDetail({
                 </div>
             )}
 
+            {/* 수정 이력 모달 */}
             {isHistoryOpen && (
                 <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm">
                     <div className="absolute inset-0" aria-hidden onClick={closeHistory} />
@@ -793,14 +1155,19 @@ export function ProjectPostDetail({
                                     </p>
                                 </div>
                                 <span className="text-sm font-semibold text-sky-600">
-                                    총 {sortedRevisions.length}건
-                                </span>
+                  총 {sortedRevisions.length}건
+                </span>
                             </div>
+
                             <div className="flex flex-1 flex-col gap-6 px-6 pb-6">
                                 {selectedRevision ? (
                                     <>
                                         <div className="flex flex-col gap-3 text-sm sm:flex-row sm:items-center sm:justify-between">
-                                            <Button2 variant="ghost" size="sm" onClick={() => setSelectedRevision(null)}>
+                                            <Button2
+                                                variant="ghost"
+                                                size="sm"
+                                                onClick={() => setSelectedRevision(null)}
+                                            >
                                                 이력 목록으로 돌아가기
                                             </Button2>
                                         </div>
@@ -818,52 +1185,54 @@ export function ProjectPostDetail({
                                                     type: post.type,
                                                 }}
                                                 metaItems={[
-                                                    selectedRevision.author && `작성자: ${selectedRevision.author}`,
-                                                    (selectedRevision.updatedAt || selectedRevision.editedAt || selectedRevision.createdAt) &&
-                                                        `수정일: ${
-                                                            selectedRevision.updatedAt ??
-                                                            selectedRevision.editedAt ??
-                                                            selectedRevision.createdAt
-                                                        }`,
+                                                    selectedRevision.author &&
+                                                    `작성자: ${selectedRevision.author}`,
+                                                    (selectedRevision.updatedAt ||
+                                                        selectedRevision.editedAt ||
+                                                        selectedRevision.createdAt) &&
+                                                    `수정일: ${
+                                                        selectedRevision.updatedAt ??
+                                                        selectedRevision.editedAt ??
+                                                        selectedRevision.createdAt
+                                                    }`,
                                                 ].filter(Boolean) as string[]}
                                             />
                                         </div>
                                     </>
-                        ) : sortedRevisions.length ? (
-                            <div className="flex-1 space-y-6 overflow-y-auto pr-1">
-                                {sortedRevisions.map((revision) => {
-                                    const revisionDate = getRevisionTimestamp(revision);
-                                    const previewText = getRevisionPreview(revision.content);
-                                    return (
-                                        <button
-                                            key={revision.id}
-                                            type="button"
-                                            className="flex w-full flex-col rounded-lg border bg-muted/30 px-6 py-6 text-left hover:bg-muted"
-                                            onClick={() => setSelectedRevision(revision)}
-                                        >
-                                            <div className="flex items-center justify-between gap-2 text-base font-semibold mt-4">
-                                                <span className="text-foreground">
-                                                    {revision.title}
-                                                </span>
-                                                <span className="text-muted-foreground text-sm">
-                                                    {revisionDate || "날짜 미정"}
-                                                </span>
-                                            </div>
-                                            {previewText && (
-                                                <p className="text-sm text-muted-foreground leading-relaxed mb-6">
-                                                    {previewText}
-                                                </p>
-                                            )}
-                                        </button>
-                                    );
-                                })}
-                            </div>
-                        ) : (
+                                ) : sortedRevisions.length ? (
+                                    <div className="flex-1 space-y-6 overflow-y-auto pr-1">
+                                        {sortedRevisions.map((revision) => {
+                                            const revisionDate = getRevisionTimestamp(revision);
+                                            const previewText = getRevisionPreview(revision.content);
+                                            return (
+                                                <button
+                                                    key={revision.id}
+                                                    type="button"
+                                                    className="flex w-full flex-col rounded-lg border bg-muted/30 px-6 py-6 text-left hover:bg-muted"
+                                                    onClick={() => setSelectedRevision(revision)}
+                                                >
+                                                    <div className="flex items-center justify-between gap-2 text-base font-semibold mt-4">
+                                                        <span className="text-foreground">{revision.title}</span>
+                                                        <span className="text-muted-foreground text-sm">
+                              {revisionDate || "날짜 미정"}
+                            </span>
+                                                    </div>
+                                                    {previewText && (
+                                                        <p className="text-sm text-muted-foreground leading-relaxed mb-6">
+                                                            {previewText}
+                                                        </p>
+                                                    )}
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                ) : (
                                     <p className="py-8 text-center text-sm text-muted-foreground">
                                         아직 수정된 이력이 없습니다.
                                     </p>
                                 )}
                             </div>
+
                             <div className="border-t px-6 py-4 mt-6">
                                 <Button2 type="button" className="w-full" onClick={closeHistory}>
                                     닫기
