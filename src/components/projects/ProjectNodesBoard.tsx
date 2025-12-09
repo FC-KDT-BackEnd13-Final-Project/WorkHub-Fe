@@ -176,6 +176,8 @@ export function ProjectNodesBoard() {
   const { projectId } = useParams<{ projectId: string }>();
   const navigate = useNavigate();
   const location = useLocation();
+  const projectNameFromState =
+      (location.state as { projectName?: string } | null)?.projectName;
   console.log("ProjectNodesBoard - 현재 projectId:", projectId);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<"전체" | NodeStatus>("전체");
@@ -515,7 +517,9 @@ export function ProjectNodesBoard() {
         </div>
       )}
       <div className="rounded-2xl bg-white p-6 shadow-sm">
-        <h1 className="text-3xl font-semibold tracking-tight">Project Nodes</h1>
+        <h1 className="text-3xl font-semibold tracking-tight">
+          {projectNameFromState ?? "Project Nodes"}
+        </h1>
         <p className="mt-2 text-muted-foreground">
           각 워크플로 단계의 진행 상황을 확인하고 필요한 세부 정보를 확인하세요.
         </p>

@@ -41,7 +41,7 @@ apiClient.interceptors.response.use(
 // 로그인 API
 export const authApi = {
   login: async (loginId: string, password: string) => {
-    const response = await apiClient.post('/api/admin/users/login', {
+    const response = await apiClient.post('/api/v1/admin/users/login', {
       loginId,
       password,
     });
