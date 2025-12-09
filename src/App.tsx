@@ -24,6 +24,7 @@ import { NotificationsPage } from "./pages/notifications/NotificationsPage";
 import { SupportPage } from "./pages/support/SupportPage";
 import { SupportTicketDetail } from "./pages/support/SupportTicketDetail";
 import { SettingsPage } from "./pages/settings/SettingsPage";
+import { UserHistoryPage } from "./pages/history/UserHistoryPage";
 
 // 애플리케이션 전역 라우팅과 레이아웃을 담당하는 최상위 컴포넌트
 export default function App() {
@@ -142,6 +143,10 @@ export default function App() {
             <Route
               path="/settings"
               element={isAuthenticated ? <SettingsPage /> : <Navigate to="/" replace />}
+            />
+            <Route
+              path="/history"
+              element={isAuthenticated ? <UserHistoryPage /> : <Navigate to="/" replace />}
             />
             <Route
               path="/admin/password"

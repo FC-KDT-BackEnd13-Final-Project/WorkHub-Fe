@@ -1,0 +1,316 @@
+import { useMemo, useState } from "react";
+import { format } from "date-fns";
+import { Card, CardContent } from "../../components/ui/card";
+import { Input } from "../../components/ui/input";
+import { Button } from "../../components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../../components/ui/select";
+import logoImage from "../../../image/logo.png";
+import { historyEvents, historyPalette, HistoryEvent } from "../../data/historyData";
+import { Users, FileText, LayoutDashboard, CheckSquare } from "lucide-react";
+
+type CategoryFilter = "user" | "post" | "project" | "checklist" | "all";
+type PostFilter = "all" | "post" | "postComment" | "csPost" | "csQna";
+type ProjectFilter = "all" | "projectAgency" | "projectClient" | "project" | "projectPhase";
+type ChecklistFilter = "all" | "checklist" | "checklistComment";
+
+export function UserHistoryPage() {
+  const [activeTab, setActiveTab] = useState<"user" | "post" | "project" | "checklist">("user");
+  const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>("all");
+  const [searchTerm, setSearchTerm] = useState("");
+  const [sortOrder, setSortOrder] = useState<"desc" | "asc">("desc");
+  const [postFilter, setPostFilter] = useState<PostFilter>("all");
+  const [projectFilter, setProjectFilter] = useState<ProjectFilter>("all");
+  const [checklistFilter, setChecklistFilter] = useState<ChecklistFilter>("all");
+
+  const getInitials = (value?: string) => {
+    if (!value) return "NA";
+    const cleaned = value.trim();
+    if (!cleaned) return "NA";
+    const parts = cleaned.split(/\s+/);
+    const first = parts[0]?.[0] ?? "";
+    const second = parts[1]?.[0] ?? cleaned[1] ?? "";
+    return (first + (second ?? "")).slice(0, 2).toUpperCase();
+  };
+
+  const getAvatarUrl = (seed?: string) => (seed ? `https://i.pravatar.cc/80?u=${encodeURIComponent(seed)}` : undefined);
+  const isSystemActor = (name?: string) => {
+    if (!name) return true;
+    const normalized = name.toLowerCase();
+    return ["시스템", "bot", "센터"].some((keyword) => normalized.includes(keyword.toLowerCase()));
+  };
+
+  const filteredEvents = useMemo(() => {
+    let events: HistoryEvent[] = [...historyEvents];
+
+    if (categoryFilter !== "all") {
+      events = events.filter((event) => event.category === categoryFilter);
+    }
+
+    if (searchTerm.trim()) {
+      const query = searchTerm.trim().toLowerCase();
+      events = events.filter(
+        (event) =>
+          event.message.toLowerCase().includes(query) ||
+          event.updatedBy.toLowerCase().includes(query) ||
+          event.createdBy.toLowerCase().includes(query) ||
+          (event.target?.toLowerCase().includes(query) ?? false),
+      );
+    }
+
+    if (activeTab === "post" && postFilter !== "all") {
+      events = events.filter((event) => event.subCategory === postFilter);
+    }
+
+    if (activeTab === "project" && projectFilter !== "all") {
+      events = events.filter((event) => event.subCategory === projectFilter);
+    }
+
+    if (activeTab === "checklist" && checklistFilter !== "all") {
+      events = events.filter((event) => event.subCategory === checklistFilter);
+    }
+
+    events.sort((a, b) => {
+      const aDate = new Date(a.updatedAt).getTime();
+      const bDate = new Date(b.updatedAt).getTime();
+      return sortOrder === "desc" ? bDate - aDate : aDate - bDate;
+    });
+
+    return events;
+  }, [activeTab, categoryFilter, searchTerm, postFilter, projectFilter, checklistFilter, sortOrder]);
+
+  const renderSortSelect = (className?: string) => (
+    <Select value={sortOrder} onValueChange={(value: "desc" | "asc") => setSortOrder(value)}>
+      <SelectTrigger className={`w-full min-w-[160px] md:w-44 ${className ?? ""}`}>
+        <SelectValue placeholder="정렬 기준" />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value="desc">최신순</SelectItem>
+        <SelectItem value="asc">오래된순</SelectItem>
+      </SelectContent>
+    </Select>
+  );
+
+  const renderFiltersByTab = () => {
+    switch (activeTab) {
+      case "user":
+        return (
+          <div className="flex flex-col gap-3 md:flex-row md:flex-nowrap md:items-center md:justify-end">
+            <Input
+              placeholder="작업을 검색하세요"
+              value={searchTerm}
+              onChange={(event) => setSearchTerm(event.target.value)}
+              className="md:w-72"
+            />
+            {renderSortSelect("md:shrink-0")}
+          </div>
+        );
+      case "post":
+        return (
+          <div className="flex flex-col gap-3 md:flex-row md:flex-nowrap md:items-center md:justify-end">
+            <Input
+              placeholder="작업을 검색하세요"
+              value={searchTerm}
+              onChange={(event) => setSearchTerm(event.target.value)}
+              className="md:w-72"
+            />
+            <Select value={postFilter} onValueChange={(value: PostFilter) => setPostFilter(value)} className="md:shrink-0">
+              <SelectTrigger className="w-full min-w-[200px] md:w-48">
+                <SelectValue placeholder="분류 선택" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">전체</SelectItem>
+                <SelectItem value="post">게시글</SelectItem>
+                <SelectItem value="postComment">게시글 댓글</SelectItem>
+                <SelectItem value="csPost">CS 게시글</SelectItem>
+                <SelectItem value="csQna">CS QnA</SelectItem>
+              </SelectContent>
+            </Select>
+            {renderSortSelect("md:shrink-0")}
+          </div>
+        );
+      case "project":
+        return (
+          <div className="flex flex-col gap-3 md:flex-row md:flex-nowrap md:items-center md:justify-end">
+            <Input
+              placeholder="작업을 검색하세요"
+              value={searchTerm}
+              onChange={(event) => setSearchTerm(event.target.value)}
+              className="md:w-72"
+            />
+            <Select value={projectFilter} onValueChange={(value: ProjectFilter) => setProjectFilter(value)} className="md:shrink-0">
+              <SelectTrigger className="w-full min-w-[200px] md:w-48">
+                <SelectValue placeholder="분류 선택" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">전체</SelectItem>
+                <SelectItem value="projectAgency">개발사</SelectItem>
+                <SelectItem value="projectClient">고객사</SelectItem>
+                <SelectItem value="project">프로젝트</SelectItem>
+                <SelectItem value="projectPhase">프로젝트 단계</SelectItem>
+              </SelectContent>
+            </Select>
+            {renderSortSelect("md:shrink-0")}
+          </div>
+        );
+      case "checklist":
+        return (
+          <div className="flex flex-col gap-3 md:flex-row md:flex-nowrap md:items-center md:justify-end">
+            <Input
+              placeholder="작업을 검색하세요"
+              value={searchTerm}
+              onChange={(event) => setSearchTerm(event.target.value)}
+              className="md:w-72"
+            />
+            <Select value={checklistFilter} onValueChange={(value: ChecklistFilter) => setChecklistFilter(value)} className="md:shrink-0">
+              <SelectTrigger className="w-full min-w-[200px] md:w-48">
+                <SelectValue placeholder="분류 선택" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">전체</SelectItem>
+                <SelectItem value="checklist">체크리스트</SelectItem>
+                <SelectItem value="checklistComment">체크리스트 댓글</SelectItem>
+              </SelectContent>
+            </Select>
+            {renderSortSelect("md:shrink-0")}
+          </div>
+        );
+      default:
+        return null;
+    }
+  };
+
+  return (
+    <div className="space-y-6 pb-12">
+      <div className="rounded-2xl bg-white p-6 shadow-sm">
+        <h1 className="text-3xl font-semibold tracking-tight">히스토리</h1>
+        <p className="mt-2 text-muted-foreground">
+          사용자 활동 로그를 한눈에 확인하세요.
+        </p>
+      </div>
+
+      <div className="rounded-2xl bg-white p-6 shadow-sm space-y-6">
+        <div className="flex flex-wrap items-center gap-2">
+          {[
+            { id: "user", label: "사용자(전체)", icon: Users, category: "all" },
+            { id: "post", label: "게시글", icon: FileText, category: "post" },
+            { id: "project", label: "프로젝트", icon: LayoutDashboard, category: "project" },
+            { id: "checklist", label: "체크리스트", icon: CheckSquare, category: "checklist" },
+          ].map((tab) => {
+            const Icon = tab.icon;
+            const isActive = activeTab === tab.id;
+            return (
+              <Button
+                key={tab.id}
+                variant={isActive ? "default" : "outline"}
+                className="flex items-center gap-2"
+                onClick={() => {
+                  setActiveTab(tab.id as typeof activeTab);
+                  setCategoryFilter(tab.category as CategoryFilter);
+                }}
+              >
+                <Icon className="h-4 w-4" />
+                {tab.label}
+              </Button>
+            );
+          })}
+        </div>
+        <div className="space-y-4">{renderFiltersByTab()}</div>
+      </div>
+
+      <Card className="rounded-2xl border border-white/70 bg-white/90 shadow-sm backdrop-blur">
+        <CardContent className="px-6 pt-6 pb-6">
+          <div className="relative w-full overflow-x-auto">
+            <table className="w-full caption-bottom text-sm">
+              <thead className="[&_tr]:border-b">
+                <tr className="hover:bg-muted/50 border-b transition-colors">
+                  <th className="text-foreground h-10 px-2 text-left align-middle font-medium whitespace-nowrap w-2/5">
+                    활동 내용
+                  </th>
+                  <th className="text-foreground h-10 px-2 align-middle font-medium whitespace-nowrap w-1/5 text-center">
+                    대상
+                  </th>
+                  <th className="text-foreground h-10 px-2 align-middle font-medium whitespace-nowrap w-1/6 text-center">
+                    실행자
+                  </th>
+                  <th className="text-foreground h-10 px-2 align-middle font-medium whitespace-nowrap w-1/6 text-center">
+                    작업 유형
+                  </th>
+                  <th className="text-foreground h-10 px-2 align-middle font-medium whitespace-nowrap w-1/6 text-center">
+                    발생 시각
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="[&_tr:last-child]:border-0">
+                {filteredEvents.map((event) => {
+                  const palette = historyPalette[event.type];
+                  return (
+                    <tr key={event.id} className="hover:bg-muted/50 border-b transition-colors">
+                      <td className="p-2 align-middle whitespace-nowrap">
+                        <div className="flex items-center gap-3">
+                          <div className="relative h-12 w-12 overflow-hidden rounded-xl border border-white/70 shadow-sm">
+                            {isSystemActor(event.updatedBy) ? (
+                              <img src={logoImage} alt="WorkHub 로고" className="h-full w-full object-cover" />
+                            ) : event.updatedBy ? (
+                              <img
+                                src={getAvatarUrl(event.updatedBy)}
+                                alt={event.updatedBy}
+                                className="h-full w-full object-cover"
+                              />
+                            ) : (
+                              <div className="flex h-full w-full items-center justify-center bg-slate-100 text-sm font-semibold text-foreground">
+                                {getInitials(event.updatedBy)}
+                              </div>
+                            )}
+                          </div>
+                          <div className="space-y-1">
+                            <p className="font-medium text-foreground">{event.message}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {event.createdBy ? `${event.createdBy} · ` : ""}
+                              {event.timestamp}
+                            </p>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="p-2 align-middle whitespace-nowrap text-center text-sm text-muted-foreground">
+                        {event.target ?? "—"}
+                      </td>
+                      <td className="p-2 align-middle whitespace-nowrap text-center">
+                        <span className="inline-flex items-center justify-center rounded-md border px-2 py-0.5 text-xs font-medium bg-secondary text-secondary-foreground border-transparent">
+                          {event.updatedBy ?? "시스템"}
+                        </span>
+                      </td>
+                      <td className="p-2 align-middle whitespace-nowrap text-center">
+                        <span
+                          className="inline-flex items-center justify-center rounded-md border px-2 py-0.5 text-xs font-medium w-fit whitespace-nowrap shrink-0"
+                          style={{ backgroundColor: palette.iconBg, color: palette.iconColor, borderColor: palette.iconBg }}
+                        >
+                          {event.type.toUpperCase()}
+                        </span>
+                      </td>
+                      <td className="p-2 align-middle whitespace-nowrap text-center text-sm text-muted-foreground">
+                        {format(new Date(event.updatedAt), "yyyy.MM.dd HH:mm")}
+                      </td>
+                    </tr>
+                  );
+                })}
+                {filteredEvents.length === 0 && (
+                  <tr>
+                    <td colSpan={5} className="p-8 text-center text-sm text-muted-foreground">
+                      조건에 맞는 히스토리가 없습니다. 필터를 조정해 다시 시도해 주세요.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}

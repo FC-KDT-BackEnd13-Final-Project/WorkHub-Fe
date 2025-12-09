@@ -8,7 +8,9 @@ import { Input } from "../ui/input";
 import { Label } from "../ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 import { MessageSquare, Upload, CheckCircle, LogIn, AlertCircle } from "lucide-react";
+import logoImage from "../../../image/logo.png";
 import { companyUsers, activityHistory } from "./userData";
+import { activityTypePalette } from "./activityPalette";
 
 const activityIconMap: Record<string, JSX.Element> = {
   comment: <MessageSquare className="h-4 w-4 text-slate-500" />,
@@ -16,6 +18,23 @@ const activityIconMap: Record<string, JSX.Element> = {
   completed: <CheckCircle className="h-4 w-4 text-slate-500" />,
   login: <LogIn className="h-4 w-4 text-slate-500" />,
 };
+
+
+function shouldUseLogo(name?: string) {
+  if (!name) return true;
+  const normalized = name.toLowerCase();
+  return ["bot", "시스템", "센터"].some((keyword) => normalized.includes(keyword.toLowerCase()));
+}
+
+function getInitials(value?: string) {
+  if (!value) return "NA";
+  const cleaned = value.trim();
+  if (!cleaned) return "NA";
+  const parts = cleaned.split(/\s+/);
+  const first = parts[0]?.[0] ?? "";
+  const second = parts[1]?.[0] ?? cleaned[1] ?? "";
+  return (first + (second ?? "")).slice(0, 2).toUpperCase();
+}
 
 export function AdminUserDetail() {
   const { userId } = useParams<{ userId: string }>();
@@ -141,7 +160,11 @@ export function AdminUserDetail() {
 
   const [showAllProjects] = useState(false);
   const canViewAllProjects = (user?.projects.length ?? 0) >= 4;
-  const canViewFullHistory = activityHistory.length >= 20;
+  const userActivityHistory = useMemo(
+    () => activityHistory.filter((activity) => activity.actor === user?.name),
+    [user?.name],
+  );
+  const canViewFullHistory = userActivityHistory.length >= 15;
 
   // 유저 데이터를 찾을 수 없는 경우
   if (!user) {
@@ -521,20 +544,74 @@ export function AdminUserDetail() {
           </div>
           <div
             className={`space-y-4 pt-4 ${
-              activityHistory.length > 20 ? "max-h-[480px] overflow-y-auto pr-1" : ""
+              userActivityHistory.length > 15 ? "max-h-[520px] overflow-y-auto pr-1" : ""
             }`}
           >
-            {activityHistory.slice(0, 20).map((activity) => (
-              <div key={activity.id} className="flex items-start gap-3">
-                <div className="rounded-full bg-muted p-2">
-                  {activityIconMap[activity.type]}
-                </div>
-                <div>
-                  <p className="font-medium text-sm">{activity.message}</p>
-                  <p className="text-xs text-muted-foreground">{activity.timestamp}</p>
-                </div>
-              </div>
-            ))}
+            <div className="overflow-x-hidden">
+              <table className="w-full caption-bottom text-sm">
+                <tbody className="[&_tr:last-child]:border-0">
+                {userActivityHistory.slice(0, 15).map((activity) => {
+                  const palette = activityTypePalette[activity.type] ?? activityTypePalette.default;
+                  return (
+                    <tr key={activity.id} className="hover:bg-muted/50 border-b transition-colors">
+                      <td className="p-2 align-middle whitespace-nowrap">
+                        <div className="flex items-center gap-3">
+                          <div
+                            className="relative h-12 w-12 overflow-hidden rounded-xl border shadow-sm"
+                            style={{ borderColor: palette.borderColor }}
+                          >
+                            {shouldUseLogo(activity.actor) ? (
+                              <img src={logoImage} alt="WorkHub 로고" className="h-full w-full object-cover" />
+                            ) : activity.actor ? (
+                              <img
+                                src={`https://i.pravatar.cc/80?u=${encodeURIComponent(activity.actor)}`}
+                                alt={activity.actor}
+                                className="h-full w-full object-cover"
+                              />
+                            ) : (
+                              <div className="flex h-full w-full items-center justify-center bg-slate-100 text-sm font-semibold text-foreground">
+                                {getInitials(activity.actor)}
+                              </div>
+                            )}
+                          </div>
+                          <div className="space-y-1">
+                            <p className="font-medium text-foreground">{activity.message}</p>
+                            <p className="text-xs text-muted-foreground">{activity.timestamp}</p>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="p-2 align-middle whitespace-nowrap text-center text-sm text-muted-foreground">
+                        {activity.target ?? "—"}
+                      </td>
+                      <td className="p-2 align-middle whitespace-nowrap text-center">
+                        <span className="inline-flex items-center justify-center rounded-md border px-2 py-0.5 text-xs font-medium bg-secondary text-secondary-foreground border-transparent">
+                          {activity.actor ?? "시스템"}
+                        </span>
+                      </td>
+                      <td className="p-2 align-middle whitespace-nowrap text-center">
+                        <span
+                          className="inline-flex items-center justify-center rounded-md border px-2 py-0.5 text-xs font-medium w-fit whitespace-nowrap shrink-0"
+                          style={{ backgroundColor: palette.badgeBg, color: palette.badgeColor, borderColor: palette.borderColor }}
+                        >
+                          {activity.type.toUpperCase()}
+                        </span>
+                      </td>
+                      <td className="p-2 align-middle whitespace-nowrap text-center text-sm text-muted-foreground">
+                        {activity.updatedAt ?? ""}
+                      </td>
+                    </tr>
+                  );
+                })}
+                {userActivityHistory.length === 0 && (
+                  <tr>
+                    <td colSpan={5} className="p-4 text-center text-sm text-muted-foreground">
+                      활동 기록이 없습니다.
+                    </td>
+                  </tr>
+                )}
+                </tbody>
+              </table>
+            </div>
           </div>
           </div>
         </div>

@@ -60,7 +60,7 @@ export function LoginScreen({
         setErrors({})
 
         try {
-            const data = await authApi.login(userId, password)
+            const data = await authApi.login(userId, password) //로그인할 때 이거 주석하셈 ~onSuccess?.()까지만
 
             console.log('Login successful:', data)
             
