@@ -15,12 +15,23 @@ import {
 } from "../../components/ui/select";
 import { LoginScreen } from "../../components/Login";
 import { toast } from "sonner";
+import {
+  PROFILE_STORAGE_KEY,
+  PROFILE_UPDATE_EVENT,
+  type UserRole,
+  normalizeUserRole,
+} from "../../constants/profile";
 
-const PROFILE_STORAGE_KEY = "workhub:settings:profile";
+type ProfileState = {
+  id: string;
+  email: string;
+  phone: string;
+  role: UserRole;
+};
 
 // 사용자 프로필, 보안 설정, 로그인 미리보기를 관리하는 설정 페이지
 export function SettingsPage() {
-  const [profile, setProfile] = useState({
+  const [profile, setProfile] = useState<ProfileState>({
     id: "asdf1234",
     email: "asdf1234@example.com",
     phone: "010-1234-5678",
@@ -63,12 +74,15 @@ export function SettingsPage() {
     }
     try {
       const parsed = JSON.parse(stored) as {
-        profile: typeof profile;
+        profile: ProfileState;
         photo: string;
         twoFactorEnabled: boolean;
       };
       if (parsed.profile) {
-        setProfile(parsed.profile);
+        setProfile((prev) => ({
+          ...parsed.profile,
+          role: normalizeUserRole(parsed.profile.role) ?? prev.role,
+        }));
       }
       if (parsed.photo) {
         setPhoto(parsed.photo);
@@ -131,6 +145,7 @@ export function SettingsPage() {
     };
     try {
       window.localStorage.setItem(PROFILE_STORAGE_KEY, JSON.stringify(payload));
+      window.dispatchEvent(new CustomEvent<UserRole>(PROFILE_UPDATE_EVENT, { detail: profile.role }));
       toast.success("변경 사항이 저장되었습니다.", {
         description: "설정한 정보가 기기에 안전하게 보관됩니다.",
       });

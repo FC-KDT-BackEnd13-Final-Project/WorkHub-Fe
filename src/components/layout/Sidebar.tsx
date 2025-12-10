@@ -1,19 +1,25 @@
 import { useEffect, useMemo, useState, useCallback } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { LayoutDashboard, FolderOpen, Users, Bell, Settings, Menu, X, UserRound, LogOut } from "lucide-react";
+import { LayoutDashboard, FolderOpen, Users, Bell, Settings, Menu, X, UserRound, LogOut, History } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { cn } from "../ui/utils";
 import { Button } from "../ui/button";
 import { initialNotifications } from "../../data/notifications";
 import { companyUsers } from "../admin/userData";
+import {
+  PROFILE_STORAGE_KEY,
+  PROFILE_UPDATE_EVENT,
+  type UserRole,
+  normalizeUserRole,
+} from "../../constants/profile";
 
 // 로그인 이후 레이아웃에서 좌측 프로젝트 내비게이션과 상태를 담당
-const navigationItems = [
-  { label: "Dashboard", icon: LayoutDashboard, path: "/dashboard" },
-  { label: "Projects", icon: FolderOpen, path: "/projects" },
-  { label: "Users", icon: Users, path: "/admin/users" },
-  { label: "Notifications", icon: Bell, badge: "5", path: "/notifications" },
-  { label: "Settings", icon: Settings, path: "/settings" },
-];
+type NavigationItem = {
+  label: string;
+  icon: LucideIcon;
+  path: string;
+  badge?: string;
+};
 
 interface SidebarProps {
   isMobileOpen?: boolean;
@@ -26,6 +32,7 @@ export function Sidebar({ isMobileOpen: controlledMobileOpen, onMobileOpenChange
   const [uncontrolledMobileOpen, setUncontrolledMobileOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
   const [profileImageUrl, setProfileImageUrl] = useState<string | null>(null);
+  const [userRole, setUserRole] = useState<UserRole>("DEVELOPER");
   const [notificationCount, setNotificationCount] = useState(
     initialNotifications.filter((notification) => !notification.read).length,
   );
@@ -47,12 +54,44 @@ export function Sidebar({ isMobileOpen: controlledMobileOpen, onMobileOpenChange
       .filter((project) => project.status === "In Progress").length;
   }, []);
 
+  const getStoredUserRole = useCallback((): UserRole => {
+    if (typeof window === "undefined") {
+      return "DEVELOPER";
+    }
+    const storedProfile = window.localStorage.getItem(PROFILE_STORAGE_KEY);
+    if (storedProfile) {
+      try {
+        const parsed = JSON.parse(storedProfile) as { profile?: { role?: string } };
+        const normalized = normalizeUserRole(parsed.profile?.role);
+        if (normalized) {
+          return normalized;
+        }
+      } catch (error) {
+        console.error("프로필 정보를 불러오지 못했습니다.", error);
+      }
+    }
+    const storedUser = window.localStorage.getItem("user");
+    if (storedUser) {
+      try {
+        const parsedUser = JSON.parse(storedUser) as { role?: string };
+        const normalized = normalizeUserRole(parsedUser.role);
+        if (normalized) {
+          return normalized;
+        }
+      } catch (error) {
+        console.error("사용자 정보를 불러오지 못했습니다.", error);
+      }
+    }
+    return "DEVELOPER";
+  }, []);
+
   useEffect(() => {
     if (typeof window === "undefined") return;
     const stored = window.localStorage.getItem("userProfileImage");
     if (stored) {
       setProfileImageUrl(stored);
     }
+    setUserRole(getStoredUserRole());
 
     const storedCount = window.localStorage.getItem("workhubUnreadNotificationCount");
     if (storedCount !== null) {
@@ -66,20 +105,32 @@ export function Sidebar({ isMobileOpen: controlledMobileOpen, onMobileOpenChange
       }
     };
 
+    const handleProfileUpdate = (event: Event) => {
+      const customEvent = event as CustomEvent<string | UserRole | undefined>;
+      const normalized = normalizeUserRole(customEvent.detail);
+      setUserRole(normalized ?? getStoredUserRole());
+    };
+
     const handleStorage = (event: StorageEvent) => {
       if (event.key === "workhubUnreadNotificationCount" && event.newValue !== null) {
         setNotificationCount(Number(event.newValue));
+        return;
+      }
+      if (event.key === PROFILE_STORAGE_KEY) {
+        setUserRole(getStoredUserRole());
       }
     };
 
     window.addEventListener("workhub:notifications", handleNotificationUpdate as EventListener);
+    window.addEventListener(PROFILE_UPDATE_EVENT, handleProfileUpdate as EventListener);
     window.addEventListener("storage", handleStorage);
 
     return () => {
       window.removeEventListener("workhub:notifications", handleNotificationUpdate as EventListener);
+      window.removeEventListener(PROFILE_UPDATE_EVENT, handleProfileUpdate as EventListener);
       window.removeEventListener("storage", handleStorage);
     };
-  }, []);
+  }, [getStoredUserRole]);
 
   const handleLogout = () => {
     if (typeof window !== "undefined") {
@@ -133,7 +184,17 @@ export function Sidebar({ isMobileOpen: controlledMobileOpen, onMobileOpenChange
         </div>
       </div>
       <nav className="flex-1 space-y-4 p-6">
-        {navigationItems.map((item) => {
+        {(
+          [
+            { label: "Dashboard", icon: LayoutDashboard, path: "/dashboard" },
+            { label: "Projects", icon: FolderOpen, path: "/projects" },
+            { label: "Users", icon: Users, path: "/admin/users" },
+            userRole === "ADMIN"
+              ? { label: "History", icon: History, path: "/history" }
+              : { label: "Notifications", icon: Bell, path: "/notifications" },
+            { label: "Settings", icon: Settings, path: "/settings" },
+          ] satisfies NavigationItem[]
+        ).map((item) => {
           const isActive = item.path ? location.pathname.startsWith(item.path) : false;
           const badgeValue = (() => {
             if (item.label === "Notifications" && notificationCount > 0) {

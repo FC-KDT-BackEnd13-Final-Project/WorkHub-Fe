@@ -543,74 +543,50 @@ export function AdminUserDetail() {
             </div>
           </div>
           <div
-            className={`space-y-4 pt-4 ${
+            className={`space-y-4 pt-2 ${
               userActivityHistory.length > 15 ? "max-h-[520px] overflow-y-auto pr-1" : ""
             }`}
           >
             <div className="overflow-x-hidden">
-              <table className="w-full caption-bottom text-sm">
-                <tbody className="[&_tr:last-child]:border-0">
-                {userActivityHistory.slice(0, 15).map((activity) => {
-                  const palette = activityTypePalette[activity.type] ?? activityTypePalette.default;
-                  return (
-                    <tr key={activity.id} className="hover:bg-muted/50 border-b transition-colors">
-                      <td className="p-2 align-middle whitespace-nowrap">
-                        <div className="flex items-center gap-3">
-                          <div
-                            className="relative h-12 w-12 overflow-hidden rounded-xl border shadow-sm"
-                            style={{ borderColor: palette.borderColor }}
-                          >
-                            {shouldUseLogo(activity.actor) ? (
-                              <img src={logoImage} alt="WorkHub 로고" className="h-full w-full object-cover" />
-                            ) : activity.actor ? (
-                              <img
-                                src={`https://i.pravatar.cc/80?u=${encodeURIComponent(activity.actor)}`}
-                                alt={activity.actor}
-                                className="h-full w-full object-cover"
-                              />
-                            ) : (
-                              <div className="flex h-full w-full items-center justify-center bg-slate-100 text-sm font-semibold text-foreground">
-                                {getInitials(activity.actor)}
-                              </div>
-                            )}
-                          </div>
-                          <div className="space-y-1">
-                            <p className="font-medium text-foreground">{activity.message}</p>
-                            <p className="text-xs text-muted-foreground">{activity.timestamp}</p>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="p-2 align-middle whitespace-nowrap text-center text-sm text-muted-foreground">
-                        {activity.target ?? "—"}
-                      </td>
-                      <td className="p-2 align-middle whitespace-nowrap text-center">
-                        <span className="inline-flex items-center justify-center rounded-md border px-2 py-0.5 text-xs font-medium bg-secondary text-secondary-foreground border-transparent">
-                          {activity.actor ?? "시스템"}
-                        </span>
-                      </td>
-                      <td className="p-2 align-middle whitespace-nowrap text-center">
-                        <span
-                          className="inline-flex items-center justify-center rounded-md border px-2 py-0.5 text-xs font-medium w-fit whitespace-nowrap shrink-0"
-                          style={{ backgroundColor: palette.badgeBg, color: palette.badgeColor, borderColor: palette.borderColor }}
+              {userActivityHistory.slice(0, 15).map((activity) => {
+                const palette = activityTypePalette[activity.type] ?? activityTypePalette.default;
+                return (
+                  <div key={activity.id} className="flex items-start justify-between gap-3 rounded-lg bg-white/90 p-3 shadow-sm">
+                      <div className="flex items-center gap-3">
+                        <div
+                          className="relative h-12 w-12 overflow-hidden rounded-xl border shadow-sm"
+                          style={{ borderColor: palette.borderColor }}
                         >
-                          {activity.type.toUpperCase()}
-                        </span>
-                      </td>
-                      <td className="p-2 align-middle whitespace-nowrap text-center text-sm text-muted-foreground">
-                        {activity.updatedAt ?? ""}
-                      </td>
-                    </tr>
-                  );
-                })}
-                {userActivityHistory.length === 0 && (
-                  <tr>
-                    <td colSpan={5} className="p-4 text-center text-sm text-muted-foreground">
-                      활동 기록이 없습니다.
-                    </td>
-                  </tr>
-                )}
-                </tbody>
-              </table>
+                          {shouldUseLogo(activity.actor) ? (
+                            <img src={logoImage} alt="WorkHub 로고" className="h-full w-full object-cover" />
+                          ) : activity.actor ? (
+                            <img
+                              src={`https://i.pravatar.cc/80?u=${encodeURIComponent(activity.actor)}`}
+                              alt={activity.actor}
+                              className="h-full w-full object-cover"
+                            />
+                          ) : (
+                            <div className="flex h-full w-full items-center justify-center bg-slate-100 text-sm font-semibold text-foreground">
+                              {getInitials(activity.actor)}
+                            </div>
+                          )}
+                        </div>
+                        <div className="space-y-1">
+                          <p className="text-sm font-medium text-foreground">{activity.message}</p>
+                          <p className="text-xs text-muted-foreground">{activity.timestamp}</p>
+                        </div>
+                      </div>
+                    <div className="text-right text-sm text-muted-foreground whitespace-nowrap">
+                      {activity.target ?? "—"}
+                    </div>
+                  </div>
+                );
+              })}
+              {userActivityHistory.length === 0 && (
+                <div className="rounded-lg border border-dashed border-slate-200 bg-white/80 p-4 text-center text-sm text-muted-foreground">
+                  활동 기록이 없습니다.
+                </div>
+              )}
             </div>
           </div>
           </div>

@@ -14,6 +14,7 @@ import {
 } from "../../components/ui/table2";
 import { RichTextDemo } from "../../components/RichTextDemo";
 import { supportTickets } from "../../data/supportTickets";
+import { PaginationControls } from "../../components/common/PaginationControls";
 
 // 프로젝트별 CS 문의 목록과 작성 폼을 렌더링하는 페이지
 export function SupportPage() {
@@ -172,37 +173,8 @@ export function SupportPage() {
         </>
       )}
       {!isWriting && filteredTickets.length > 0 && (
-            <div className="flex flex-col items-center gap-2 pt-4 text-sm text-muted-foreground">
-          <div className="flex items-center justify-center gap-2">
-            <Button2
-              variant="outline"
-              size="sm"
-              onClick={() => goToPage(currentPage - 1)}
-              disabled={currentPage === 1}
-              aria-label="이전 페이지"
-            >
-              {"<"}
-            </Button2>
-            {Array.from({ length: totalPages }, (_, index) => index + 1).map((page) => (
-              <Button2
-                key={page}
-                variant={page === currentPage ? "default" : "outline"}
-                size="sm"
-                onClick={() => goToPage(page)}
-              >
-                {page}
-              </Button2>
-            ))}
-            <Button2
-              variant="outline"
-              size="sm"
-              onClick={() => goToPage(currentPage + 1)}
-              disabled={currentPage === totalPages}
-              aria-label="다음 페이지"
-            >
-              {">"}
-            </Button2>
-          </div>
+        <div className="flex flex-col items-center gap-2 pt-4 text-sm text-muted-foreground">
+          <PaginationControls currentPage={currentPage} totalPages={totalPages} onPageChange={goToPage} />
         </div>
       )}
     </div>
