@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { Notification, NotificationItem } from "./NotificationItem";
 import { Table, TableBody, TableHead, TableHeader, TableRow } from "../ui/table";
-import { Button } from "../ui/button";
+import { PaginationControls } from "../common/PaginationControls";
 
 interface NotificationListProps {
   notifications: Notification[];
@@ -52,34 +52,12 @@ export function NotificationList({ notifications, onMarkRead, onRemove }: Notifi
         </div>
       </div>
       {notifications.length > PAGE_SIZE && (
-        <div className="mt-4 flex items-center justify-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
-            disabled={currentPage === 1}
-          >
-            {"<"}
-          </Button>
-          {Array.from({ length: totalPages }, (_, index) => index + 1).map((page) => (
-            <Button
-              key={page}
-              variant={page === currentPage ? "default" : "outline"}
-              size="sm"
-              onClick={() => setCurrentPage(page)}
-            >
-              {page}
-            </Button>
-          ))}
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
-            disabled={currentPage === totalPages}
-          >
-            {">"}
-          </Button>
-        </div>
+        <PaginationControls
+          className="mt-4"
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPageChange={setCurrentPage}
+        />
       )}
     </>
   );

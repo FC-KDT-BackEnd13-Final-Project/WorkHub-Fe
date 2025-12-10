@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { format } from "date-fns";
 import { Card, CardContent } from "../../components/ui/card";
 import { Input } from "../../components/ui/input";
@@ -13,6 +13,7 @@ import {
 import logoImage from "../../../image/logo.png";
 import { historyEvents, historyPalette, HistoryEvent } from "../../data/historyData";
 import { Users, FileText, LayoutDashboard, CheckSquare } from "lucide-react";
+import { PaginationControls } from "../../components/common/PaginationControls";
 
 type CategoryFilter = "user" | "post" | "project" | "checklist" | "all";
 type PostFilter = "all" | "post" | "postComment" | "csPost" | "csQna";
@@ -27,6 +28,8 @@ export function UserHistoryPage() {
   const [postFilter, setPostFilter] = useState<PostFilter>("all");
   const [projectFilter, setProjectFilter] = useState<ProjectFilter>("all");
   const [checklistFilter, setChecklistFilter] = useState<ChecklistFilter>("all");
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 10;
 
   const getInitials = (value?: string) => {
     if (!value) return "NA";
@@ -83,6 +86,19 @@ export function UserHistoryPage() {
 
     return events;
   }, [activeTab, categoryFilter, searchTerm, postFilter, projectFilter, checklistFilter, sortOrder]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredEvents.length / pageSize));
+  const paginatedEvents = filteredEvents.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [activeTab, categoryFilter, searchTerm, postFilter, projectFilter, checklistFilter, sortOrder]);
+
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages]);
 
   const renderSortSelect = (className?: string) => (
     <Select value={sortOrder} onValueChange={(value: "desc" | "asc") => setSortOrder(value)}>
@@ -247,7 +263,7 @@ export function UserHistoryPage() {
                 </tr>
               </thead>
               <tbody className="[&_tr:last-child]:border-0">
-                {filteredEvents.map((event) => {
+                {paginatedEvents.map((event) => {
                   const palette = historyPalette[event.type];
                   return (
                     <tr key={event.id} className="hover:bg-muted/50 border-b transition-colors">
@@ -299,7 +315,7 @@ export function UserHistoryPage() {
                     </tr>
                   );
                 })}
-                {filteredEvents.length === 0 && (
+                {paginatedEvents.length === 0 && (
                   <tr>
                     <td colSpan={5} className="p-8 text-center text-sm text-muted-foreground">
                       조건에 맞는 히스토리가 없습니다. 필터를 조정해 다시 시도해 주세요.
@@ -311,6 +327,15 @@ export function UserHistoryPage() {
           </div>
         </CardContent>
       </Card>
+
+      {filteredEvents.length > 0 && (
+        <PaginationControls
+          className="mt-4"
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPageChange={setCurrentPage}
+        />
+      )}
     </div>
   );
 }

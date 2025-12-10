@@ -320,7 +320,7 @@ export function Dashboard() {
         </div>
 
         <Card className="rounded-xl border border-white/70 bg-white/90 shadow-sm backdrop-blur">
-          <CardHeader className="flex flex-row items-center justify-between gap-4 pb-4 border-b border-white/60">
+          <CardHeader className="flex flex-row items-center justify-between gap-4 pb-2">
             <div>
               <CardTitle className="text-xl font-semibold text-foreground">최근 히스토리</CardTitle>
               <p className="text-xs text-muted-foreground">워크스페이스 전반의 활동 로그입니다.</p>
@@ -329,7 +329,7 @@ export function Dashboard() {
               전체 보기
             </button>
           </CardHeader>
-          <CardContent className="pt-4">
+          <CardContent className="pt-2 pb-4">
             <div
               ref={scrollContainerRef}
               className={`relative w-full pr-1 ${enableHistoryScroll ? "max-h-96 overflow-y-auto" : ""}`}
@@ -362,14 +362,14 @@ export function Dashboard() {
                         <td className="p-2 align-middle whitespace-nowrap">
                           <div className="flex items-center gap-3">
                             <div className="relative h-12 w-12 overflow-hidden rounded-xl border border-white/70 shadow-sm">
-                            {isSystemActor(event.updatedBy) ? (
-                              <img src={logoImage} alt="WorkHub 로고" className="h-full w-full object-cover" />
-                            ) : event.updatedBy ? (
-                              <img
-                                src={getAvatarUrl(event.updatedBy)}
-                                alt={event.updatedBy}
-                                className="h-full w-full object-cover"
-                              />
+                              {isSystemActor(event.updatedBy) ? (
+                                <img src={logoImage} alt="WorkHub 로고" className="h-full w-full object-cover" />
+                              ) : event.updatedBy ? (
+                                <img
+                                  src={getAvatarUrl(event.updatedBy)}
+                                  alt={event.updatedBy}
+                                  className="h-full w-full object-cover"
+                                />
                               ) : (
                                 <div className="flex h-full w-full items-center justify-center bg-slate-100 text-sm font-semibold text-foreground">
                                   {getInitials(event.updatedBy)}
@@ -377,7 +377,7 @@ export function Dashboard() {
                               )}
                             </div>
                             <div className="space-y-1">
-                              <p className="font-medium text-foreground">{event.message}</p>
+                              <p className="text-sm font-medium text-foreground">{event.message}</p>
                               <p className="text-xs text-muted-foreground">{event.timestamp}</p>
                             </div>
                           </div>
@@ -419,6 +419,7 @@ export function Dashboard() {
             </div>
           </CardContent>
         </Card>
+
       </div>
     </div>
   );

@@ -1,4 +1,5 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { format } from "date-fns";
 import { useNavigate, useParams } from "react-router-dom";
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
 import { Badge } from "../ui/badge";
@@ -6,6 +7,7 @@ import { Button } from "../ui/button";
 import { companyUsers, activityHistory } from "./userData";
 import { activityTypePalette } from "./activityPalette";
 import logoImage from "../../../image/logo.png";
+import { PaginationControls } from "../common/PaginationControls";
 
 const shouldUseLogo = (name?: string) => {
   if (!name) return true;
@@ -33,6 +35,20 @@ export function AdminUserHistory() {
     () => activityHistory.filter((activity) => activity.actor === user?.name),
     [user?.name],
   );
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 10;
+  const totalPages = Math.max(1, Math.ceil(userActivities.length / pageSize));
+  const paginatedActivities = userActivities.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [user?.name]);
+
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages]);
 
   if (!user) {
     return (
@@ -84,33 +100,33 @@ export function AdminUserHistory() {
       </div>
 
       <div className="rounded-2xl bg-white p-6 shadow-sm min-h-0">
-        <div className="border-b pb-4">
+        <div className="pb-1">
           <h3 className="text-lg font-semibold">{user.id} 활동 내역 · 전체</h3>
           <p className="text-sm text-muted-foreground">오늘 포함 전체 활동 기록입니다.</p>
         </div>
-        <div className="relative w-full overflow-x-auto pt-4">
+        <div className="relative w-full overflow-x-auto pt-1">
           <table className="w-full caption-bottom text-sm">
               <thead className="[&_tr]:border-b">
                 <tr className="hover:bg-muted/50 border-b transition-colors">
-                  <th className="text-foreground h-10 px-2 text-left align-middle font-medium whitespace-nowrap w-2/5">
+                  <th className="text-foreground h-8 px-2 text-left align-middle font-medium whitespace-nowrap w-2/5">
                     활동 내용
                   </th>
-                  <th className="text-foreground h-10 px-2 align-middle font-medium whitespace-nowrap w-1/5 text-center">
+                  <th className="text-foreground h-8 px-2 align-middle font-medium whitespace-nowrap w-1/5 text-center">
                     대상
                   </th>
-                  <th className="text-foreground h-10 px-2 align-middle font-medium whitespace-nowrap w-1/6 text-center">
+                  <th className="text-foreground h-8 px-2 align-middle font-medium whitespace-nowrap w-1/6 text-center">
                     실행자
                   </th>
-                  <th className="text-foreground h-10 px-2 align-middle font-medium whitespace-nowrap w-1/6 text-center">
+                  <th className="text-foreground h-8 px-2 align-middle font-medium whitespace-nowrap w-1/6 text-center">
                     작업 유형
                   </th>
-                  <th className="text-foreground h-10 px-2 align-middle font-medium whitespace-nowrap w-1/6 text-center">
+                  <th className="text-foreground h-8 px-2 align-middle font-medium whitespace-nowrap w-1/6 text-center">
                     발생 시각
                   </th>
                 </tr>
               </thead>
               <tbody className="[&_tr:last-child]:border-0">
-              {userActivities.map((activity) => {
+              {paginatedActivities.map((activity) => {
                 const palette = activityTypePalette[activity.type] ?? activityTypePalette.default;
                 return (
                   <tr key={activity.id} className="hover:bg-muted/50 border-b transition-colors">
@@ -157,14 +173,22 @@ export function AdminUserHistory() {
                       </span>
                     </td>
                     <td className="p-2 align-middle whitespace-nowrap text-center text-sm text-muted-foreground">
-                      {activity.updatedAt}
+                      {format(new Date(activity.updatedAt ?? activity.timestamp), "yyyy.MM.dd HH:mm")}
                     </td>
                   </tr>
                 );
               })}
-                </tbody>
-              </table>
-            </div>
+              </tbody>
+            </table>
+          </div>
+          {userActivities.length > 0 && (
+            <PaginationControls
+              className="mt-4"
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={setCurrentPage}
+            />
+          )}
         <div className="mt-4 flex justify-end">
           <Button variant="outline" onClick={() => navigate(-1)}>
             뒤로 가기

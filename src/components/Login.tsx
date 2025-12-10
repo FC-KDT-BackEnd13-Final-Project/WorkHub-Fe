@@ -63,17 +63,17 @@ export function LoginScreen({
             const data = await authApi.login(userId, password) //로그인할 때 이거 주석하셈 ~onSuccess?.()까지만
 
             console.log('Login successful:', data)
-            
+
             // 토큰 저장 (백엔드 응답 구조에 따라 수정 필요)
             if (data.token) {
                 localStorage.setItem('authToken', data.token)
             }
-            
+
             // 유저 정보 저장
             if (data.user) {
                 localStorage.setItem('user', JSON.stringify(data.user))
             }
-            
+
             onSuccess?.()
 
         } catch (error: any) {

@@ -22,6 +22,7 @@ import {
 import { CornerDownRight, Search } from "lucide-react";
 import { loadRepliesMap, type ReplyMap, type PostReplyItem } from "../../utils/postRepliesStorage";
 import { mockProjectPosts, type ProjectPostSummary } from "../../data/mockProjectPosts";
+import { PaginationControls } from "../common/PaginationControls";
 
 const replyTypeStyle: StatusStyle = {
   background: "#F1F5F9",
@@ -403,40 +404,7 @@ export function ProjectPost2() {
 
         {/* 페이징 영역 */}
         {filteredCustomers.length > 0 && (
-            <div className="flex items-center justify-center gap-2">
-              <Button2
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
-                  disabled={currentPage === 1}
-              >
-                {"<"}
-              </Button2>
-
-              {Array.from({ length: totalPages }, (_, i) => i + 1).map(
-                  (page) => (
-                      <Button2
-                          key={page}
-                          variant={page === currentPage ? "default" : "outline"}
-                          size="sm"
-                          onClick={() => setCurrentPage(page)}
-                      >
-                        {page}
-                      </Button2>
-                  )
-              )}
-
-              <Button2
-                  variant="outline"
-                  size="sm"
-                  onClick={() =>
-                      setCurrentPage((p) => Math.min(p + 1, totalPages))
-                  }
-                  disabled={currentPage === totalPages}
-              >
-                {">"}
-              </Button2>
-            </div>
+          <PaginationControls currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} className="mt-4" />
         )}
 
         {/* Empty State */}
