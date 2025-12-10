@@ -195,6 +195,9 @@ export function ProjectNodesBoard() {
   const [newWorkflow, setNewWorkflow] = useState(createWorkflowFormState);
   const [isReorderMode, setIsReorderMode] = useState(false);
   const [editingNode, setEditingNode] = useState<Node | null>(null);
+  const [statusModalNode, setStatusModalNode] = useState<Node | null>(null);
+  const [statusModalStatus, setStatusModalStatus] = useState<NodeStatus | "">("");
+  const [statusModalApproval, setStatusModalApproval] = useState<ApprovalStatus | "">("");
   const nextProjectNodeId = useRef(
     defaultNodes.reduce((max, node) => Math.max(max, node.projectNodeId), 0) + 1,
   );
@@ -448,8 +451,106 @@ export function ProjectNodesBoard() {
     [closeWorkflowModal, editingNode],
   );
 
+  const openStatusModal = useCallback((node: Node) => {
+    setStatusModalNode(node);
+    setStatusModalStatus(node.status);
+    setStatusModalApproval(node.approvalStatus);
+  }, []);
+
+  const closeStatusModal = useCallback(() => {
+    setStatusModalNode(null);
+    setStatusModalStatus("");
+    setStatusModalApproval("");
+  }, []);
+
+  const handleApplyStatusChange = useCallback(() => {
+    if (!statusModalNode || !statusModalStatus || !statusModalApproval) return;
+    setNodes((prev) =>
+      prev.map((node) =>
+        node.id === statusModalNode.id
+          ? { ...node, status: statusModalStatus, approvalStatus: statusModalApproval }
+          : node,
+      ),
+    );
+    closeStatusModal();
+  }, [closeStatusModal, statusModalApproval, statusModalNode, statusModalStatus]);
+
   return (
     <div className="space-y-6 pb-12">
+      {statusModalNode && (
+        <div className="fixed inset-0 z-50">
+          <div className="min-h-screen flex items-center justify-center p-4 bg-black/40">
+            <div className="w-full" style={{ maxWidth: "28rem" }}>
+              <Card className="border border-border shadow-lg">
+                <CardHeader className="space-y-2 pb-4">
+                  <h2 className="text-lg font-semibold text-center">상태/승인 변경</h2>
+                  <p className="text-sm text-muted-foreground text-center">
+                    "{statusModalNode.title}" 카드의 상태와 승인 단계를 선택하세요.
+                  </p>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-2">
+                    <Label>상태</Label>
+                    <Select
+                      value={statusModalStatus || undefined}
+                      onValueChange={(value) => setStatusModalStatus(value as NodeStatus)}
+                    >
+                      <SelectTrigger className="h-10 w-full">
+                        <SelectValue placeholder="상태 선택" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {statusOptions.map((option) => (
+                          <SelectItem key={option} value={option}>
+                            {option}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>승인 상태</Label>
+                    <Select
+                      value={statusModalApproval || undefined}
+                      onValueChange={(value) =>
+                        setStatusModalApproval(value as ApprovalStatus)
+                      }
+                    >
+                      <SelectTrigger className="h-10 w-full">
+                        <SelectValue placeholder="승인 상태 선택" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {approvalStatusOptions.map((option) => (
+                          <SelectItem key={option} value={option}>
+                            {option}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      className="w-1/2"
+                      onClick={closeStatusModal}
+                    >
+                      취소
+                    </Button>
+                    <Button
+                      type="button"
+                      className="w-1/2"
+                      disabled={!statusModalStatus || !statusModalApproval}
+                      onClick={handleApplyStatusChange}
+                    >
+                      적용
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+        </div>
+      )}
       {isWorkflowModalOpen && (
         <div className="fixed inset-0 z-50 backdrop-blur-sm flex items-center justify-end px-0">
           <div className="absolute inset-0" aria-hidden="true" onClick={closeWorkflowModal}></div>
@@ -670,7 +771,12 @@ export function ProjectNodesBoard() {
                   formatUpdatedAt={formatUpdatedAt}
                   onNavigate={(id) => navigate(`/projects/${projectId ?? "project"}/nodes/${id}`)}
                   rightActions={
-                    <NodeActionMenu node={node} onEdit={handleEditNode} onDelete={handleDeleteNode} />
+                    <NodeActionMenu
+                      node={node}
+                      onEdit={handleEditNode}
+                      onDelete={handleDeleteNode}
+                      onChangeStatus={openStatusModal}
+                    />
                   }
                 />
               ))}
@@ -812,9 +918,10 @@ interface NodeActionMenuProps {
   node: Node;
   onEdit: (node: Node) => void;
   onDelete: (node: Node) => void;
+  onChangeStatus: (node: Node) => void;
 }
 
-function NodeActionMenu({ node, onEdit, onDelete }: NodeActionMenuProps) {
+function NodeActionMenu({ node, onEdit, onDelete, onChangeStatus }: NodeActionMenuProps) {
   const stopPointer = (event: PointerEvent<HTMLButtonElement>) => {
     event.stopPropagation();
   };
@@ -831,6 +938,11 @@ function NodeActionMenu({ node, onEdit, onDelete }: NodeActionMenuProps) {
   const handleDelete = (event: Event) => {
     event.stopPropagation();
     onDelete(node);
+  };
+
+  const handleStatusChange = (event: Event) => {
+    event.stopPropagation();
+    onChangeStatus(node);
   };
 
   return (
@@ -853,6 +965,9 @@ function NodeActionMenu({ node, onEdit, onDelete }: NodeActionMenuProps) {
         className="min-w-0 w-auto"
         style={{ minWidth: "auto", width: "auto" }}
       >
+        <DropdownMenuItem onSelect={handleStatusChange}>
+          상태/승인 변경
+        </DropdownMenuItem>
         <DropdownMenuItem onSelect={handleEdit}>
           수정
         </DropdownMenuItem>
