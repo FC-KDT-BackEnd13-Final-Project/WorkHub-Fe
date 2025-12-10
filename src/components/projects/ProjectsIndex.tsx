@@ -1,4 +1,4 @@
-import { MouseEvent, PointerEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { MouseEvent, PointerEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Card,
@@ -29,6 +29,9 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "../ui/dropdown-menu";
+import { projectApi } from "../../lib/api";
+import { mapApiProjectToUiProject, type Project } from "../../utils/projectMapper";
+import type { ProjectListParams, SortOrder } from "../../types/project";
 
 // 상태 옵션
 const statusOptions = [
@@ -92,84 +95,6 @@ const statusStyles: Record<ProjectStatus, StatusStyle> = {
 
 type SortOption = (typeof sortOptions)[number];
 
-type Project = {
-  id: string;
-  name: string;
-  brand: string;
-  // 배열 형태(기존 목업 데이터용)
-  managers?: string[];
-  developers?: string[];
-  // 문자열 형태(새로 생성된 프로젝트용)
-  manager?: string;
-  developer?: string;
-  startDate: string;
-  endDate: string;
-  progress: number;
-  status: ProjectStatus;
-  teamSize: number;
-  tasks: number;
-  description: string;
-};
-
-const initialProjects: Project[] = [
-  {
-    id: "prj-1",
-    name: "웹사이트 리디자인",
-    brand: "Aperture Studios",
-    managers: ["Lena Morris"],
-    developers: ["김준호"],
-    startDate: "2024-09-01",
-    endDate: "2024-12-15",
-    progress: 75,
-    status: "IN_PROGRESS",
-    teamSize: 5,
-    tasks: 24,
-    description: "모던한 디자인과 향상된 사용자 경험을 갖춘 회사 웹사이트 전면 개편",
-  },
-  {
-    id: "prj-2",
-    name: "모바일 앱 개발",
-    brand: "Nova FinTech",
-    managers: ["Ethan Ward"],
-    developers: ["박지민", "최수진"],
-    startDate: "2024-08-12",
-    endDate: "2024-12-30",
-    progress: 45,
-    status: "CANCELLED",
-    teamSize: 8,
-    tasks: 32,
-    description: "안전한 결제 연동을 갖춘 고객 참여용 iOS·Android 네이티브 앱 개발",
-  },
-  {
-    id: "prj-3",
-    name: "마케팅 캠페인",
-    brand: "GlobeMart",
-    managers: ["Nora Lee", "David Kim"],
-    developers: ["이도윤"],
-    startDate: "2024-07-01",
-    endDate: "2024-12-10",
-    progress: 90,
-    status: "COMPLETED",
-    teamSize: 3,
-    tasks: 18,
-    description: "소셜 미디어와 이메일에 집중한 Q4 옴니채널 디지털 마케팅 캠페인",
-  },
-  {
-    id: "prj-4",
-    name: "데이터베이스 마이그레이션",
-    brand: "Unity Logistics",
-    managers: ["Chris Reynolds"],
-    developers: ["정서현", "김민준"],
-    startDate: "2024-06-10",
-    endDate: "2024-12-01",
-    progress: 100,
-    status: "COMPLETED",
-    teamSize: 4,
-    tasks: 20,
-    description: "레거시 온프레미스 데이터베이스를 확장형 클라우드 인프라로 이전",
-  },
-];
-
 const createProjectFormState = () => ({
   name: "",
   description: "",
@@ -203,10 +128,17 @@ const getOneYearLaterISO = (dateString: string) => {
   return date.toISOString().split("T")[0]!;
 };
 
+// UI 정렬 옵션을 API SortOrder로 변환
+const getSortOrderForApi = (uiSort: SortOption): SortOrder => {
+  if (uiSort === "최신순") return "LATEST";
+  if (uiSort === "오래된순") return "OLDEST";
+  return "LATEST"; // 기본값
+};
+
 export function ProjectsIndex() {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("ALL");
-  const [projects, setProjects] = useState<Project[]>(initialProjects);
+  const [projects, setProjects] = useState<Project[]>([]);
   const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
   const [newProject, setNewProject] = useState<ProjectFormState>(
       createProjectFormState,
@@ -229,6 +161,15 @@ export function ProjectsIndex() {
   const [companySearchTerm, setCompanySearchTerm] = useState("");
   const navigate = useNavigate();
   const isEditingProjectForm = Boolean(editingProject);
+
+  // API 연동을 위한 상태
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [nextCursor, setNextCursor] = useState<number | null>(null);
+  const [hasMore, setHasMore] = useState(false);
+
+  // 무한 스크롤을 위한 ref
+  const observerTarget = useRef<HTMLDivElement>(null);
 
   const addManager = () => {
     if (
@@ -272,63 +213,66 @@ export function ProjectsIndex() {
     }));
   };
 
+  // API 호출 함수
+  const fetchProjects = useCallback(async (loadMore = false) => {
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const params: ProjectListParams = {
+        startDate: filterStartDate || undefined,
+        endDate: filterEndDate || undefined,
+        status: statusFilter === "ALL" ? undefined : statusFilter,
+        sortOrder: getSortOrderForApi(sortOption),
+        cursor: loadMore ? nextCursor ?? undefined : undefined,
+      };
+
+      const response = await projectApi.getList(params);
+
+      // API 응답을 UI 타입으로 변환
+      const uiProjects = response.projects?.map(mapApiProjectToUiProject) ?? [];
+
+      if (loadMore) {
+        // 무한 스크롤: 기존 목록에 추가
+        setProjects((prev) => [...prev, ...uiProjects]);
+      } else {
+        // 새로운 검색: 목록 교체
+        setProjects(uiProjects);
+      }
+
+      setNextCursor(response.nextCursor);
+      setHasMore(response.hasNext);
+    } catch (err) {
+      console.error("프로젝트 목록 로드 실패:", err);
+      setError("프로젝트를 불러오는데 실패했습니다.");
+    } finally {
+      setIsLoading(false);
+    }
+  }, [filterStartDate, filterEndDate, statusFilter, sortOption, nextCursor]);
+
+  // 초기 로드 및 필터 변경 시 데이터 새로고침
+  useEffect(() => {
+    fetchProjects(false); // 첫 페이지 로드
+  }, [filterStartDate, filterEndDate, statusFilter, sortOption]);
+
+  // 검색어 필터링 (클라이언트 사이드)
+  // 서버에서 이미 status, date, sort 필터링/정렬을 처리하므로 검색어만 처리
   const filteredProjects = useMemo(() => {
     const term = searchTerm.toLowerCase().trim();
+    if (!term) return projects;
 
-    const filtered = projects.filter((project) => {
-      // 상태 필터
-      const matchesStatus =
-          statusFilter === "ALL" || project.status === statusFilter;
-
-      // 검색어 필터 (이름, 브랜드, 매니저)
+    return projects.filter((project) => {
       const managerText =
           project.manager?.toLowerCase() ??
           (project.managers ? project.managers.join(", ").toLowerCase() : "");
 
-      const matchesSearch =
+      return (
           project.name.toLowerCase().includes(term) ||
           project.brand.toLowerCase().includes(term) ||
-          managerText.includes(term);
-
-      // 기간 필터: 프로젝트 기간과 선택한 필터 기간이 겹치는지 확인
-      const projectStart = new Date(project.startDate);
-      const projectEnd = new Date(project.endDate);
-      const filterStart = filterStartDate ? new Date(filterStartDate) : undefined;
-      const filterEnd = filterEndDate ? new Date(filterEndDate) : undefined;
-
-      let matchesPeriod = true;
-
-      if (filterStart && filterEnd) {
-        // [프로젝트 기간]과 [필터 기간]이 서로 겹치면 통과
-        matchesPeriod = projectEnd >= filterStart && projectStart <= filterEnd;
-      } else if (filterStart) {
-        matchesPeriod = projectEnd >= filterStart;
-      } else if (filterEnd) {
-        matchesPeriod = projectStart <= filterEnd;
-      }
-
-      return matchesStatus && matchesSearch && matchesPeriod;
+          managerText.includes(term)
+      );
     });
-
-    // 정렬 (시작일 기준 startDate)
-    const sorted = [...filtered].sort((a, b) => {
-      const aTime = new Date(a.startDate).getTime();
-      const bTime = new Date(b.startDate).getTime();
-
-      if (sortOption === "최신순") {
-        // 시작일이 더 최근인 프로젝트가 위로
-        return bTime - aTime;
-      }
-      if (sortOption === "오래된순") {
-        // 시작일이 더 오래된 프로젝트가 위로
-        return aTime - bTime;
-      }
-
-      return 0;
-    });
-
-    return sorted;
-  }, [projects, searchTerm, statusFilter, sortOption, filterStartDate, filterEndDate]);
+  }, [projects, searchTerm]);
 
   const companyDirectory = useMemo(() => {
     const names = new Set<string>();
@@ -522,6 +466,30 @@ export function ProjectsIndex() {
     }
     return "";
   };
+
+  // 무한 스크롤 - Intersection Observer
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        // 관찰 대상이 화면에 보이고, 더 불러올 데이터가 있고, 현재 로딩 중이 아닐 때
+        if (entries[0]?.isIntersecting && hasMore && !isLoading) {
+          fetchProjects(true); // 다음 페이지 로드
+        }
+      },
+      { threshold: 0.1 } // 10%만 보여도 트리거
+    );
+
+    const currentTarget = observerTarget.current;
+    if (currentTarget) {
+      observer.observe(currentTarget);
+    }
+
+    return () => {
+      if (currentTarget) {
+        observer.unobserve(currentTarget);
+      }
+    };
+  }, [hasMore, isLoading, fetchProjects]);
 
   return (
       <div className="space-y-6">
@@ -992,102 +960,142 @@ export function ProjectsIndex() {
           </div>
         </div>
 
+        {/* 로딩 상태 */}
+        {isLoading && !projects.length && (
+            <div className="text-center py-12">
+              <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+              <p className="mt-4 text-muted-foreground">프로젝트 목록을 불러오는 중...</p>
+            </div>
+        )}
+
+        {/* 에러 상태 */}
+        {error && (
+            <div className="rounded-2xl bg-white p-6 shadow-sm text-center">
+              <p className="text-red-600 mb-4">{error}</p>
+              <Button onClick={() => fetchProjects(false)} variant="outline">
+                다시 시도
+              </Button>
+            </div>
+        )}
+
+        {/* 결과 없음 */}
+        {!isLoading && !error && filteredProjects.length === 0 && (
+            <div className="rounded-2xl bg-white p-12 shadow-sm text-center">
+              <p className="text-muted-foreground">
+                {searchTerm ? "검색 결과가 없습니다." : "프로젝트가 없습니다."}
+              </p>
+            </div>
+        )}
+
         {/* 프로젝트 카드 리스트 */}
-        <div className="grid gap-4 lg:grid-cols-3">
-          {filteredProjects.map((project) => {
-            const badgeColors = statusStyles[project.status];
-            return (
-                <Card
-                    key={project.id}
-                    className="cursor-pointer rounded-2xl border border-white/70 bg-white/90 shadow-sm backdrop-blur transition-shadow hover:shadow-lg"
-                    onClick={() =>
-                        navigate(`/projects/${project.id}/nodes`, {
-                          state: {
-                            projectName: project.name,      // 예: "모바일 앱 개발"
-                            // 필요하면 brand도 같이 보낼 수 있음
-                            // brand: project.brand,
-                          },
-                        })
-                    }
-                >
-                  <CardHeader className="space-y-2">
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <p className="text-xs text-muted-foreground">{project.brand}</p>
-                        <CardTitle className="text-xl">{project.name}</CardTitle>
-                        <p className="text-xs text-muted-foreground mt-1">
-                          개발자 · {getDeveloperDisplay(project)}
-                        </p>
-                      </div>
-                      <div
-                          className="flex items-center gap-2"
-                          data-project-card-action="true"
-                          onClick={(event) => event.stopPropagation()}
-                          onPointerDown={(event) => event.stopPropagation()}
+        {!isLoading && !error && filteredProjects.length > 0 && (
+            <>
+              <div className="grid gap-4 lg:grid-cols-3">
+                {filteredProjects.map((project) => {
+                  const badgeColors = statusStyles[project.status];
+                  return (
+                      <Card
+                          key={project.id}
+                          className="cursor-pointer rounded-2xl border border-white/70 bg-white/90 shadow-sm backdrop-blur transition-shadow hover:shadow-lg"
+                          onClick={() =>
+                              navigate(`/projects/${project.id}/nodes`, {
+                                state: {
+                                  projectName: project.name,      // 예: "모바일 앱 개발"
+                                  // 필요하면 brand도 같이 보낼 수 있음
+                                  // brand: project.brand,
+                                },
+                              })
+                          }
                       >
-                        <Badge
-                            variant="outline"
-                            style={{
-                              backgroundColor: badgeColors.background,
-                              color: badgeColors.text,
-                              borderColor: badgeColors.border,
-                            }}
-                        >
-                          {project.status}
-                        </Badge>
-                        {isProjectEditMode && (
-                            <ProjectActionMenu
-                                project={project}
-                                onEdit={handleEditProject}
-                                onDelete={handleDeleteProject}
-                                onChangeStatus={openStatusModal}
-                            />
-                        )}
-                      </div>
-                    </div>
-                    <CardDescription>{project.description}</CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="grid gap-2 text-sm">
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">고객 담당자</span>
-                        <span className="font-medium">
-                      {getManagerDisplay(project)}
-                    </span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">팀 규모</span>
-                        <span className="font-medium">{project.teamSize}명</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">워크플로 단계</span>
-                        <span className="font-medium">{project.tasks}건</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">시작일</span>
-                        <span className="font-medium">
-                      {format(new Date(project.startDate), "MMM dd, yyyy")}
-                    </span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">마감일</span>
-                        <span className="font-medium">
-                      {format(new Date(project.endDate), "MMM dd, yyyy")}
-                    </span>
-                      </div>
-                    </div>
-                    <div>
-                      <div className="flex items-center justify-between text-sm font-medium">
-                        <span>진행률</span>
-                        <span>{project.progress}%</span>
-                      </div>
-                      <Progress value={project.progress} className="mt-2" />
-                    </div>
-                  </CardContent>
-                </Card>
-            );
-          })}
-        </div>
+                        <CardHeader className="space-y-2">
+                          <div className="flex items-start justify-between">
+                            <div>
+                              <p className="text-xs text-muted-foreground">{project.brand}</p>
+                              <CardTitle className="text-xl">{project.name}</CardTitle>
+                              <p className="text-xs text-muted-foreground mt-1">
+                                개발자 · {getDeveloperDisplay(project)}
+                              </p>
+                            </div>
+                            <div
+                                className="flex items-center gap-2"
+                                data-project-card-action="true"
+                                onClick={(event) => event.stopPropagation()}
+                                onPointerDown={(event) => event.stopPropagation()}
+                            >
+                              <Badge
+                                  variant="outline"
+                                  style={{
+                                    backgroundColor: badgeColors.background,
+                                    color: badgeColors.text,
+                                    borderColor: badgeColors.border,
+                                  }}
+                              >
+                                {project.status}
+                              </Badge>
+                              {isProjectEditMode && (
+                                  <ProjectActionMenu
+                                      project={project}
+                                      onEdit={handleEditProject}
+                                      onDelete={handleDeleteProject}
+                                      onChangeStatus={openStatusModal}
+                                  />
+                              )}
+                            </div>
+                          </div>
+                          <CardDescription>{project.description}</CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                          <div className="grid gap-2 text-sm">
+                            <div className="flex justify-between">
+                              <span className="text-muted-foreground">고객 담당자</span>
+                              <span className="font-medium">
+                            {getManagerDisplay(project)}
+                          </span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-muted-foreground">팀 규모</span>
+                              <span className="font-medium">{project.teamSize}명</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-muted-foreground">워크플로 단계</span>
+                              <span className="font-medium">{project.tasks}건</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-muted-foreground">시작일</span>
+                              <span className="font-medium">
+                            {format(new Date(project.startDate), "MMM dd, yyyy")}
+                          </span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-muted-foreground">마감일</span>
+                              <span className="font-medium">
+                            {format(new Date(project.endDate), "MMM dd, yyyy")}
+                          </span>
+                            </div>
+                          </div>
+                          <div>
+                            <div className="flex items-center justify-between text-sm font-medium">
+                              <span>진행률</span>
+                              <span>{project.progress}%</span>
+                            </div>
+                            <Progress value={project.progress} className="mt-2" />
+                          </div>
+                        </CardContent>
+                      </Card>
+                  );
+                })}
+              </div>
+
+              {/* 무한 스크롤 Sentinel (관찰 대상) */}
+              {hasMore && (
+                  <div ref={observerTarget} className="flex justify-center py-8">
+                    {isLoading && (
+                        <div className="inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
+                    )}
+                  </div>
+              )}
+            </>
+        )}
       </div>
   );
 }

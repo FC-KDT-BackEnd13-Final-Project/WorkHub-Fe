@@ -1,4 +1,5 @@
 import axios from 'axios';
+import type { ProjectApiResponse, ProjectListParams } from '@/types/project';
 
 // 모든 API 요청이 갈 기본 서버 주소
 const API_BASE_URL = 'https://workhub.o-r.kr'
@@ -46,5 +47,28 @@ export const authApi = {
       password,
     });
     return response.data; // axios 응답 객체 중 data만 반환해 UI가 쉽게 사용하도록 함
+  },
+};
+
+// 프로젝트 API
+export const projectApi = {
+  /**
+   * 프로젝트 목록 조회
+   * @param params - 필터링 및 페이지네이션 파라미터 (모두 선택사항)
+   * @returns 프로젝트 목록 및 페이지네이션 정보
+   */
+  getList: async (params?: ProjectListParams): Promise<ProjectApiResponse> => {
+    const response = await apiClient.get('/api/v1/projects/list', {
+        params: params, // axios가 자동으로 쿼리스트링으로 변환
+    });
+
+    const { success, message, data } = response.data; // 응답 구조 분해 할당.
+
+    // success가 true일 때
+    if(success === true)
+        return data;
+
+    // success가 false일 때
+    throw new Error(message || '프로젝트 목록 조회에 실패했습니다.');
   },
 };
