@@ -66,6 +66,7 @@ export function Dashboard() {
   const HISTORY_BATCH_SIZE = 3;
   const [visibleHistoryCount, setVisibleHistoryCount] = useState(INITIAL_HISTORY_COUNT);
   const [trendTab, setTrendTab] = useState<"users" | "projects">("users");
+  const [hoveredPoint, setHoveredPoint] = useState<{ x: number; y: number; value: number; month: string } | null>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const sentinelRef = useRef<HTMLDivElement>(null);
   const todayHistoryEvents = historyEvents.filter((event) => event.timestamp.includes("오늘"));
@@ -120,17 +121,19 @@ export function Dashboard() {
   const visibleHistoryEvents = todayHistoryEvents.slice(0, visibleHistoryCount);
   const enableHistoryScroll = visibleHistoryEvents.length > 5;
   const activeTrend = trendSeries[trendTab];
-  const chartLeft = 25;
+  const chartLeft = 35;
   const chartRight = 380;
   const chartTop = 20;
   const chartBottom = 160;
   const chartHeight = chartBottom - chartTop;
   const axisMax = 30;
   const axisLabels = [30, 20, 10, 0];
+  const yAxisLabel = trendTab === "users" ? "사용자 수" : "프로젝트 수";
+  const xAxisLabel = "월별 추세";
   const linePoints = activeTrend.map((value, idx) => {
     const x = chartLeft + (idx / Math.max(trendMonths.length - 1, 1)) * (chartRight - chartLeft);
     const y = chartBottom - (Math.min(value, axisMax) / axisMax) * chartHeight;
-    return { x, y };
+    return { x, y, value, month: trendMonths[idx] };
   });
   const pathPoints = linePoints.map((point) => `${point.x},${point.y}`).join(" ");
   const areaPath =
@@ -189,8 +192,8 @@ export function Dashboard() {
               </div>
             </CardHeader>
             <CardContent className="pt-6">
-              <div className="h-52 w-full">
-                <svg viewBox="0 0 400 200" className="h-full w-full overflow-visible">
+              <div className="h-52 w-full flex items-center justify-center relative">
+                <svg viewBox="0 0 400 200" className="h-full w-full max-w-[420px] overflow-visible">
                   <defs>
                     <linearGradient id="lineGradient" x1="0%" y1="0%" x2="0%" y2="100%">
                       <stop offset="0%" stopColor={trendPalette.gradient} stopOpacity="0.3" />
@@ -218,12 +221,16 @@ export function Dashboard() {
                     return (
                       <g key={`h-${idx}`}>
                         <line x1={chartLeft} x2={chartRight} y1={y} y2={y} className="stroke-slate-100" strokeWidth="1" strokeDasharray="4 4" />
-                        <text x={chartLeft - 6} y={y + 4} className="text-xs text-muted-foreground" textAnchor="end">
+                        <text x={chartLeft - 14} y={y + 4} className="text-xs text-muted-foreground" textAnchor="end">
                           {label.toLocaleString()}
                         </text>
                       </g>
                     );
                   })}
+                  {/* 축 라인 */}
+                  <line x1={chartLeft} y1={chartTop} x2={chartLeft} y2={chartBottom} className="stroke-slate-300" strokeWidth="1" />
+                  <line x1={chartLeft} y1={chartBottom} x2={chartRight} y2={chartBottom} className="stroke-slate-300" strokeWidth="1" />
+
                   {areaPath && (
                     <polyline
                       fill="url(#lineGradient)"
@@ -250,6 +257,8 @@ export function Dashboard() {
                       fill="#fff"
                       stroke={trendPalette.stroke}
                       strokeWidth="1.5"
+                      onMouseEnter={() => setHoveredPoint(point)}
+                      onMouseLeave={() => setHoveredPoint(null)}
                     />
                   ))}
                   {trendMonths.map((month, idx) => (
@@ -264,6 +273,22 @@ export function Dashboard() {
                     </text>
                   ))}
                 </svg>
+                {hoveredPoint ? (
+                  <div
+                    className="absolute pointer-events-none rounded-md bg-white px-4 py-2 text-xs shadow-lg border border-slate-200 text-slate-700 whitespace-nowrap z-10"
+                    style={{
+                      left: `${Math.min(Math.max((hoveredPoint.x / 400) * 100, 10), 90)}%`,
+                      top: `${Math.max((hoveredPoint.y / 200) * 100 - 5, 10)}%`,
+                      transform: "translate(-50%, -120%)",
+                    }}
+                  >
+                    <div className="font-semibold">{hoveredPoint.month}</div>
+                    <div className="mt-1">
+                      {hoveredPoint.value}
+                      <span className="text-[10px] align-middle">{trendTab === "users" ? "명" : "건"}</span>
+                    </div>
+                  </div>
+                ) : null}
               </div>
             </CardContent>
           </Card>

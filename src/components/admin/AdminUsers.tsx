@@ -21,6 +21,9 @@ import {
   TableRow,
 } from "../ui/table";
 import { companyUsers } from "./userData";
+import { PageHeader } from "../common/PageHeader";
+import { FilterToolbar } from "../common/FilterToolbar";
+import { calculateTotalPages, clampPage, paginate } from "../../utils/pagination";
 import { PaginationControls } from "../common/PaginationControls";
 
 const statusStyles = {
@@ -63,6 +66,7 @@ export function AdminUsers() {
   const [statusFilter, setStatusFilter] = useState<(typeof statusOptions)[number]>("All");
   const [currentPage, setCurrentPage] = useState(1);
 
+  // 검색/필터 조건이 많아 useMemo로 묶어 테이블 렌더 비용을 줄인다.
   const filteredUsers = useMemo(() => {
     const term = search.toLowerCase();
     return companyUsers.filter((user) => {
@@ -81,26 +85,26 @@ export function AdminUsers() {
     return Array.from(set);
   }, []);
 
+  // 공통 pagination 유틸로 페이지 수 계산과 슬라이싱을 통일한다.
+  const totalPages = calculateTotalPages(filteredUsers.length, PAGE_SIZE);
+  const paginatedUsers = paginate(filteredUsers, currentPage, PAGE_SIZE);
+
   useEffect(() => {
     setCurrentPage(1);
-  }, [search, roleFilter, companyFilter]);
-
-  const totalPages = Math.max(1, Math.ceil(filteredUsers.length / PAGE_SIZE));
-  const paginatedUsers = filteredUsers.slice(
-    (currentPage - 1) * PAGE_SIZE,
-    currentPage * PAGE_SIZE,
-  );
+  }, [search, roleFilter, companyFilter, statusFilter]);
+  useEffect(() => {
+    // 필터 적용 후 전체 페이지 수가 줄어들면 현재 페이지를 안전 범위로 되돌린다.
+    setCurrentPage((prev) => clampPage(prev, totalPages));
+  }, [totalPages]);
 
   return (
     <div className="space-y-6 pb-12">
-      <div className="rounded-2xl bg-white p-6 shadow-sm">
-        <h1 className="text-3xl font-semibold tracking-tight">Users</h1>
-        <p className="mt-2 text-muted-foreground">
-          워크스페이스 구성원을 관리하고 권한을 지정하며 활동 현황을 확인하세요.
-        </p>
-      </div>
+      <PageHeader
+        title="Users"
+        description="워크스페이스 구성원을 관리하고 권한을 지정하며 활동 현황을 확인하세요."
+      />
 
-      <div className="flex flex-col gap-4 rounded-2xl bg-white p-4 shadow-sm md:flex-row md:items-center">
+      <FilterToolbar align="between">
         <Input
           placeholder="회원을 검색하세요"
           value={search}
@@ -146,7 +150,7 @@ export function AdminUsers() {
         <Button className="md:w-auto" onClick={() => navigate("/admin/users/add")}>
           + 추가
         </Button>
-      </div>
+      </FilterToolbar>
 
       <Card className="rounded-2xl bg-white shadow-sm">
         <CardContent className="px-6 pt-6 pb-6">

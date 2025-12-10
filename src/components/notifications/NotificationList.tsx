@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { Notification, NotificationItem } from "./NotificationItem";
 import { Table, TableBody, TableHead, TableHeader, TableRow } from "../ui/table";
 import { PaginationControls } from "../common/PaginationControls";
+import { calculateTotalPages, paginate } from "../../utils/pagination";
 
 interface NotificationListProps {
   notifications: Notification[];
@@ -14,10 +15,11 @@ const PAGE_SIZE = 10;
 export function NotificationList({ notifications, onMarkRead, onRemove }: NotificationListProps) {
   const [currentPage, setCurrentPage] = useState(1);
 
-  const totalPages = Math.max(1, Math.ceil(notifications.length / PAGE_SIZE));
-  const paginatedNotifications = useMemo(() => {
-    return notifications.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
-  }, [notifications, currentPage]);
+  const totalPages = calculateTotalPages(notifications.length, PAGE_SIZE);
+  const paginatedNotifications = useMemo(
+    () => paginate(notifications, currentPage, PAGE_SIZE),
+    [notifications, currentPage],
+  );
 
   return (
     <>

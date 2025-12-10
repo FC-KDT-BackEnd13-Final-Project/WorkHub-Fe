@@ -21,12 +21,20 @@ import {
   type UserRole,
   normalizeUserRole,
 } from "../../constants/profile";
+import { useLocalStorageValue } from "../../hooks/useLocalStorageValue";
 
 type ProfileState = {
   id: string;
   email: string;
   phone: string;
   role: UserRole;
+};
+
+type StoredSettings = {
+  profile: ProfileState;
+  photo: string;
+  twoFactorEnabled: boolean;
+  updatedAt?: string;
 };
 
 // 사용자 프로필, 보안 설정, 로그인 미리보기를 관리하는 설정 페이지
@@ -40,6 +48,15 @@ export function SettingsPage() {
 
   const [twoFactorEnabled, setTwoFactorEnabled] = useState(true);
   const [showResetPassword, setShowResetPassword] = useState(false);
+  // Sidebar 등 다른 화면과 설정 값을 공유하기 위해 로컬 스토리지에 저장한다.
+  const [storedSettings, setStoredSettings] = useLocalStorageValue<StoredSettings | null>(
+    PROFILE_STORAGE_KEY,
+    {
+      defaultValue: null,
+      parser: (value) => JSON.parse(value),
+      serializer: (value) => JSON.stringify(value),
+    },
+  );
 
   const handleProfileChange =
       (field: keyof typeof profile) =>
@@ -65,35 +82,22 @@ export function SettingsPage() {
 
   // 페이지 최초 로드시 저장된 프로필/사진/보안 설정 복원
   useEffect(() => {
-    if (typeof window === "undefined") {
+    if (!storedSettings) {
       return;
     }
-    const stored = window.localStorage.getItem(PROFILE_STORAGE_KEY);
-    if (!stored) {
-      return;
+    if (storedSettings.profile) {
+      setProfile((prev) => ({
+        ...storedSettings.profile,
+        role: normalizeUserRole(storedSettings.profile.role) ?? prev.role,
+      }));
     }
-    try {
-      const parsed = JSON.parse(stored) as {
-        profile: ProfileState;
-        photo: string;
-        twoFactorEnabled: boolean;
-      };
-      if (parsed.profile) {
-        setProfile((prev) => ({
-          ...parsed.profile,
-          role: normalizeUserRole(parsed.profile.role) ?? prev.role,
-        }));
-      }
-      if (parsed.photo) {
-        setPhoto(parsed.photo);
-      }
-      if (typeof parsed.twoFactorEnabled === "boolean") {
-        setTwoFactorEnabled(parsed.twoFactorEnabled);
-      }
-    } catch (error) {
-      console.error("프로필 정보를 불러오지 못했습니다.", error);
+    if (storedSettings.photo) {
+      setPhoto(storedSettings.photo);
     }
-  }, []);
+    if (typeof storedSettings.twoFactorEnabled === "boolean") {
+      setTwoFactorEnabled(storedSettings.twoFactorEnabled);
+    }
+  }, [storedSettings]);
 
   useEffect(() => {
     if (!showResetPassword) return;
@@ -115,27 +119,17 @@ export function SettingsPage() {
     if (typeof window === "undefined") {
       return;
     }
-    const stored = window.localStorage.getItem(PROFILE_STORAGE_KEY);
-    if (stored) {
-      try {
-        const parsed = JSON.parse(stored) as {
-          profile: typeof profile;
-          photo: string;
-          twoFactorEnabled: boolean;
-        };
-        const noChange =
-          JSON.stringify(parsed.profile) === JSON.stringify(profile) &&
-          parsed.photo === photo &&
-          parsed.twoFactorEnabled === twoFactorEnabled;
-        if (noChange) {
-          toast("변경 사항이 없습니다.", {
-            description: "수정 후 저장을 시도해주세요.",
-          });
-          return;
-        }
-      } catch (error) {
-        console.error("저장 데이터 비교 중 오류", error);
-      }
+    // 현재 폼 값과 저장된 값을 비교해 불필요한 저장을 막는다.
+    const noChange =
+      storedSettings !== null &&
+      JSON.stringify(storedSettings.profile) === JSON.stringify(profile) &&
+      storedSettings.photo === photo &&
+      storedSettings.twoFactorEnabled === twoFactorEnabled;
+    if (noChange) {
+      toast("변경 사항이 없습니다.", {
+        description: "수정 후 저장을 시도해주세요.",
+      });
+      return;
     }
     const payload = {
       profile,
@@ -143,18 +137,12 @@ export function SettingsPage() {
       twoFactorEnabled,
       updatedAt: new Date().toISOString(),
     };
-    try {
-      window.localStorage.setItem(PROFILE_STORAGE_KEY, JSON.stringify(payload));
-      window.dispatchEvent(new CustomEvent<UserRole>(PROFILE_UPDATE_EVENT, { detail: profile.role }));
-      toast.success("변경 사항이 저장되었습니다.", {
-        description: "설정한 정보가 기기에 안전하게 보관됩니다.",
-      });
-    } catch (error) {
-      console.error(error);
-      toast.error("저장 중 오류가 발생했습니다.", {
-        description: "잠시 후 다시 시도해주세요.",
-      });
-    }
+    // 훅 setter를 통해 저장하면 storage 이벤트까지 자동으로 전파된다.
+    setStoredSettings(payload);
+    window.dispatchEvent(new CustomEvent<UserRole>(PROFILE_UPDATE_EVENT, { detail: profile.role }));
+    toast.success("변경 사항이 저장되었습니다.", {
+      description: "설정한 정보가 기기에 안전하게 보관됩니다.",
+    });
   };
 
   return (

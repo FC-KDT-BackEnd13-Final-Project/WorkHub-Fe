@@ -14,6 +14,9 @@ import {
 } from "../../components/ui/table2";
 import { RichTextDemo } from "../../components/RichTextDemo";
 import { supportTickets } from "../../data/supportTickets";
+import { calculateTotalPages, paginate, clampPage } from "../../utils/pagination";
+import { PageHeader } from "../../components/common/PageHeader";
+import { FilterToolbar } from "../../components/common/FilterToolbar";
 import { PaginationControls } from "../../components/common/PaginationControls";
 
 // 프로젝트별 CS 문의 목록과 작성 폼을 렌더링하는 페이지
@@ -39,27 +42,24 @@ export function SupportPage() {
     );
   }, [searchTerm, typeFilter]);
 
-  const totalPages = Math.max(1, Math.ceil(filteredTickets.length / ITEMS_PER_PAGE));
+  const totalPages = calculateTotalPages(filteredTickets.length, ITEMS_PER_PAGE);
   useEffect(() => {
-    setCurrentPage((prev) => Math.min(prev, totalPages));
+    setCurrentPage((prev) => clampPage(prev, totalPages));
   }, [totalPages]);
-  const paginatedTickets = useMemo(() => {
-    const start = (currentPage - 1) * ITEMS_PER_PAGE;
-    return filteredTickets.slice(start, start + ITEMS_PER_PAGE);
-  }, [filteredTickets, currentPage]);
+  const paginatedTickets = useMemo(
+    () => paginate(filteredTickets, currentPage, ITEMS_PER_PAGE),
+    [filteredTickets, currentPage],
+  );
 
   const goToPage = (page: number) => {
-    setCurrentPage(Math.min(Math.max(page, 1), totalPages));
+    setCurrentPage(clampPage(page, totalPages));
   };
 
   return (
     <div className="space-y-6">
-      <div className="rounded-2xl bg-white p-6 shadow-sm">
-        <h1 className="text-3xl font-semibold tracking-tight">CS 문의</h1>
-        <p className="mt-2 text-muted-foreground">프로젝트 관련 문의를 확인하세요.</p>
-      </div>
+      <PageHeader title="CS 문의" description="프로젝트 관련 문의를 확인하세요." />
       {!isWriting && (
-        <div className="flex flex-col gap-4 rounded-2xl bg-white p-4 shadow-sm md:flex-row md:items-center">
+        <FilterToolbar align="between">
           <Input2
             value={searchInput}
             onChange={(event) => {
@@ -91,7 +91,7 @@ export function SupportPage() {
           <Button2 className="h-9 px-4 text-sm md:w-auto" onClick={() => setIsWriting(true)}>
             문의 작성
           </Button2>
-        </div>
+        </FilterToolbar>
       )}
       {isWriting ? (
         <div className="w-full max-w-[1800px] mx-auto p-6 space-y-6">
