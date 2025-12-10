@@ -25,21 +25,19 @@ import { SupportPage } from "./pages/support/SupportPage";
 import { SupportTicketDetail } from "./pages/support/SupportTicketDetail";
 import { SettingsPage } from "./pages/settings/SettingsPage";
 import { UserHistoryPage } from "./pages/history/UserHistoryPage";
+import { useLocalStorageValue } from "./hooks/useLocalStorageValue";
 
 // 애플리케이션 전역 라우팅과 레이아웃을 담당하는 최상위 컴포넌트
 export default function App() {
   const navigate = useNavigate();
-  const [isAuthenticated, setIsAuthenticated] = useState(() => {
-    if (typeof window === "undefined") return false;
-    return window.localStorage.getItem("workhub:auth") === "true";
+  const [isAuthenticated, setIsAuthenticated] = useLocalStorageValue<boolean>("workhub:auth", {
+    defaultValue: false,
+    parser: (value) => value === "true",
+    serializer: (value) => (value ? "true" : "false"),
   });
   const [isSidebarMobileOpen, setIsSidebarMobileOpen] = useState(false);
 
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    window.localStorage.setItem("workhub:auth", isAuthenticated ? "true" : "false");
-  }, [isAuthenticated]);
-
+  // Landing/Login에서 인증 성공 시 호출되어 인증 상태와 라우팅을 동시에 처리한다.
   const handleLoginSuccess = () => {
     setIsAuthenticated(true);
     navigate("/dashboard", { replace: true });

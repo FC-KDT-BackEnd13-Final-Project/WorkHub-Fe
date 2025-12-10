@@ -5,6 +5,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
 import { companyUsers, activityHistory } from "./userData";
+import { calculateTotalPages, paginate } from "../../utils/pagination";
 import { activityTypePalette } from "./activityPalette";
 import logoImage from "../../../image/logo.png";
 import { PaginationControls } from "../common/PaginationControls";
@@ -37,8 +38,8 @@ export function AdminUserHistory() {
   );
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 10;
-  const totalPages = Math.max(1, Math.ceil(userActivities.length / pageSize));
-  const paginatedActivities = userActivities.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+  const totalPages = calculateTotalPages(userActivities.length, pageSize);
+  const paginatedActivities = paginate(userActivities, currentPage, pageSize);
 
   useEffect(() => {
     setCurrentPage(1);

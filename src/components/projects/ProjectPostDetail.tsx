@@ -14,6 +14,7 @@ import {
     type PostReplyItem,
 } from "../../utils/postRepliesStorage";
 import { mockProjectPosts } from "../../data/mockProjectPosts";
+import { calculateTotalPages, clampPage, paginate } from "../../utils/pagination";
 
 const COMMENTS_PER_PAGE = 5;
 
@@ -194,14 +195,11 @@ export function ProjectPostDetail({
     const [newComment, setNewComment] = useState("");
 
     const topLevelComments = comments.filter((c) => (c.parentId ?? null) === null);
-    const totalCommentPages = Math.max(1, Math.ceil(topLevelComments.length / COMMENTS_PER_PAGE));
-    const paginatedTopLevel = topLevelComments.slice(
-        (commentPage - 1) * COMMENTS_PER_PAGE,
-        commentPage * COMMENTS_PER_PAGE,
-    );
+    const totalCommentPages = calculateTotalPages(topLevelComments.length, COMMENTS_PER_PAGE);
+    const paginatedTopLevel = paginate(topLevelComments, commentPage, COMMENTS_PER_PAGE);
 
     useEffect(() => {
-        setCommentPage((prev) => Math.min(prev, totalCommentPages));
+        setCommentPage((prev) => clampPage(prev, totalCommentPages));
     }, [totalCommentPages]);
 
     const listPath =
@@ -580,7 +578,7 @@ export function ProjectPostDetail({
         if (!newComment.trim()) return;
 
         const nextTopLevelCount = topLevelComments.length + 1;
-        const nextPage = Math.max(1, Math.ceil(nextTopLevelCount / COMMENTS_PER_PAGE));
+        const nextPage = calculateTotalPages(nextTopLevelCount, COMMENTS_PER_PAGE);
 
         setComments((prev) => [
             ...prev,

@@ -22,6 +22,7 @@ import {
 import { CornerDownRight, Search } from "lucide-react";
 import { loadRepliesMap, type ReplyMap, type PostReplyItem } from "../../utils/postRepliesStorage";
 import { mockProjectPosts, type ProjectPostSummary } from "../../data/mockProjectPosts";
+import { calculateTotalPages, clampPage, paginate } from "../../utils/pagination";
 import { PaginationControls } from "../common/PaginationControls";
 
 const replyTypeStyle: StatusStyle = {
@@ -142,17 +143,12 @@ export function ProjectPost2() {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
-  const totalPages = Math.max(
-      1,
-      Math.ceil(filteredCustomers.length / itemsPerPage)
-  );
+  const totalPages = calculateTotalPages(filteredCustomers.length, itemsPerPage);
+  const paginatedRows = paginate(filteredCustomers, currentPage, itemsPerPage);
 
-  const indexOfLastItem = currentPage * itemsPerPage;
-  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  const paginatedRows = filteredCustomers.slice(
-      indexOfFirstItem,
-      indexOfLastItem
-  );
+  useEffect(() => {
+    setCurrentPage((prev) => clampPage(prev, totalPages));
+  }, [totalPages]);
 
   useEffect(() => {
     const refreshReplies = () => {

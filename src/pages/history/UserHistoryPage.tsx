@@ -14,6 +14,9 @@ import logoImage from "../../../image/logo.png";
 import { historyEvents, historyPalette, HistoryEvent } from "../../data/historyData";
 import { Users, FileText, LayoutDashboard, CheckSquare } from "lucide-react";
 import { PaginationControls } from "../../components/common/PaginationControls";
+import { PageHeader } from "../../components/common/PageHeader";
+import { FilterToolbar } from "../../components/common/FilterToolbar";
+import { calculateTotalPages, paginate } from "../../utils/pagination";
 
 type CategoryFilter = "user" | "post" | "project" | "checklist" | "all";
 type PostFilter = "all" | "post" | "postComment" | "csPost" | "csQna";
@@ -87,8 +90,8 @@ export function UserHistoryPage() {
     return events;
   }, [activeTab, categoryFilter, searchTerm, postFilter, projectFilter, checklistFilter, sortOrder]);
 
-  const totalPages = Math.max(1, Math.ceil(filteredEvents.length / pageSize));
-  const paginatedEvents = filteredEvents.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+  const totalPages = calculateTotalPages(filteredEvents.length, pageSize);
+  const paginatedEvents = paginate(filteredEvents, currentPage, pageSize);
 
   useEffect(() => {
     setCurrentPage(1);
@@ -203,41 +206,40 @@ export function UserHistoryPage() {
 
   return (
     <div className="space-y-6 pb-12">
-      <div className="rounded-2xl bg-white p-6 shadow-sm">
-        <h1 className="text-3xl font-semibold tracking-tight">히스토리</h1>
-        <p className="mt-2 text-muted-foreground">
-          사용자 활동 로그를 한눈에 확인하세요.
-        </p>
-      </div>
+      <PageHeader title="히스토리" description="사용자 활동 로그를 한눈에 확인하세요." />
 
-      <div className="rounded-2xl bg-white p-6 shadow-sm space-y-6">
-        <div className="flex flex-wrap items-center gap-2">
-          {[
-            { id: "user", label: "사용자(전체)", icon: Users, category: "all" },
-            { id: "post", label: "게시글", icon: FileText, category: "post" },
-            { id: "project", label: "프로젝트", icon: LayoutDashboard, category: "project" },
-            { id: "checklist", label: "체크리스트", icon: CheckSquare, category: "checklist" },
-          ].map((tab) => {
-            const Icon = tab.icon;
-            const isActive = activeTab === tab.id;
-            return (
-              <Button
-                key={tab.id}
-                variant={isActive ? "default" : "outline"}
-                className="flex items-center gap-2"
-                onClick={() => {
-                  setActiveTab(tab.id as typeof activeTab);
-                  setCategoryFilter(tab.category as CategoryFilter);
-                }}
-              >
-                <Icon className="h-4 w-4" />
-                {tab.label}
-              </Button>
-            );
-          })}
-        </div>
-        <div className="space-y-4">{renderFiltersByTab()}</div>
-      </div>
+      <FilterToolbar
+        align="start"
+        leading={
+          <div className="flex flex-wrap items-center gap-2">
+            {[
+              { id: "user", label: "사용자(전체)", icon: Users, category: "all" },
+              { id: "post", label: "게시글", icon: FileText, category: "post" },
+              { id: "project", label: "프로젝트", icon: LayoutDashboard, category: "project" },
+              { id: "checklist", label: "체크리스트", icon: CheckSquare, category: "checklist" },
+            ].map((tab) => {
+              const Icon = tab.icon;
+              const isActive = activeTab === tab.id;
+              return (
+                <Button
+                  key={tab.id}
+                  variant={isActive ? "default" : "outline"}
+                  className="flex items-center gap-2"
+                  onClick={() => {
+                    setActiveTab(tab.id as typeof activeTab);
+                    setCategoryFilter(tab.category as CategoryFilter);
+                  }}
+                >
+                  <Icon className="h-4 w-4" />
+                  {tab.label}
+                </Button>
+              );
+            })}
+          </div>
+        }
+      >
+        <div className="space-y-4 w-full">{renderFiltersByTab()}</div>
+      </FilterToolbar>
 
       <Card className="rounded-2xl border border-white/70 bg-white/90 shadow-sm backdrop-blur">
         <CardContent className="px-6 pt-6 pb-6">

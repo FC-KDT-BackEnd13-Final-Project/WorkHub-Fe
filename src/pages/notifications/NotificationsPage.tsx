@@ -13,76 +13,46 @@ import {
   SelectValue,
 } from "../../components/ui/select";
 import { initialNotifications } from "../../data/notifications";
+import { useLocalStorageValue } from "../../hooks/useLocalStorageValue";
+import { PageHeader } from "../../components/common/PageHeader";
+import { FilterToolbar } from "../../components/common/FilterToolbar";
+import { filterNotifications, type NotificationEventFilter } from "../../utils/notificationFilters";
 
 // 알림 목록/필터/읽음 처리를 제공하는 알림 페이지
 export function NotificationsPage() {
   const [notifications, setNotifications] = useState(initialNotifications);
   const [activeTab, setActiveTab] = useState<NotificationTab>("All");
   const [searchTerm, setSearchTerm] = useState("");
-  const [eventFilter, setEventFilter] = useState<
-    | "all"
-    | "REVIEW_REQUEST"
-    | "REVIEW_COMPLETED"
-    | "REVIEW_REJECTED"
-    | "STATUS_CHANGED"
-    | "POST_CREATED"
-    | "POST_COMMENT_CREATED"
-    | "CS_QNA_CREATED"
-    | "CS_QNA_ANSWERED"
-  >("all");
+  const [eventFilter, setEventFilter] = useState<NotificationEventFilter>("all");
   const [readFilter, setReadFilter] = useState<"all" | "unread">("all"); // idx_notification_user_unread 스타일 필터
 
+  // Sidebar와 동일한 키를 사용해 읽지 않은 알림 개수를 공유한다.
+  const [, setStoredUnreadCount] = useLocalStorageValue<number>("workhubUnreadNotificationCount", {
+    defaultValue: initialNotifications.filter((notification) => !notification.read).length,
+    parser: (value) => {
+      const parsed = Number(value);
+      return Number.isFinite(parsed) ? parsed : 0;
+    },
+    serializer: (value) => String(value),
+    listen: false,
+  });
+
   useEffect(() => {
-    if (typeof window === "undefined") return;
     const unreadCount = notifications.filter((notification) => !notification.read).length;
-    window.localStorage.setItem("workhubUnreadNotificationCount", unreadCount.toString());
-    window.dispatchEvent(new CustomEvent("workhub:notifications", { detail: unreadCount }));
-  }, [notifications]);
+    setStoredUnreadCount(unreadCount);
+  }, [notifications, setStoredUnreadCount]);
 
-  const filteredNotifications = useMemo(() => {
-    let result = notifications;
-
-    switch (activeTab) {
-      case "Unread":
-        result = result.filter((notification) => !notification.read);
-        break;
-      case "Tasks":
-        result = result.filter((notification) => notification.type === "task");
-        break;
-      case "Projects":
-        result = result.filter((notification) => notification.type === "project");
-        break;
-      case "Team":
-        result = result.filter((notification) => notification.type === "team");
-        break;
-      default:
-        break;
-    }
-
-    if (eventFilter !== "all") {
-      result = result.filter((notification) => notification.eventType === eventFilter);
-    }
-
-    if (readFilter === "unread") {
-      result = result.filter((notification) => !notification.read);
-    }
-
-    if (searchTerm.trim()) {
-      const term = searchTerm.toLowerCase();
-      result = result.filter(
-        (notification) =>
-          notification.title.toLowerCase().includes(term) ||
-          notification.description.toLowerCase().includes(term) ||
-          notification.actorName?.toLowerCase().includes(term) ||
-          notification.userId.toLowerCase().includes(term) ||
-          notification.id.toLowerCase().includes(term),
-      );
-    }
-
-    return [...result].sort(
-      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
-    );
-  }, [activeTab, notifications, readFilter, searchTerm, eventFilter]);
+  // 탭/필터 조건을 묶어서 별도 util로 위임하면 테스트하기 쉬워진다.
+  const filteredNotifications = useMemo(
+    () =>
+      filterNotifications(notifications, {
+        tab: activeTab,
+        eventFilter,
+        readFilter,
+        searchTerm,
+      }),
+    [activeTab, eventFilter, notifications, readFilter, searchTerm],
+  );
 
   const markAllRead = () => {
     setNotifications((prev) => prev.map((notification) => ({ ...notification, read: true })));
@@ -102,14 +72,12 @@ export function NotificationsPage() {
 
   return (
     <div className="space-y-6 pb-12 min-h-0">
-      <div className="rounded-2xl bg-white p-6 shadow-sm">
-        <h1 className="text-3xl font-semibold tracking-tight">Notifications</h1>
-        <p className="mt-2 text-muted-foreground">
-          업데이트, 멘션, 알림을 확인하고 필요한 조치를 진행하세요.
-        </p>
-      </div>
+      <PageHeader
+        title="Notifications"
+        description="업데이트, 멘션, 알림을 확인하고 필요한 조치를 진행하세요."
+      />
 
-      <div className="flex flex-col gap-4 rounded-2xl bg-white p-4 shadow-sm md:flex-row md:items-center">
+      <FilterToolbar align="between">
         <Input
           placeholder="보고 싶은 알림을 키워드로 찾아보세요"
           value={searchTerm}
@@ -145,7 +113,7 @@ export function NotificationsPage() {
           <CheckSquare className="h-4 w-4" />
           전체 읽음 처리
         </Button>
-      </div>
+      </FilterToolbar>
 
       <NotificationList
         notifications={filteredNotifications}

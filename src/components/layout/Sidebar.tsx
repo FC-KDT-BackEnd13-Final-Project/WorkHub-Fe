@@ -8,10 +8,10 @@ import { initialNotifications } from "../../data/notifications";
 import { companyUsers } from "../admin/userData";
 import {
   PROFILE_STORAGE_KEY,
-  PROFILE_UPDATE_EVENT,
   type UserRole,
   normalizeUserRole,
 } from "../../constants/profile";
+import { useLocalStorageValue } from "../../hooks/useLocalStorageValue";
 
 // 로그인 이후 레이아웃에서 좌측 프로젝트 내비게이션과 상태를 담당
 type NavigationItem = {
@@ -31,11 +31,47 @@ export function Sidebar({ isMobileOpen: controlledMobileOpen, onMobileOpenChange
   const location = useLocation();
   const [uncontrolledMobileOpen, setUncontrolledMobileOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
-  const [profileImageUrl, setProfileImageUrl] = useState<string | null>(null);
-  const [userRole, setUserRole] = useState<UserRole>("DEVELOPER");
-  const [notificationCount, setNotificationCount] = useState(
-    initialNotifications.filter((notification) => !notification.read).length,
+  // Settings 페이지 등에서 저장하는 프로필 정보를 공유 스토리지로부터 읽어온다.
+  const [storedProfile] = useLocalStorageValue<{ profile?: { role?: string } } | null>(
+    PROFILE_STORAGE_KEY,
+    {
+      defaultValue: null,
+      parser: (value) => JSON.parse(value),
+      listen: true,
+    },
   );
+
+  // 백오피스 로그인 API가 user 키에만 역할을 저장하는 경우도 있어서 같이 구독한다.
+  const [storedUser] = useLocalStorageValue<{ role?: string } | null>("user", {
+    defaultValue: null,
+    parser: (value) => JSON.parse(value),
+    listen: true,
+  });
+  const [profileImageUrl] = useLocalStorageValue<string | null>("userProfileImage", {
+    defaultValue: null,
+    parser: (value) => value,
+    serializer: (value) => value ?? "",
+    listen: true,
+  });
+  // 알림 페이지에서 읽음 처리할 때마다 저장하는 미확인 알림 개수를 동기화한다.
+  const [notificationCount, setNotificationCount] = useLocalStorageValue<number>(
+    "workhubUnreadNotificationCount",
+    {
+      defaultValue: initialNotifications.filter((notification) => !notification.read).length,
+      parser: (value) => {
+        const parsed = Number(value);
+        return Number.isFinite(parsed) ? parsed : 0;
+      },
+      serializer: (value) => String(value),
+    },
+  );
+  // 로그아웃 시 전역 인증 상태를 false로 만들어 라우팅을 막는다.
+  const [, setAuthState] = useLocalStorageValue<boolean>("workhub:auth", {
+    defaultValue: false,
+    parser: (value) => value === "true",
+    serializer: (value) => (value ? "true" : "false"),
+    listen: false,
+  });
   const isMobileOpen = controlledMobileOpen ?? uncontrolledMobileOpen;
   const setIsMobileOpen = useCallback(
     (open: boolean) => {
@@ -54,88 +90,19 @@ export function Sidebar({ isMobileOpen: controlledMobileOpen, onMobileOpenChange
       .filter((project) => project.status === "In Progress").length;
   }, []);
 
-  const getStoredUserRole = useCallback((): UserRole => {
-    if (typeof window === "undefined") {
-      return "DEVELOPER";
+  // profile/user 어디에 role이 저장됐든 우선순위를 정해 단일 역할로 매핑한다.
+  const userRole = useMemo<UserRole>(() => {
+    const profileRole = normalizeUserRole(storedProfile?.profile?.role);
+    if (profileRole) {
+      return profileRole;
     }
-    const storedProfile = window.localStorage.getItem(PROFILE_STORAGE_KEY);
-    if (storedProfile) {
-      try {
-        const parsed = JSON.parse(storedProfile) as { profile?: { role?: string } };
-        const normalized = normalizeUserRole(parsed.profile?.role);
-        if (normalized) {
-          return normalized;
-        }
-      } catch (error) {
-        console.error("프로필 정보를 불러오지 못했습니다.", error);
-      }
-    }
-    const storedUser = window.localStorage.getItem("user");
-    if (storedUser) {
-      try {
-        const parsedUser = JSON.parse(storedUser) as { role?: string };
-        const normalized = normalizeUserRole(parsedUser.role);
-        if (normalized) {
-          return normalized;
-        }
-      } catch (error) {
-        console.error("사용자 정보를 불러오지 못했습니다.", error);
-      }
-    }
-    return "DEVELOPER";
-  }, []);
+    const storedUserRole = normalizeUserRole(storedUser?.role);
+    return storedUserRole ?? "DEVELOPER";
+  }, [storedProfile, storedUser]);
 
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const stored = window.localStorage.getItem("userProfileImage");
-    if (stored) {
-      setProfileImageUrl(stored);
-    }
-    setUserRole(getStoredUserRole());
-
-    const storedCount = window.localStorage.getItem("workhubUnreadNotificationCount");
-    if (storedCount !== null) {
-      setNotificationCount(Number(storedCount));
-    }
-
-    const handleNotificationUpdate = (event: Event) => {
-      const customEvent = event as CustomEvent<number>;
-      if (typeof customEvent.detail === "number") {
-        setNotificationCount(customEvent.detail);
-      }
-    };
-
-    const handleProfileUpdate = (event: Event) => {
-      const customEvent = event as CustomEvent<string | UserRole | undefined>;
-      const normalized = normalizeUserRole(customEvent.detail);
-      setUserRole(normalized ?? getStoredUserRole());
-    };
-
-    const handleStorage = (event: StorageEvent) => {
-      if (event.key === "workhubUnreadNotificationCount" && event.newValue !== null) {
-        setNotificationCount(Number(event.newValue));
-        return;
-      }
-      if (event.key === PROFILE_STORAGE_KEY) {
-        setUserRole(getStoredUserRole());
-      }
-    };
-
-    window.addEventListener("workhub:notifications", handleNotificationUpdate as EventListener);
-    window.addEventListener(PROFILE_UPDATE_EVENT, handleProfileUpdate as EventListener);
-    window.addEventListener("storage", handleStorage);
-
-    return () => {
-      window.removeEventListener("workhub:notifications", handleNotificationUpdate as EventListener);
-      window.removeEventListener(PROFILE_UPDATE_EVENT, handleProfileUpdate as EventListener);
-      window.removeEventListener("storage", handleStorage);
-    };
-  }, [getStoredUserRole]);
 
   const handleLogout = () => {
-    if (typeof window !== "undefined") {
-      window.localStorage.setItem("workhub:auth", "false");
-    }
+    setAuthState(false);
     setIsMobileOpen(false);
     window.location.href = "/";
   };
