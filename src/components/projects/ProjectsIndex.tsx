@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { MouseEvent, PointerEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Card,
@@ -22,6 +22,13 @@ import { Label } from "../ui/label";
 import { AutoResizeTextarea } from "../ui/auto-resize-textarea";
 import { format } from "date-fns";
 import { companyUsers } from "../admin/userData";
+import { MoreHorizontal } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "../ui/dropdown-menu";
 
 // 상태 옵션
 const statusOptions = [
@@ -159,6 +166,18 @@ const initialProjects: Project[] = [
   },
 ];
 
+const createProjectFormState = () => ({
+  name: "",
+  description: "",
+  brand: "",
+  managers: [] as string[],
+  developers: [] as string[],
+  startDate: "",
+  endDate: "",
+});
+
+type ProjectFormState = ReturnType<typeof createProjectFormState>;
+
 // 날짜 유틸 함수들
 const getNextDayISO = (dateString: string) => {
   const date = new Date(dateString);
@@ -185,15 +204,11 @@ export function ProjectsIndex() {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("ALL");
   const [projects, setProjects] = useState<Project[]>(initialProjects);
   const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
-  const [newProject, setNewProject] = useState({
-    name: "",
-    description: "",
-    brand: "",
-    managers: [] as string[],
-    developers: [] as string[],
-    startDate: "",
-    endDate: "",
-  });
+  const [newProject, setNewProject] = useState<ProjectFormState>(
+      createProjectFormState,
+  );
+  const [editingProject, setEditingProject] = useState<Project | null>(null);
+  const [isProjectEditMode, setIsProjectEditMode] = useState(false);
 
   // 정렬: 기본값 = 최신순 (startDate 기준)
   const [sortOption, setSortOption] = useState<SortOption>("최신순");
@@ -207,6 +222,7 @@ export function ProjectsIndex() {
   const [isCompanyLookupOpen, setIsCompanyLookupOpen] = useState(false);
   const [companySearchTerm, setCompanySearchTerm] = useState("");
   const navigate = useNavigate();
+  const isEditingProjectForm = Boolean(editingProject);
 
   const addManager = () => {
     if (
@@ -323,46 +339,121 @@ export function ProjectsIndex() {
     );
   }, [companyDirectory, companySearchTerm]);
 
-  const handleCreateProject = () => {
+  const closeProjectModal = useCallback(() => {
+    setIsProjectModalOpen(false);
+    setEditingProject((prev) => {
+      if (prev) {
+        setNewProject(createProjectFormState());
+        setCurrentManagerInput("");
+        setCurrentDeveloperInput("");
+      }
+      return null;
+    });
+  }, []);
+
+  const handleOpenCreateModal = () => {
+    setEditingProject(null);
+    setIsProjectModalOpen(true);
+  };
+
+  const handleSaveProject = () => {
     if (!newProject.name || !newProject.brand || newProject.managers.length === 0)
       return;
     if (!newProject.startDate || !newProject.endDate) return;
     if (new Date(newProject.endDate) <= new Date(newProject.startDate)) return;
 
-    const project: Project = {
-      id: crypto.randomUUID(),
-      name: newProject.name,
-      description: newProject.description,
-      brand: newProject.brand,
-      manager: newProject.managers.join(", "),
-      developer: newProject.developers.join(", "),
-      startDate: newProject.startDate,
-      endDate: newProject.endDate,
-      progress: 0,
-      status: "IN_PROGRESS",
-      teamSize: newProject.managers.length + newProject.developers.length,
-      tasks: 0,
-    };
+    const managerText = newProject.managers.join(", ");
+    const developerText = newProject.developers.join(", ");
+    const teamSize = newProject.managers.length + newProject.developers.length;
 
-    setProjects((prev) => [...prev, project]);
+    if (editingProject) {
+      setProjects((prev) =>
+        prev.map((project) =>
+          project.id === editingProject.id
+            ? {
+                ...project,
+                name: newProject.name,
+                description: newProject.description,
+                brand: newProject.brand,
+                manager: managerText,
+                developer: developerText,
+                managers: [...newProject.managers],
+                developers: [...newProject.developers],
+                startDate: newProject.startDate,
+                endDate: newProject.endDate,
+                teamSize,
+              }
+            : project,
+        ),
+      );
+    } else {
+      const project: Project = {
+        id: crypto.randomUUID(),
+        name: newProject.name,
+        description: newProject.description,
+        brand: newProject.brand,
+        manager: managerText,
+        developer: developerText,
+        managers: [...newProject.managers],
+        developers: [...newProject.developers],
+        startDate: newProject.startDate,
+        endDate: newProject.endDate,
+        progress: 0,
+        status: "IN_PROGRESS",
+        teamSize,
+        tasks: 0,
+      };
+
+      setProjects((prev) => [...prev, project]);
+    }
+    setNewProject(createProjectFormState());
+    setCurrentManagerInput("");
+    setCurrentDeveloperInput("");
+    setEditingProject(null);
+    setIsProjectModalOpen(false);
+  };
+
+  const handleEditProject = (project: Project) => {
+    const managerList = project.manager
+        ? project.manager.split(",").map((name) => name.trim()).filter(Boolean)
+        : project.managers ?? [];
+    const developerList = project.developer
+        ? project.developer.split(",").map((name) => name.trim()).filter(Boolean)
+        : project.developers ?? [];
+
     setNewProject({
-      name: "",
-      description: "",
-      brand: "",
-      managers: [],
-      developers: [],
-      startDate: "",
-      endDate: "",
+      name: project.name,
+      description: project.description,
+      brand: project.brand,
+      managers: managerList,
+      developers: developerList,
+      startDate: project.startDate,
+      endDate: project.endDate,
     });
     setCurrentManagerInput("");
     setCurrentDeveloperInput("");
-    setIsProjectModalOpen(false);
+    setEditingProject(project);
+    setIsProjectModalOpen(true);
+  };
+
+  const handleDeleteProject = (project: Project) => {
+    const message = `"${project.name}" 프로젝트를 삭제할까요? 이 작업은 되돌릴 수 없습니다.`;
+    if (window.confirm(message)) {
+      setProjects((prev) => prev.filter((item) => item.id !== project.id));
+      if (editingProject && editingProject.id === project.id) {
+        setNewProject(createProjectFormState());
+        setCurrentManagerInput("");
+        setCurrentDeveloperInput("");
+        setEditingProject(null);
+        setIsProjectModalOpen(false);
+      }
+    }
   };
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
-        setIsProjectModalOpen(false);
+        closeProjectModal();
       }
     };
 
@@ -373,7 +464,7 @@ export function ProjectsIndex() {
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [isProjectModalOpen]);
+  }, [closeProjectModal, isProjectModalOpen]);
 
   useEffect(() => {
     if (!isProjectModalOpen) {
@@ -416,9 +507,13 @@ export function ProjectsIndex() {
                 >
                   <Card className="login-theme border border-border shadow-lg">
                     <CardHeader className="space-y-2 pb-6">
-                      <h2 className="text-xl text-center">새 프로젝트 만들기</h2>
+                      <h2 className="text-xl text-center">
+                        {isEditingProjectForm ? "프로젝트 수정" : "새 프로젝트 만들기"}
+                      </h2>
                       <p className="text-sm text-muted-foreground text-center">
-                        워크스페이스에 프로젝트를 추가하려면 아래 정보를 입력하세요.
+                        {isEditingProjectForm
+                            ? "선택한 프로젝트 정보를 업데이트하세요."
+                            : "워크스페이스에 프로젝트를 추가하려면 아래 정보를 입력하세요."}
                       </p>
                     </CardHeader>
                     <CardContent>
@@ -692,12 +787,12 @@ export function ProjectsIndex() {
                         <Button
                             variant="secondary"
                             className="w-1/2"
-                            onClick={() => setIsProjectModalOpen(false)}
+                            onClick={closeProjectModal}
                         >
                           취소
                         </Button>
-                        <Button className="w-1/2" onClick={handleCreateProject}>
-                          프로젝트 생성
+                        <Button className="w-1/2" onClick={handleSaveProject}>
+                          {isEditingProjectForm ? "프로젝트 수정" : "프로젝트 생성"}
                         </Button>
                       </div>
                     </CardContent>
@@ -800,13 +895,22 @@ export function ProjectsIndex() {
             </SelectContent>
           </Select>
 
-          {/* 새 프로젝트 버튼 */}
-          <Button
-              className="h-9 px-4 text-sm md:w-auto"
-              onClick={() => setIsProjectModalOpen(true)}
-          >
-            + 새 프로젝트
-          </Button>
+          {/* 새 프로젝트 + 편집 모드 버튼 */}
+          <div className="flex items-center gap-2">
+            <Button
+                className="h-9 px-4 text-sm md:w-auto"
+                onClick={handleOpenCreateModal}
+            >
+              + 새 프로젝트
+            </Button>
+            <Button
+                variant={isProjectEditMode ? "default" : "outline"}
+                className="h-9 px-4 text-sm"
+                onClick={() => setIsProjectEditMode((prev) => !prev)}
+            >
+              {isProjectEditMode ? "편집 완료" : "편집"}
+            </Button>
+          </div>
         </div>
 
         {/* 프로젝트 카드 리스트 */}
@@ -828,7 +932,7 @@ export function ProjectsIndex() {
                     }
                 >
                   <CardHeader className="space-y-2">
-                    <div className="flex items-center justify-between">
+                    <div className="flex items-start justify-between">
                       <div>
                         <p className="text-xs text-muted-foreground">{project.brand}</p>
                         <CardTitle className="text-xl">{project.name}</CardTitle>
@@ -836,16 +940,30 @@ export function ProjectsIndex() {
                           개발자 · {getDeveloperDisplay(project)}
                         </p>
                       </div>
-                      <Badge
-                          variant="outline"
-                          style={{
-                            backgroundColor: badgeColors.background,
-                            color: badgeColors.text,
-                            borderColor: badgeColors.border,
-                          }}
+                      <div
+                          className="flex items-center gap-2"
+                          data-project-card-action="true"
+                          onClick={(event) => event.stopPropagation()}
+                          onPointerDown={(event) => event.stopPropagation()}
                       >
-                        {project.status}
-                      </Badge>
+                        <Badge
+                            variant="outline"
+                            style={{
+                              backgroundColor: badgeColors.background,
+                              color: badgeColors.text,
+                              borderColor: badgeColors.border,
+                            }}
+                        >
+                          {project.status}
+                        </Badge>
+                        {isProjectEditMode && (
+                            <ProjectActionMenu
+                                project={project}
+                                onEdit={handleEditProject}
+                                onDelete={handleDeleteProject}
+                            />
+                        )}
+                      </div>
                     </div>
                     <CardDescription>{project.description}</CardDescription>
                   </CardHeader>
@@ -891,5 +1009,65 @@ export function ProjectsIndex() {
           })}
         </div>
       </div>
+  );
+}
+
+interface ProjectActionMenuProps {
+  project: Project;
+  onEdit: (project: Project) => void;
+  onDelete: (project: Project) => void;
+}
+
+function ProjectActionMenu({ project, onEdit, onDelete }: ProjectActionMenuProps) {
+  const stopPointer = (event: PointerEvent<HTMLButtonElement>) => {
+    event.stopPropagation();
+  };
+
+  const handleTriggerClick = (event: MouseEvent<HTMLButtonElement>) => {
+    event.stopPropagation();
+  };
+
+  const handleEdit = (event: Event) => {
+    event.stopPropagation();
+    event.preventDefault();
+    onEdit(project);
+  };
+
+  const handleDelete = (event: Event) => {
+    event.stopPropagation();
+    event.preventDefault();
+    onDelete(project);
+  };
+
+  return (
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <button
+              type="button"
+              aria-label="프로젝트 액션"
+              className="rounded-full p-1 text-muted-foreground transition hover:bg-muted"
+              onClick={handleTriggerClick}
+              onPointerDown={stopPointer}
+          >
+            <MoreHorizontal className="h-4 w-4" />
+          </button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent
+            align="end"
+            alignOffset={-18}
+            sideOffset={6}
+            className="min-w-0 w-auto"
+            style={{ minWidth: "auto", width: "auto" }}
+        >
+          <DropdownMenuItem onSelect={handleEdit}>수정</DropdownMenuItem>
+          <DropdownMenuItem
+              onSelect={handleDelete}
+              variant="destructive"
+              className="text-destructive"
+          >
+            삭제
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
   );
 }
