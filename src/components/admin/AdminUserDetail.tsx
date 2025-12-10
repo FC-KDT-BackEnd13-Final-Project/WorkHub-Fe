@@ -550,6 +550,9 @@ export function AdminUserDetail() {
             <div className="overflow-x-hidden">
               {userActivityHistory.slice(0, 15).map((activity) => {
                 const palette = activityTypePalette[activity.type] ?? activityTypePalette.default;
+                const activityIcon = activityIconMap[activity.type] ?? (
+                  <AlertCircle className="h-4 w-4 text-slate-400" aria-hidden />
+                );
                 return (
                   <div key={activity.id} className="flex items-start justify-between gap-3 rounded-lg bg-white/90 p-3 shadow-sm">
                       <div className="flex items-center gap-3">
@@ -572,7 +575,10 @@ export function AdminUserDetail() {
                           )}
                         </div>
                         <div className="space-y-1">
-                          <p className="text-sm font-medium text-foreground">{activity.message}</p>
+                          <div className="flex items-center gap-2">
+                            {activityIcon}
+                            <p className="text-sm font-medium text-foreground">{activity.message}</p>
+                          </div>
                           <p className="text-xs text-muted-foreground">{activity.timestamp}</p>
                         </div>
                       </div>
