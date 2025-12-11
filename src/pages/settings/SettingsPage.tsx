@@ -65,15 +65,21 @@ export function SettingsPage() {
           };
 
   // 프로필 이미지 변경 상태
-  const [photo, setPhoto] = useState("https://i.pravatar.cc/80?img=18");
+  const [photo, setPhoto] = useState("/default-profile.png");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handlePhotoChange = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
-    const imageURL = URL.createObjectURL(file);
-    setPhoto(imageURL);
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const result = reader.result;
+      if (typeof result === "string") {
+        setPhoto(result);
+      }
+    };
+    reader.readAsDataURL(file);
   };
 
   const triggerFileSelect = () => {

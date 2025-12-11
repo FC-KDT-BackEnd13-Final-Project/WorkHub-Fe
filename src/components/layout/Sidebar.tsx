@@ -6,11 +6,7 @@ import { cn } from "../ui/utils";
 import { Button } from "../ui/button";
 import { initialNotifications } from "../../data/notifications";
 import { companyUsers } from "../admin/userData";
-import {
-  PROFILE_STORAGE_KEY,
-  type UserRole,
-  normalizeUserRole,
-} from "../../constants/profile";
+import { PROFILE_STORAGE_KEY, type UserRole, normalizeUserRole } from "../../constants/profile";
 import { useLocalStorageValue } from "../../hooks/useLocalStorageValue";
 
 // 로그인 이후 레이아웃에서 좌측 프로젝트 내비게이션과 상태를 담당
@@ -26,31 +22,31 @@ interface SidebarProps {
   onMobileOpenChange?: (open: boolean) => void;
 }
 
+type StoredSettings = {
+  profile?: {
+    id?: string;
+    email?: string;
+    role?: string;
+  };
+  photo?: string;
+};
+
 export function Sidebar({ isMobileOpen: controlledMobileOpen, onMobileOpenChange }: SidebarProps = {}) {
   const navigate = useNavigate();
   const location = useLocation();
   const [uncontrolledMobileOpen, setUncontrolledMobileOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
   // Settings 페이지 등에서 저장하는 프로필 정보를 공유 스토리지로부터 읽어온다.
-  const [storedProfile] = useLocalStorageValue<{ profile?: { role?: string } } | null>(
-    PROFILE_STORAGE_KEY,
-    {
-      defaultValue: null,
-      parser: (value) => JSON.parse(value),
-      listen: true,
-    },
-  );
+  const [storedSettings] = useLocalStorageValue<StoredSettings | null>(PROFILE_STORAGE_KEY, {
+    defaultValue: null,
+    parser: (value) => JSON.parse(value),
+    listen: true,
+  });
 
   // 백오피스 로그인 API가 user 키에만 역할을 저장하는 경우도 있어서 같이 구독한다.
   const [storedUser] = useLocalStorageValue<{ role?: string } | null>("user", {
     defaultValue: null,
     parser: (value) => JSON.parse(value),
-    listen: true,
-  });
-  const [profileImageUrl] = useLocalStorageValue<string | null>("userProfileImage", {
-    defaultValue: null,
-    parser: (value) => value,
-    serializer: (value) => value ?? "",
     listen: true,
   });
   // 알림 페이지에서 읽음 처리할 때마다 저장하는 미확인 알림 개수를 동기화한다.
@@ -92,13 +88,17 @@ export function Sidebar({ isMobileOpen: controlledMobileOpen, onMobileOpenChange
 
   // profile/user 어디에 role이 저장됐든 우선순위를 정해 단일 역할로 매핑한다.
   const userRole = useMemo<UserRole>(() => {
-    const profileRole = normalizeUserRole(storedProfile?.profile?.role);
+    const profileRole = normalizeUserRole(storedSettings?.profile?.role);
     if (profileRole) {
       return profileRole;
     }
     const storedUserRole = normalizeUserRole(storedUser?.role);
     return storedUserRole ?? "DEVELOPER";
-  }, [storedProfile, storedUser]);
+  }, [storedSettings, storedUser]);
+
+  const profileImageUrl = storedSettings?.photo || "/default-profile.png";
+  const profileId = storedSettings?.profile?.id ?? "김지은";
+  const profileEmail = storedSettings?.profile?.email ?? "Work Hub";
 
 
   const handleLogout = () => {
@@ -121,19 +121,19 @@ export function Sidebar({ isMobileOpen: controlledMobileOpen, onMobileOpenChange
   const SidebarContent = ({ isMobile }: { isMobile?: boolean }) => (
     <div className="flex h-full flex-col">
       <div className="p-4">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between gap-6">
           {!collapsed && (
             <div className="flex items-center gap-6">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-white">
                 {profileImageUrl ? (
                   <img src={profileImageUrl} alt="사용자 프로필" className="h-10 w-10 rounded-lg object-cover" />
                 ) : (
                   <UserRound className="h-10 w-10 text-muted-foreground" />
                 )}
-             </div>
+              </div>
               <div>
-                <p className="font-semibold">김지은</p>
-                <p className="text-xs text-muted-foreground">Work Hub</p>
+                <p className="font-semibold">{profileId}</p>
+                <p className="text-xs text-muted-foreground">{profileEmail}</p>
               </div>
             </div>
           )}
@@ -216,7 +216,7 @@ export function Sidebar({ isMobileOpen: controlledMobileOpen, onMobileOpenChange
       <aside
         className={cn(
           "hidden md:flex flex-col border-r bg-white shadow-sm transition-[width] duration-200",
-          collapsed ? "w-16" : "w-64",
+          collapsed ? "w-16" : "w-72",
         )}
       >
         <SidebarContent />
@@ -230,7 +230,7 @@ export function Sidebar({ isMobileOpen: controlledMobileOpen, onMobileOpenChange
         )}
         <div
           className={cn(
-            "fixed inset-y-0 left-0 z-50 w-64 transform border-r bg-white transition-transform duration-300",
+            "fixed inset-y-0 left-0 z-50 w-72 transform border-r bg-white transition-transform duration-300",
             isMobileOpen ? "translate-x-0" : "-translate-x-full",
           )}
         >
