@@ -1,5 +1,5 @@
 import { Fragment, useEffect, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { Card2, CardContent } from "../ui/card2";
 import {
   Table2,
@@ -20,10 +20,33 @@ import {
   SelectValue,
 } from "../ui/select";
 import { CornerDownRight, Search } from "lucide-react";
-import { loadRepliesMap, type ReplyMap, type PostReplyItem } from "../../utils/postRepliesStorage";
-import { mockProjectPosts, type ProjectPostSummary } from "../../data/mockProjectPosts";
-import { calculateTotalPages, clampPage, paginate } from "../../utils/pagination";
+import {
+  loadRepliesForPost,
+  type PostReplyItem,
+} from "../../utils/postRepliesStorage";
+import { typeBadgeStyles } from "./PostCard";
+import {
+  mockProjectPosts,
+  type ProjectPostSummary,
+} from "../../data/mockProjectPosts";
+import {
+  calculateTotalPages,
+  clampPage,
+  paginate,
+} from "../../utils/pagination";
 import { PaginationControls } from "../common/PaginationControls";
+
+type Customer = ProjectPostSummary;
+
+// 타입/색상 관련 타입
+type PostType = Customer["type"]; // "공지" | "질문" | "일반"
+type TypeFilter = "all" | PostType;
+
+type StatusStyle = {
+  background: string;
+  text: string;
+  border: string;
+};
 
 const replyTypeStyle: StatusStyle = {
   background: "#F1F5F9",
@@ -31,12 +54,31 @@ const replyTypeStyle: StatusStyle = {
   border: "#E2E8F0",
 };
 
+// 공지 / 질문 / 일반 색상 매핑
+const statusStyles: Record<PostType, StatusStyle> = {
+  공지: {
+    background: typeBadgeStyles["공지"].backgroundColor,
+    text: typeBadgeStyles["공지"].color,
+    border: typeBadgeStyles["공지"].borderColor,
+  },
+  질문: {
+    background: typeBadgeStyles["질문"].backgroundColor,
+    text: typeBadgeStyles["질문"].color,
+    border: typeBadgeStyles["질문"].borderColor,
+  },
+  일반: {
+    background: typeBadgeStyles["일반"].backgroundColor,
+    text: typeBadgeStyles["일반"].color,
+    border: typeBadgeStyles["일반"].borderColor,
+  },
+};
+
 const stripHtml = (value: string) =>
-  value
-    .replace(/<[^>]*>/g, " ")
-    .replace(/&nbsp;/gi, " ")
-    .replace(/\s+/g, " ")
-    .trim();
+    value
+        .replace(/<[^>]*>/g, " ")
+        .replace(/&nbsp;/gi, " ")
+        .replace(/\s+/g, " ")
+        .trim();
 
 const formatDateOnly = (value: string) => {
   if (!value) return "";
@@ -63,38 +105,6 @@ const formatDateOnly = (value: string) => {
 const formatReplyDate = (value: string) => formatDateOnly(value);
 const formatPostDate = (value: string) => formatDateOnly(value);
 
-// CS 문의 목록과 리치 텍스트 작성 화면을 관리
-type Customer = ProjectPostSummary;
-
-// 타입/색상 관련 타입
-type PostType = Customer["type"]; // "공지" | "질문" | "일반"
-type TypeFilter = "all" | PostType;
-
-type StatusStyle = {
-  background: string;
-  text: string;
-  border: string;
-};
-
-// 공지 / 질문 / 일반 색상 매핑
-const statusStyles: Record<PostType, StatusStyle> = {
-  공지: {
-    background: "#FEF2F2", // red-50
-    text: "#B91C1C", // red-700
-    border: "#FECACA", // red-200
-  },
-  질문: {
-    background: "#FFFBEB", // amber-50
-    text: "#B45309", // amber-700
-    border: "#FDE68A", // amber-200
-  },
-  일반: {
-    background: "#EFF6FF", // blue-50
-    text: "#1D4ED8", // blue-700
-    border: "#BFDBFE", // blue-200
-  },
-};
-
 // Mock data
 const mockCustomers: Customer[] = mockProjectPosts;
 
@@ -103,27 +113,25 @@ export function ProjectPost2() {
   const [typeFilter, setTypeFilter] = useState<TypeFilter>("all");
   const [customers] = useState<Customer[]>(mockCustomers);
   const [isWriting, setIsWriting] = useState(false);
-  const [replyMap, setReplyMap] = useState<ReplyMap>({});
   const navigate = useNavigate();
+  const location = useLocation();
   const { projectId, nodeId } =
       useParams<{ projectId?: string; nodeId?: string }>();
+
   const navigateToDetail = (post: Customer, reply?: PostReplyItem) => {
     const targetPath =
         projectId && nodeId
             ? `/projects/${projectId}/nodes/${nodeId}/posts/${post.id}`
             : `/projectpost/${post.id}`;
     navigate(targetPath, {
-      state: reply
-          ? { post, reply, isReplyView: true }
-          : { post },
+      state: reply ? { post, reply, isReplyView: true } : { post },
     });
   };
 
   // 검색 + 타입 필터
   const filteredCustomers = customers.filter((customer) => {
     const term = searchTerm.toLowerCase().trim();
-    const matchesType =
-        typeFilter === "all" || customer.type === typeFilter;
+    const matchesType = typeFilter === "all" || customer.type === typeFilter;
 
     if (!term) return matchesType;
 
@@ -133,9 +141,7 @@ export function ProjectPost2() {
 
     return (
         matchesType &&
-        (name.includes(term) ||
-            title.includes(term) ||
-            content.includes(term))
+        (name.includes(term) || title.includes(term) || content.includes(term))
     );
   });
 
@@ -144,26 +150,24 @@ export function ProjectPost2() {
   const itemsPerPage = 10;
   const indexOfFirstItem = (currentPage - 1) * itemsPerPage;
 
-  const totalPages = calculateTotalPages(filteredCustomers.length, itemsPerPage);
+  const totalPages = calculateTotalPages(
+      filteredCustomers.length,
+      itemsPerPage
+  );
   const paginatedRows = paginate(filteredCustomers, currentPage, itemsPerPage);
 
   useEffect(() => {
     setCurrentPage((prev) => clampPage(prev, totalPages));
   }, [totalPages]);
 
+  // location이 바뀔 때마다 다시 렌더링 → localStorage에서 최신 답글 읽어오기
   useEffect(() => {
-    const refreshReplies = () => {
-      setReplyMap(loadRepliesMap());
-    };
-    refreshReplies();
-    if (typeof window !== "undefined") {
-      window.addEventListener("focus", refreshReplies);
-      return () => window.removeEventListener("focus", refreshReplies);
-    }
-    return undefined;
-  }, []);
+    // 의도적으로 아무것도 안 해도 됨.
+    // location이 바뀌면 컴포넌트가 다시 그려지고,
+    // 그 때마다 loadRepliesForPost로 localStorage를 새로 읽는다.
+  }, [location.key]);
 
-  // isWriting 상태가 true일 때 글쓰기 UI 보여주기 위해 RichTextDemo 리턴
+  // isWriting 상태가 true일 때 글쓰기 UI
   if (isWriting) {
     return (
         <div className="w-full max-w-[1800px] mx-auto p-6 space-y-6">
@@ -175,9 +179,7 @@ export function ProjectPost2() {
                     <Button2 variant="outline" onClick={() => setIsWriting(false)}>
                       취소
                     </Button2>
-                    <Button2 onClick={() => setIsWriting(false)}>
-                      등록
-                    </Button2>
+                    <Button2 onClick={() => setIsWriting(false)}>등록</Button2>
                   </div>
                 }
             />
@@ -226,13 +228,13 @@ export function ProjectPost2() {
         </div>
 
         {/* 게시판 목록 */}
-        <Card2>
+        <Card2 className="overflow-hidden">
           <CardContent className="p-0">
             <div className="w-full">
               <Table2>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="px-4">No</TableHead>
+                    <TableHead className="px-2 w-[56px] text-center">No</TableHead>
                     <TableHead>작성자</TableHead>
                     <TableHead>타입</TableHead>
                     <TableHead>제목</TableHead>
@@ -245,7 +247,8 @@ export function ProjectPost2() {
                 <TableBody>
                   {paginatedRows.map((customer, index) => {
                     const statusStyle = statusStyles[customer.type];
-                    const replies = replyMap[customer.id] ?? [];
+                    // 이 글에 대한 답글들 localStorage에서 바로 읽기
+                    const replies = loadRepliesForPost(customer.id) ?? [];
 
                     return (
                         <Fragment key={customer.id}>
@@ -254,7 +257,7 @@ export function ProjectPost2() {
                               onClick={() => navigateToDetail(customer)}
                           >
                             {/* No (전체 인덱스 유지) */}
-                            <TableCell className="px-6 py-2 whitespace-nowrap">
+                            <TableCell className="px-2 py-2 text-center whitespace-nowrap">
                               {indexOfFirstItem + index + 1}
                             </TableCell>
 
@@ -314,82 +317,104 @@ export function ProjectPost2() {
                               </div>
                             </TableCell>
 
-                          {/* 생성일 */}
-                          <TableCell className="px-3 py-2 whitespace-nowrap">
-                            {formatPostDate(customer.createdDate)}
-                          </TableCell>
+                            {/* 생성일 */}
+                            <TableCell className="px-3 py-2 whitespace-nowrap">
+                              {formatPostDate(customer.createdDate)}
+                            </TableCell>
 
-                          {/* 수정일 */}
-                          <TableCell className="px-3 py-2 whitespace-nowrap">
-                            {formatPostDate(customer.updatedDate)}
-                          </TableCell>
+                            {/* 수정일 */}
+                            <TableCell className="px-3 py-2 whitespace-nowrap">
+                              {formatPostDate(customer.updatedDate)}
+                            </TableCell>
                           </TableRow>
+
+                          {/* 답글 리스트 (있을 때만) */}
                           {replies.length > 0 &&
-                            replies.map((reply) => {
-                              const formattedCreatedDate = formatReplyDate(reply.createdAt) || reply.createdAt;
-                              const formattedUpdatedDate = formatReplyDate(reply.updatedAt || reply.createdAt) || reply.updatedAt || reply.createdAt;
-                              return (
-                              <TableRow
-                                  key={`${customer.id}-${reply.id}`}
-                                  className="bg-muted/20 cursor-pointer"
-                                  onClick={() => navigateToDetail(customer, reply)}
-                              >
-                                <TableCell className="px-6 py-2" />
-                                <TableCell className="px-3 py-2 whitespace-nowrap">
-                                  <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                                    <CornerDownRight className="h-4 w-4 text-primary" />
-                                    <span>{reply.author}</span>
-                                  </div>
-                                </TableCell>
-                                <TableCell className="px-3 py-2 whitespace-nowrap">
-                                  <span
+                              replies.map((reply) => {
+                                const formattedCreatedDate =
+                                    formatReplyDate(reply.createdAt) || reply.createdAt;
+                                const formattedUpdatedDate =
+                                    formatReplyDate(
+                                        reply.updatedAt || reply.createdAt
+                                    ) ||
+                                    reply.updatedAt ||
+                                    reply.createdAt;
+
+                                return (
+                                    <TableRow
+                                        key={`${customer.id}-${reply.id}`}
+                                        className="bg-muted/20 cursor-pointer"
+                                        onClick={() => navigateToDetail(customer, reply)}
+                                    >
+                                      {/* No 자리 비워두기 */}
+                                      <TableCell className="px-2 py-2" />
+
+                                      {/* 작성자 (↳ 아이콘 + 이름) */}
+                                      <TableCell className="px-3 py-2 whitespace-nowrap">
+                                        <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                                          <CornerDownRight className="h-4 w-4 text-primary" />
+                                          <span>{reply.author}</span>
+                                        </div>
+                                      </TableCell>
+
+                                      {/* 타입: 답글 배지 */}
+                                      <TableCell className="px-3 py-2 whitespace-nowrap">
+                                <span
                                     className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium border"
                                     style={{
                                       backgroundColor: replyTypeStyle.background,
                                       color: replyTypeStyle.text,
                                       borderColor: replyTypeStyle.border,
                                     }}
-                                  >
-                                    답글
-                                  </span>
-                                </TableCell>
-                                <TableCell className="px-3 py-2">
-                                  <div
-                                    className="block"
-                                    style={{
-                                      width: "200px",
-                                      overflow: "hidden",
-                                      textOverflow: "ellipsis",
-                                      whiteSpace: "nowrap",
-                                    }}
-                                    title={reply.title || "무제 답글"}
-                                  >
-                                    {reply.title || "무제 답글"}
-                                  </div>
-                                </TableCell>
-                                <TableCell className="px-3 py-2">
-                                  <div
-                                    className="block"
-                                    style={{
-                                      width: "260px",
-                                      overflow: "hidden",
-                                      textOverflow: "ellipsis",
-                                      whiteSpace: "nowrap",
-                                    }}
-                                    title={stripHtml(reply.content || "") || "내용 없음"}
-                                  >
-                                    {stripHtml(reply.content || "") || "내용 없음"}
-                                  </div>
-                                </TableCell>
-                                <TableCell className="px-3 py-2 whitespace-nowrap text-sm">
-                                  {formattedCreatedDate}
-                                </TableCell>
-                                <TableCell className="px-3 py-2 whitespace-nowrap text-sm">
-                                  {formattedUpdatedDate}
-                                </TableCell>
-                              </TableRow>
-                              );
-                            })}
+                                >
+                                  답글
+                                </span>
+                                      </TableCell>
+
+                                      {/* 제목 */}
+                                      <TableCell className="px-3 py-2">
+                                        <div
+                                            className="block"
+                                            style={{
+                                              width: "200px",
+                                              overflow: "hidden",
+                                              textOverflow: "ellipsis",
+                                              whiteSpace: "nowrap",
+                                            }}
+                                            title={reply.title || "무제 답글"}
+                                        >
+                                          {reply.title || "무제 답글"}
+                                        </div>
+                                      </TableCell>
+
+                                      {/* 내용 */}
+                                      <TableCell className="px-3 py-2">
+                                        <div
+                                            className="block"
+                                            style={{
+                                              width: "260px",
+                                              overflow: "hidden",
+                                              textOverflow: "ellipsis",
+                                              whiteSpace: "nowrap",
+                                            }}
+                                            title={
+                                                stripHtml(reply.content || "") || "내용 없음"
+                                            }
+                                        >
+                                          {stripHtml(reply.content || "") || "내용 없음"}
+                                        </div>
+                                      </TableCell>
+
+                                      {/* 생성일 / 수정일 */}
+                                      <TableCell className="px-3 py-2 whitespace-nowrap text-sm">
+                                        {formattedCreatedDate}
+                                      </TableCell>
+                                      <TableCell className="px-3 py-2 whitespace-nowrap text-sm">
+                                        {formattedUpdatedDate}
+                                      </TableCell>
+                                    </TableRow>
+                                );
+                              })}
                         </Fragment>
                     );
                   })}
@@ -401,7 +426,12 @@ export function ProjectPost2() {
 
         {/* 페이징 영역 */}
         {filteredCustomers.length > 0 && (
-          <PaginationControls currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} className="mt-4" />
+            <PaginationControls
+                currentPage={currentPage}
+                totalPages={totalPages}
+                onPageChange={setCurrentPage}
+                className="mt-4"
+            />
         )}
 
         {/* Empty State */}

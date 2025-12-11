@@ -1,7 +1,8 @@
 import { useMemo } from "react";
 import { useParams } from "react-router-dom";
 import { ProjectPostDetail } from "../../components/projects/ProjectPostDetail";
-import { findSupportTicket } from "../../data/supportTickets";
+import { findSupportTicket, supportTicketStatusLabel } from "../../data/supportTickets";
+import { loadSupportStatus } from "../../utils/supportTicketStatusStorage";
 
 // 단일 문의 상세를 보여주며 목록 경로로 복귀 링크를 제공
 export function SupportTicketDetail() {
@@ -20,8 +21,17 @@ export function SupportTicketDetail() {
   }
 
   const backPath = projectId ? `/projects/${projectId}/nodes/support` : undefined;
+  const overrideStatus = loadSupportStatus(ticket.id);
+  const effectiveStatus = overrideStatus ?? ticket.status;
+  const ticketWithStatusLabel = {
+    ...ticket,
+    status: effectiveStatus,
+    type: supportTicketStatusLabel[effectiveStatus],
+    ticketStatus: effectiveStatus,
+    isOwner: true,
+  };
 
   return (
-    <ProjectPostDetail initialPost={ticket} backPath={backPath} showBackButton={true} startInEditMode={false} />
+    <ProjectPostDetail initialPost={ticketWithStatusLabel} backPath={backPath} showBackButton={true} startInEditMode={false} />
   );
 }
