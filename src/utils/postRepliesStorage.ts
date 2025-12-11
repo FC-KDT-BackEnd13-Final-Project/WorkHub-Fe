@@ -8,6 +8,7 @@ export interface ReplyLinkInfo {
 export interface ReplyAttachmentInfo {
     name: string;
     size?: number;
+    dataUrl?: string;
 }
 
 export interface PostReplyItem {
