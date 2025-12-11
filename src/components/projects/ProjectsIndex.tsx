@@ -22,7 +22,7 @@ import { Label } from "../ui/label";
 import { AutoResizeTextarea } from "../ui/auto-resize-textarea";
 import { format } from "date-fns";
 import { companyUsers } from "../admin/userData";
-import { MoreHorizontal } from "lucide-react";
+import { ChevronDown, MoreHorizontal } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -32,6 +32,7 @@ import {
 import { projectApi } from "../../lib/api";
 import { mapApiProjectToUiProject, type Project } from "../../utils/projectMapper";
 import type { ProjectListParams, SortOrder } from "../../types/project";
+import { cn } from "../ui/utils";
 
 // 상태 옵션
 const statusOptions = [
@@ -94,6 +95,13 @@ const statusStyles: Record<ProjectStatus, StatusStyle> = {
 };
 
 type SortOption = (typeof sortOptions)[number];
+type CompanyContact = {
+  id: string;
+  name: string;
+  email: string;
+  company: string;
+  avatarUrl?: string;
+};
 
 const createProjectFormState = () => ({
   name: "",
@@ -155,10 +163,11 @@ export function ProjectsIndex() {
   const [filterStartDate, setFilterStartDate] = useState("");
   const [filterEndDate, setFilterEndDate] = useState("");
 
-  const [currentManagerInput, setCurrentManagerInput] = useState("");
   const [currentDeveloperInput, setCurrentDeveloperInput] = useState("");
-  const [isCompanyLookupOpen, setIsCompanyLookupOpen] = useState(false);
+  const [selectedCompany, setSelectedCompany] = useState<string | null>(null);
   const [companySearchTerm, setCompanySearchTerm] = useState("");
+  const [selectedCompanyContacts, setSelectedCompanyContacts] = useState<string[]>([]);
+  const [isContactDropdownOpen, setIsContactDropdownOpen] = useState(false);
   const navigate = useNavigate();
   const isEditingProjectForm = Boolean(editingProject);
 
@@ -170,26 +179,7 @@ export function ProjectsIndex() {
 
   // 무한 스크롤을 위한 ref
   const observerTarget = useRef<HTMLDivElement>(null);
-
-  const addManager = () => {
-    if (
-        currentManagerInput.trim() &&
-        !newProject.managers.includes(currentManagerInput.trim())
-    ) {
-      setNewProject((prev) => ({
-        ...prev,
-        managers: [...prev.managers, currentManagerInput.trim()],
-      }));
-      setCurrentManagerInput("");
-    }
-  };
-
-  const removeManager = (managerToRemove: string) => {
-    setNewProject((prev) => ({
-      ...prev,
-      managers: prev.managers.filter((manager) => manager !== managerToRemove),
-    }));
-  };
+  const contactDropdownRef = useRef<HTMLDivElement>(null);
 
   const addDeveloper = () => {
     const trimmed = currentDeveloperInput.trim();
@@ -285,30 +275,94 @@ export function ProjectsIndex() {
 
   const companyDirectory = useMemo(() => {
     const names = new Set<string>();
-    projects.forEach((project) => names.add(project.brand));
     companyUsers.forEach((user) => names.add(user.company));
+    projects.forEach((project) => {
+      if (project.brand) {
+        names.add(project.brand);
+      }
+    });
     return Array.from(names).sort();
-  }, [projects]);
+  }, [companyUsers, projects]);
+
+  const companyContactMap = useMemo(() => {
+    const map = new Map<string, CompanyContact[]>();
+
+    companyUsers.forEach((user) => {
+      if (!map.has(user.company)) {
+        map.set(user.company, []);
+      }
+      map.get(user.company)!.push({
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        company: user.company,
+        avatarUrl: user.avatarUrl,
+      });
+    });
+
+    return map;
+  }, [companyUsers]);
 
   const filteredCompanyDirectory = useMemo(() => {
     const term = companySearchTerm.toLowerCase().trim();
-    if (!term) return companyDirectory;
-    return companyDirectory.filter((company) =>
-        company.toLowerCase().includes(term),
-    );
-  }, [companyDirectory, companySearchTerm]);
+    if (!term) return [];
+    return companyDirectory
+      .filter((name) => name.toLowerCase().includes(term))
+      .filter((name) => name !== selectedCompany);
+  }, [companyDirectory, companySearchTerm, selectedCompany]);
+
+  const currentCompanyMembers: CompanyContact[] = selectedCompany
+    ? companyContactMap.get(selectedCompany) ?? []
+    : [];
+
+  const filteredCompanyMembers = currentCompanyMembers;
+
+  const handleSelectCompany = (companyName: string) => {
+    setSelectedCompany(companyName);
+    setCompanySearchTerm(companyName);
+
+    setSelectedCompanyContacts([]);
+    setIsContactDropdownOpen(false);
+
+    setNewProject((prev) => ({
+      ...prev,
+      brand: companyName,
+      managers: [],
+    }));
+  };
+
+  const handleToggleCompanyContact = (contactName: string) => {
+    setSelectedCompanyContacts((prev) => {
+      const exists = prev.includes(contactName);
+      const next = exists ? prev.filter((name) => name !== contactName) : [...prev, contactName];
+
+      setNewProject((prevProject) => ({
+        ...prevProject,
+        managers: next,
+      }));
+
+      return next;
+    });
+  };
+
+  const resetCreateForm = useCallback(() => {
+    setNewProject(createProjectFormState());
+    setCurrentDeveloperInput("");
+    setSelectedCompany(null);
+    setCompanySearchTerm("");
+    setSelectedCompanyContacts([]);
+    setIsContactDropdownOpen(false);
+  }, []);
 
   const closeProjectModal = useCallback(() => {
     setIsProjectModalOpen(false);
     setEditingProject((prev) => {
       if (prev) {
-        setNewProject(createProjectFormState());
-        setCurrentManagerInput("");
-        setCurrentDeveloperInput("");
+        resetCreateForm();
       }
       return null;
     });
-  }, []);
+  }, [resetCreateForm]);
 
   const handleOpenCreateModal = () => {
     setEditingProject(null);
@@ -365,9 +419,7 @@ export function ProjectsIndex() {
 
       setProjects((prev) => [...prev, project]);
     }
-    setNewProject(createProjectFormState());
-    setCurrentManagerInput("");
-    setCurrentDeveloperInput("");
+    resetCreateForm();
     setEditingProject(null);
     setIsProjectModalOpen(false);
   };
@@ -393,8 +445,11 @@ export function ProjectsIndex() {
       startDate: project.startDate,
       endDate: project.endDate,
     });
-    setCurrentManagerInput("");
     setCurrentDeveloperInput("");
+    setSelectedCompany(project.brand ? project.brand : null);
+    setCompanySearchTerm(project.brand ?? "");
+    setSelectedCompanyContacts(managerList);
+    setIsContactDropdownOpen(false);
     setEditingProject(project);
     setIsProjectModalOpen(true);
   };
@@ -426,9 +481,7 @@ export function ProjectsIndex() {
     if (window.confirm(message)) {
       setProjects((prev) => prev.filter((item) => item.id !== project.id));
       if (editingProject && editingProject.id === project.id) {
-        setNewProject(createProjectFormState());
-        setCurrentManagerInput("");
-        setCurrentDeveloperInput("");
+        resetCreateForm();
         setEditingProject(null);
         setIsProjectModalOpen(false);
       }
@@ -452,17 +505,22 @@ export function ProjectsIndex() {
   }, [closeProjectModal, isProjectModalOpen]);
 
   useEffect(() => {
-    if (!isProjectModalOpen) {
-      setIsCompanyLookupOpen(false);
-      setCompanySearchTerm("");
-    }
-  }, [isProjectModalOpen]);
+    const handleClickOutside = (event: MouseEvent) => {
+      if (!contactDropdownRef.current) return;
+      if (!contactDropdownRef.current.contains(event.target as Node)) {
+        setIsContactDropdownOpen(false);
+      }
+    };
 
-  const handleSelectCompany = (company: string) => {
-    setNewProject((prev) => ({ ...prev, brand: company }));
-    setIsCompanyLookupOpen(false);
-    setCompanySearchTerm("");
-  };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
+
+  useEffect(() => {
+    setIsContactDropdownOpen(false);
+  }, [selectedCompany]);
 
   const getManagerDisplay = (project: Project) => {
     if (project.manager) return project.manager;
@@ -577,7 +635,7 @@ export function ProjectsIndex() {
                       </p>
                     </CardHeader>
                     <CardContent>
-                      <div className="space-y-4">
+                      <div className="space-y-6">
                         {/* 프로젝트 이름 */}
                         <div className="space-y-2">
                           <Label htmlFor="projectName" className="text-gray-700">
@@ -592,7 +650,7 @@ export function ProjectsIndex() {
                                     name: e.target.value,
                                   }))
                               }
-                              className="h-9 rounded-md border border-border bg-input-background px-3 py-1 focus:bg-white focus:border-primary transition-colors"
+                              className="rounded-md border border-border bg-input-background px-3 py-2 focus:bg-white focus:border-primary transition-colors"
                           />
                         </div>
 
@@ -613,118 +671,152 @@ export function ProjectsIndex() {
                                     description: e.target.value,
                                   }))
                               }
-                              className="w-full border rounded-md border-border bg-input-background px-3 py-2 focus:bg-white focus:border-primary transition-colors"
+                              className="w-full border rounded-md border-border bg-input-background px-3 py-2 text-sm focus:bg-white focus:border-primary transition-colors"
                               placeholder="프로젝트에 대한 간단한 설명을 입력하세요"
                               minHeight="36px"
                               maxHeight="200px"
                           />
                         </div>
 
-                        {/* 고객사 */}
-                        <div className="space-y-2">
-                          <Label htmlFor="brand" className="text-gray-700">
-                            고객사
-                          </Label>
-                          <div className="flex gap-2">
-                            <Input
-                                id="brand"
-                                value={newProject.brand}
-                                onChange={(e) =>
-                                    setNewProject((prev) => ({
-                                      ...prev,
-                                      brand: e.target.value,
-                                    }))
-                                }
-                                className="h-9 flex-1 rounded-md border border-border bg-input-background px-3 py-1 focus:bg-white focus:border-primary transition-colors"
-                            />
-                            <Button
-                                type="button"
-                                variant="outline"
-                                className="h-9 whitespace-nowrap px-4"
-                                onClick={() =>
-                                    setIsCompanyLookupOpen((prev) => !prev)
-                                }
-                            >
-                              조회
-                            </Button>
+                        {/* 회사 & 담당자 */}
+                        <div className="grid gap-6 md:grid-cols-2">
+                          {/* 1단계: 회사 선택 */}
+                          <div className="space-y-2">
+                            <Label className="text-sm font-semibold text-gray-800">고객사</Label>
+                            <div className="relative">
+                              <Input
+                                value={companySearchTerm}
+                                onChange={(e) => {
+                                  const value = e.target.value;
+                                  setCompanySearchTerm(value);
+                                  setSelectedCompany(null);
+                                  setSelectedCompanyContacts([]);
+                                  setContactSearchTerm("");
+                                  setNewProject((prev) => ({
+                                    ...prev,
+                                    brand: value,
+                                    managers: [],
+                                  }));
+                                }}
+                                placeholder="회사명을 입력하세요"
+                                className="rounded-md border border-border bg-input-background px-3 py-2 text-sm focus:bg-white focus:border-primary transition-colors"
+                              />
+
+                              {filteredCompanyDirectory.length > 0 && (
+                                <div className="absolute left-0 right-0 z-30 mt-1 w-full max-h-52 overflow-y-auto rounded-md border border-border bg-white shadow-md">
+                                  <div className="divide-y divide-border">
+                                    {filteredCompanyDirectory.map((company) => {
+                                      const isActive = selectedCompany === company;
+                                      return (
+                                        <button
+                                          key={company}
+                                          type="button"
+                                          onClick={() => handleSelectCompany(company)}
+                                          className={cn(
+                                            "flex w-full items-center justify-between px-3 py-2 text-left text-sm transition-colors",
+                                            isActive
+                                              ? "bg-primary/5 text-primary"
+                                              : "bg-white hover:bg-accent/60",
+                                          )}
+                                        >
+                                          <span>{company}</span>
+                                          {isActive && (
+                                            <span className="text-[11px] font-medium text-primary">
+                                              선택됨
+                                            </span>
+                                          )}
+                                        </button>
+                                      );
+                                    })}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
                           </div>
-                          {isCompanyLookupOpen && (
-                              <div className="space-y-3 rounded-xl border border-border bg-background/80 p-3 shadow-sm backdrop-blur">
-                                <Input
-                                    placeholder="회사명을 검색하세요"
-                                    value={companySearchTerm}
-                                    onChange={(e) =>
-                                        setCompanySearchTerm(e.target.value)
-                                    }
-                                    className="h-9 rounded-md border border-border bg-input-background px-3 py-1 focus:bg-white focus:border-primary transition-colors"
-                                />
-                                <div className="max-h-48 overflow-y-auto space-y-1 pt-1 pb-1">
-                                  {filteredCompanyDirectory.length > 0 ? (
-                                      filteredCompanyDirectory.map((company) => (
-                                          <button
-                                              key={company}
-                                              type="button"
-                                              onClick={() => handleSelectCompany(company)}
-                                              className="w-full rounded-lg border border-transparent px-3 py-2 text-left text-sm transition-colors hover:border-border hover:bg-accent"
-                                          >
-                                            {company}
-                                          </button>
-                                      ))
+
+                          {/* 2단계: 담당자 선택 */}
+                          <div className="space-y-2">
+                            <Label className="text-sm font-semibold text-gray-800">담당자</Label>
+
+                            <div className="relative" ref={contactDropdownRef}>
+                              <button
+                                type="button"
+                                onClick={() => selectedCompany && setIsContactDropdownOpen((prev) => !prev)}
+                                disabled={!selectedCompany}
+                                aria-haspopup="listbox"
+                                aria-expanded={isContactDropdownOpen}
+                                className={cn(
+                                  "flex h-9 w-full items-center justify-between gap-2 rounded-md border border-border bg-input-background px-3 py-2 text-sm transition-colors",
+                                  selectedCompany
+                                    ? "hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+                                    : "cursor-not-allowed bg-muted text-muted-foreground",
+                                )}
+                              >
+                                <span className="flex flex-1 flex-wrap gap-1 text-left">
+                                  {selectedCompanyContacts.length > 0 ? (
+                                    selectedCompanyContacts.map((name) => (
+                                      <span
+                                        key={name}
+                                        className="inline-flex items-center justify-center gap-1 rounded-md border border-transparent bg-secondary px-2 py-0.5 text-xs font-medium text-secondary-foreground"
+                                      >
+                                        {name}
+                                      </span>
+                                    ))
                                   ) : (
-                                      <p className="text-xs text-muted-foreground">
-                                        검색 결과가 없습니다.
-                                      </p>
+                                    <span className="text-sm text-muted-foreground">담당자를 선택하세요</span>
+                                  )}
+                                </span>
+                                <ChevronDown
+                                  className={cn(
+                                    "h-4 w-4 shrink-0 text-muted-foreground transition-transform",
+                                    isContactDropdownOpen ? "rotate-180" : "",
+                                  )}
+                                />
+                              </button>
+
+                              {isContactDropdownOpen && selectedCompany && (
+                                <div className="absolute left-0 right-0 z-30 mt-1 w-full max-h-56 overflow-y-auto rounded-md border border-border bg-white shadow-md">
+                                  {filteredCompanyMembers.length > 0 ? (
+                                    filteredCompanyMembers.map((member) => {
+                                      const isSelected = selectedCompanyContacts.includes(member.name);
+                                      return (
+                                        <button
+                                          key={member.id}
+                                          type="button"
+                                          onClick={() => handleToggleCompanyContact(member.name)}
+                                          className={`flex w-full items-center justify-between px-3 py-2 text-left text-sm hover:bg-accent/60 ${
+                                            isSelected ? "bg-primary/5 text-primary" : ""
+                                          }`}
+                                        >
+                                          <div className="flex items-center gap-3">
+                                            <img
+                                              src={member.avatarUrl || "/default-profile.png"}
+                                              alt={`${member.name} 프로필`}
+                                              className="h-6 w-6 rounded-full object-cover"
+                                            />
+                                            <div className="flex flex-col leading-tight">
+                                              <span className="text-sm font-medium">
+                                                {member.name} ({member.id})
+                                              </span>
+                                              <span className="text-xs text-muted-foreground">
+                                                {member.email}
+                                              </span>
+                                            </div>
+                                          </div>
+                                          <span className="text-xs font-medium text-primary">
+                                            {isSelected ? "선택됨" : ""}
+                                          </span>
+                                        </button>
+                                      );
+                                    })
+                                  ) : (
+                                    <p className="py-6 text-center text-xs text-muted-foreground">
+                                      등록된 담당자가 없습니다.
+                                    </p>
                                   )}
                                 </div>
-                              </div>
-                          )}
-                        </div>
-
-                        {/* 담당 매니저 */}
-                        <div className="space-y-2">
-                          <Label htmlFor="manager" className="text-gray-700">
-                            담당 매니저
-                          </Label>
-                          <div className="flex gap-2">
-                            <Input
-                                id="manager"
-                                value={currentManagerInput}
-                                onChange={(e) =>
-                                    setCurrentManagerInput(e.target.value)
-                                }
-                                onKeyDown={(e) => {
-                                  if (e.key === "Enter" && currentManagerInput.trim()) {
-                                    addManager();
-                                  }
-                                }}
-                                className="h-9 flex-grow rounded-md border border-border bg-input-background px-3 py-1 focus:bg-white focus:border-primary transition-colors"
-                                placeholder="매니저 이름을 입력하세요"
-                            />
-                            <Button
-                                type="button"
-                                onClick={addManager}
-                                className="h-9 px-4"
-                            >
-                              추가
-                            </Button>
-                          </div>
-                          <div className="flex flex-wrap gap-2 mt-2">
-                            {newProject.managers.map((manager, index) => (
-                                <Badge
-                                    key={index}
-                                    variant="secondary"
-                                    className="flex items-center gap-1"
-                                >
-                                  {manager}
-                                  <button
-                                      type="button"
-                                      onClick={() => removeManager(manager)}
-                                      className="ml-1 text-xs text-secondary-foreground/70 hover:text-secondary-foreground"
-                                  >
-                                    &times;
-                                  </button>
-                                </Badge>
-                            ))}
+                              )}
+                            </div>
                           </div>
                         </div>
 
@@ -748,13 +840,13 @@ export function ProjectsIndex() {
                                     addDeveloper();
                                   }
                                 }}
-                                className="h-9 flex-grow rounded-md border border-border bg-input-background px-3 py-1 focus:bg-white focus:border-primary transition-colors"
+                                className="flex-grow rounded-md border border-border bg-input-background px-3 py-2 focus:bg-white focus:border-primary transition-colors"
                                 placeholder="개발자 이름을 입력하세요"
                             />
                             <Button
                                 type="button"
                                 onClick={addDeveloper}
-                                className="h-9 px-4"
+                                className="px-4 py-2"
                             >
                               추가
                             </Button>
@@ -780,7 +872,7 @@ export function ProjectsIndex() {
                         </div>
 
                         {/* 시작일 / 마감일 */}
-                        <div className="grid gap-4 sm:grid-cols-2">
+                        <div className="grid gap-6 sm:grid-cols-2">
                           <div className="space-y-2">
                             <Label htmlFor="startDate" className="text-gray-700">
                               시작일
@@ -808,7 +900,7 @@ export function ProjectsIndex() {
                                     return updated;
                                   });
                                 }}
-                                className="h-9 rounded-md border border-border bg-input-background px-3 py-1 focus:bg-white focus:border-primary transition-colors"
+                                className="rounded-md border border-border bg-input-background px-3 py-2 focus:bg-white focus:border-primary transition-colors"
                             />
                           </div>
                           <div className="space-y-2">
@@ -837,7 +929,7 @@ export function ProjectsIndex() {
                                     return { ...prev, endDate: value };
                                   });
                                 }}
-                                className="h-9 rounded-md border border-border bg-input-background px-3 py-1 focus:bg-white focus:border-primary transition-colors"
+                                className="rounded-md border border-border bg-input-background px-3 py-2 focus:bg-white focus:border-primary transition-colors"
                             />
                           </div>
                         </div>
