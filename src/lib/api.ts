@@ -36,6 +36,12 @@ apiClient.interceptors.response.use(
   (error) => {
     if (error.response?.status === 401) {
       localStorage.removeItem('authToken'); // 인증 만료 시 토큰 삭제하여 재로그인 유도
+      localStorage.removeItem('user');
+      localStorage.setItem('workhub:auth', 'false');
+      if (typeof window !== 'undefined' && window.location.pathname !== '/') {
+        // 새 세션으로 다시 로그인하도록 랜딩/로그인 페이지로 이동
+        window.location.replace('/');
+      }
     }
     return Promise.reject(error); // 호출한 쪽에서 에러를 처리하도록 던짐
   }
@@ -112,4 +118,3 @@ export const projectApi = {
       throw new Error(message || '노드 생성에 실패했습니다.');
   },
 };
-
