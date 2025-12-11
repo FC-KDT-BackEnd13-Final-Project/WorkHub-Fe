@@ -37,10 +37,18 @@ const readReplyMap = (): ReplyMap => {
     }
 };
 
+export const POST_REPLIES_UPDATED_EVENT = "workhub:postRepliesUpdated";
+
+const notifyRepliesUpdated = () => {
+    if (!isBrowser || typeof window.dispatchEvent !== "function") return;
+    window.dispatchEvent(new CustomEvent(POST_REPLIES_UPDATED_EVENT));
+};
+
 const writeReplyMap = (map: ReplyMap) => {
     if (!isBrowser) return;
     try {
         window.localStorage.setItem(STORAGE_KEY, JSON.stringify(map));
+        notifyRepliesUpdated();
     } catch {
         // ignore
     }

@@ -2,7 +2,7 @@ import { ReactNode } from "react";
 import { Card2, CardContent } from "../ui/card2";
 import { Badge2 } from "../ui/badge2";
 
-const typeBadgeStyles: Record<string, { backgroundColor: string; color: string; borderColor: string }> = {
+export const typeBadgeStyles: Record<string, { backgroundColor: string; color: string; borderColor: string }> = {
   공지: {
     backgroundColor: "#EEF2FF",
     color: "#4338CA",
@@ -22,6 +22,21 @@ const typeBadgeStyles: Record<string, { backgroundColor: string; color: string; 
     backgroundColor: "#F1F5F9",
     color: "#0F172A",
     borderColor: "#E2E8F0",
+  },
+  접수: {
+    backgroundColor: "#DBEAFE",
+    color: "#1D4ED8",
+    borderColor: "#BFDBFE",
+  },
+  처리중: {
+    backgroundColor: "#FEF3C7",
+    color: "#B45309",
+    borderColor: "#FCD34D",
+  },
+  완료: {
+    backgroundColor: "#DCFCE7",
+    color: "#15803D",
+    borderColor: "#BBF7D0",
   },
 };
 

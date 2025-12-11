@@ -15,14 +15,26 @@ import {
 } from "../../utils/postRepliesStorage";
 import { mockProjectPosts } from "../../data/mockProjectPosts";
 import { calculateTotalPages, clampPage, paginate } from "../../utils/pagination";
+import {
+    supportTicketStatusLabel,
+    type SupportTicketStatus,
+} from "../../data/supportTickets";
+import {
+    saveSupportStatus,
+} from "../../utils/supportTicketStatusStorage";
 
 const COMMENTS_PER_PAGE = 5;
+const SUPPORT_STATUS_OPTIONS: SupportTicketStatus[] = [
+    "RECEIVED",
+    "IN_PROGRESS",
+    "COMPLETED",
+];
 
 // 단일 CS 문의/포스트를 상세 뷰 및 편집 모드로 보여줌
 interface PostPayload {
     id: string;
     customerName: string;
-    type: "공지" | "질문" | "일반";
+    type: "공지" | "질문" | "일반" | "접수" | "처리중" | "완료";
     title: string;
     content: string;
     createdDate: string;
@@ -30,6 +42,7 @@ interface PostPayload {
     hashtag: string;
     isOwner?: boolean;
     parentId?: string | null; // 원글이면 null, 답글이면 원글 id
+    ticketStatus?: SupportTicketStatus;
 }
 
 interface CommentItem {
@@ -88,6 +101,7 @@ export function ProjectPostDetail({
                 updatedDate: fallbackPost.updatedDate,
                 hashtag: fallbackPost.hashtag,
                 isOwner: true,
+                ticketStatus: undefined,
             }
             : {
                 id: postId ?? "",
@@ -99,11 +113,13 @@ export function ProjectPostDetail({
                 updatedDate: "",
                 hashtag: "",
                 isOwner: true,
+                ticketStatus: undefined,
             });
 
     const [postTitleState, setPostTitleState] = useState(post.title);
     const [postContentState, setPostContentState] = useState(post.content);
     const [postTypeState, setPostTypeState] = useState<PostPayload["type"]>(post.type);
+    const [ticketStatus, setTicketStatus] = useState<SupportTicketStatus | undefined>(post.ticketStatus);
     const [postAttachments, setPostAttachments] = useState<File[]>([]);
     const [postLinks, setPostLinks] = useState<{ url: string; description: string }[]>([]);
     const [isPostEditing, setIsPostEditing] = useState(startInEditMode);
@@ -165,7 +181,8 @@ export function ProjectPostDetail({
         setPostTitleState(post.title);
         setPostContentState(post.content);
         setPostTypeState(post.type);
-    }, [post.title, post.content, post.type]);
+        setTicketStatus(post.ticketStatus);
+    }, [post.title, post.content, post.type, post.ticketStatus]);
 
     useEffect(() => {
         if (startInEditMode) {
@@ -244,6 +261,16 @@ export function ProjectPostDetail({
         } else {
             navigate(-1);
         }
+    };
+
+    const handleTicketStatusChange = (nextStatus: SupportTicketStatus) => {
+        if (!post.id) return;
+        setTicketStatus(nextStatus);
+        const mappedLabel = supportTicketStatusLabel[nextStatus];
+        setPostTypeState(mappedLabel as PostPayload["type"]);
+        post.type = mappedLabel as PostPayload["type"];
+        post.ticketStatus = nextStatus;
+        saveSupportStatus(post.id, nextStatus);
     };
 
     const resetReplyDraft = () => {
@@ -432,7 +459,32 @@ export function ProjectPostDetail({
             </button>
 
             {postMenuOpen && (
-                <div className="absolute right-0 mt-2 w-44 rounded-md border bg-background shadow-lg text-sm overflow-hidden z-20">
+                <div className="absolute right-0 mt-2 w-52 rounded-md border bg-background shadow-lg text-sm overflow-hidden z-20">
+                    {ticketStatus && (
+                        <div className="border-b px-4 py-4 space-y-2">
+                            <p className="text-xs font-medium text-muted-foreground">상태 변경</p>
+                            <div className="flex flex-wrap gap-2">
+                                {SUPPORT_STATUS_OPTIONS.map((status) => {
+                                    const label = supportTicketStatusLabel[status];
+                                    const isActive = ticketStatus === status;
+                                    return (
+                                        <button
+                                            key={status}
+                                            type="button"
+                                            className={`rounded-full border px-2 py-0.5 text-xs ${
+                                                isActive
+                                                    ? "bg-primary text-primary-foreground border-primary"
+                                                    : "bg-muted text-muted-foreground hover:bg-accent"
+                                            }`}
+                                            onClick={() => handleTicketStatusChange(status)}
+                                        >
+                                            {label}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    )}
                     {isPostOwner && (
                         <button
                             type="button"
