@@ -1,12 +1,12 @@
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { useEffect, useState } from "react";
-import { Card2, CardContent } from "../ui/card2";
+import { Card2, CardContent, CardFooter, CardHeader } from "../ui/card2";
 import { Badge2 } from "../ui/badge2";
 import { Button2 } from "../ui/button2";
 import { Textarea2 } from "../ui/textarea2";
 import { MoreVertical, Pencil, Trash2, CornerDownRight, History } from "lucide-react";
 import { PostCard } from "./PostCard";
-import { RichTextDemo, type RichTextDraft } from "../RichTextDemo";
+import { RichTextDemo, type RichTextDraft, type AttachmentDraft } from "../RichTextDemo";
 import { postRevisionsByPostId, type PostRevision } from "../../data/postRevisions";
 import {
     loadRepliesForPost,
@@ -19,9 +19,7 @@ import {
     supportTicketStatusLabel,
     type SupportTicketStatus,
 } from "../../data/supportTickets";
-import {
-    saveSupportStatus,
-} from "../../utils/supportTicketStatusStorage";
+import { saveSupportStatus } from "../../utils/supportTicketStatusStorage";
 
 const COMMENTS_PER_PAGE = 5;
 const SUPPORT_STATUS_OPTIONS: SupportTicketStatus[] = [
@@ -45,6 +43,12 @@ interface PostPayload {
     ticketStatus?: SupportTicketStatus;
 }
 
+interface CommentHistoryEntry {
+    id: string;
+    content: string;
+    timestamp: string;
+}
+
 interface CommentItem {
     id: string;
     author: string;
@@ -57,6 +61,8 @@ interface CommentItem {
     replyContent?: string;
     parentId?: string | null; // null이면 최상위 댓글, 아니면 해당 댓글의 쓰레드 id
     menuOpen?: boolean; // … 메뉴 열림 여부
+    history?: CommentHistoryEntry[];
+    parentAuthor?: string;
 }
 
 interface ProjectPostDetailProps {
@@ -119,8 +125,10 @@ export function ProjectPostDetail({
     const [postTitleState, setPostTitleState] = useState(post.title);
     const [postContentState, setPostContentState] = useState(post.content);
     const [postTypeState, setPostTypeState] = useState<PostPayload["type"]>(post.type);
-    const [ticketStatus, setTicketStatus] = useState<SupportTicketStatus | undefined>(post.ticketStatus);
-    const [postAttachments, setPostAttachments] = useState<File[]>([]);
+    const [ticketStatus, setTicketStatus] = useState<SupportTicketStatus | undefined>(
+        post.ticketStatus,
+    );
+    const [postAttachments, setPostAttachments] = useState<AttachmentDraft[]>([]);
     const [postLinks, setPostLinks] = useState<{ url: string; description: string }[]>([]);
     const [isPostEditing, setIsPostEditing] = useState(startInEditMode);
     const [postEditorKey, setPostEditorKey] = useState(0);
@@ -135,6 +143,8 @@ export function ProjectPostDetail({
     const [postMenuOpen, setPostMenuOpen] = useState(false); // 게시글 메뉴 열림 여부
 
     const [commentPage, setCommentPage] = useState(1);
+    const [isCommentHistoryOpen, setIsCommentHistoryOpen] = useState(false);
+    const [historyViewCommentId, setHistoryViewCommentId] = useState<string | null>(null);
 
     // 게시글 수정 이력 모달 및 선택된 버전 상태
     const [isHistoryOpen, setIsHistoryOpen] = useState(false);
@@ -207,6 +217,7 @@ export function ProjectPostDetail({
             createdAt: "2025-11-22 10:32",
             isOwner: false,
             parentId: null,
+            history: [],
         },
     ]);
     const [newComment, setNewComment] = useState("");
@@ -250,6 +261,7 @@ export function ProjectPostDetail({
         const parsed = new Date(value);
         return Number.isNaN(parsed.getTime()) ? value : parsed.toLocaleString("ko-KR");
     };
+
     const getReplyUpdatedLabel = (reply: PostReplyItem) => {
         if (!reply.updatedAt) return null;
         return formatReplyDisplayDate(reply.updatedAt);
@@ -273,6 +285,11 @@ export function ProjectPostDetail({
         saveSupportStatus(post.id, nextStatus);
     };
 
+    const closeCommentHistory = () => {
+        setIsCommentHistoryOpen(false);
+        setHistoryViewCommentId(null);
+    };
+
     const resetReplyDraft = () => {
         setReplyDraft(createEmptyReplyDraft());
         setReplyEditorKey((prev) => prev + 1);
@@ -292,7 +309,13 @@ export function ProjectPostDetail({
         setReplyDraft({
             title: target.title,
             content: target.content,
-            attachments: [],
+            attachments:
+                target.attachments?.map((file, index) => ({
+                    id: `reply-edit-${target.id}-${index}`,
+                    name: file.name,
+                    size: file.size ?? 0,
+                    dataUrl: file.dataUrl ?? "",
+                })) ?? [],
             links: target.links,
         });
         setReplyEditorKey((prev) => prev + 1);
@@ -351,6 +374,7 @@ export function ProjectPostDetail({
             attachments: replyDraft.attachments.map((file) => ({
                 name: file.name,
                 size: file.size,
+                dataUrl: file.dataUrl,
             })),
             links: replyDraft.links,
         };
@@ -426,8 +450,12 @@ export function ProjectPostDetail({
     };
 
     const sortedRevisions = [...revisions].sort((a, b) => {
-        const aTime = getRevisionTimestamp(a) ? new Date(getRevisionTimestamp(a)).getTime() : 0;
-        const bTime = getRevisionTimestamp(b) ? new Date(getRevisionTimestamp(b)).getTime() : 0;
+        const aTime = getRevisionTimestamp(a)
+            ? new Date(getRevisionTimestamp(a)).getTime()
+            : 0;
+        const bTime = getRevisionTimestamp(b)
+            ? new Date(getRevisionTimestamp(b)).getTime()
+            : 0;
         return bTime - aTime;
     });
 
@@ -591,16 +619,7 @@ export function ProjectPostDetail({
                 </div>
                 <RichTextDemo
                     key={replyEditorKey}
-                    initialDraft={
-                        isEditingReply && editingReply
-                            ? {
-                                title: editingReply.title,
-                                content: editingReply.content,
-                                attachments: [],
-                                links: editingReply.links,
-                            }
-                            : undefined
-                    }
+                    initialDraft={isEditingReply ? replyDraft : undefined}
                     onChange={setReplyDraft}
                     showTypeSelector={false}
                     actionButtons={({ clear }) => (
@@ -641,6 +660,8 @@ export function ProjectPostDetail({
                 createdAt: new Date().toLocaleString("ko-KR"),
                 isOwner: true,
                 parentId: null,
+                history: [],
+                parentAuthor: undefined,
             },
         ]);
         setNewComment("");
@@ -667,6 +688,14 @@ export function ProjectPostDetail({
                         ...comment,
                         content,
                         updatedAt: new Date().toLocaleString("ko-KR"),
+                        history: [
+                            ...(comment.history ?? []),
+                            {
+                                id: `hist-${Date.now()}`,
+                                content: comment.content,
+                                timestamp: comment.updatedAt ?? comment.createdAt,
+                            },
+                        ],
                         isEditing: false,
                         menuOpen: false,
                     }
@@ -713,6 +742,8 @@ export function ProjectPostDetail({
                     createdAt: new Date().toLocaleString("ko-KR"),
                     isOwner: true,
                     parentId: rootId,
+                    history: [],
+                    parentAuthor: target.author,
                 } as CommentItem,
             ];
         });
@@ -739,9 +770,7 @@ export function ProjectPostDetail({
                         {/* 상단: 작성자 / 시간 / ⋮ 메뉴 */}
                         <div className="flex items-start justify-between gap-3">
                             <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                <span className="font-semibold text-foreground text-sm">
-                  {comment.author}
-                </span>
+                                <span className="font-semibold text-foreground text-sm">{comment.author}</span>
                                 <span>{comment.createdAt}</span>
                                 {comment.updatedAt && (
                                     <span className="text-[11px] text-muted-foreground">
@@ -998,7 +1027,57 @@ export function ProjectPostDetail({
         });
     };
 
+    const historyCommentButton = (comment: CommentItem, parent?: CommentItem) => (
+        <button
+            key={comment.id}
+            type="button"
+            className={`w-full rounded-lg border px-3 py-2 text-left text-sm ${
+                historyViewCommentId === comment.id ? "border-primary bg-primary/10" : "hover:bg-muted"
+            }`}
+            onClick={() => setHistoryViewCommentId(comment.id)}
+        >
+            <div className="flex items-center justify-between text-xs text-muted-foreground">
+                <span className="flex items-center gap-1">
+                    {parent && <CornerDownRight className="h-4 w-4 text-primary" />}
+                    <span>{comment.author || "익명"}</span>
+                </span>
+                <span>
+                    {comment.updatedAt ? `${comment.updatedAt} (수정됨)` : comment.createdAt}
+                </span>
+            </div>
+            <p className="mt-1 line-clamp-2 whitespace-pre-wrap text-foreground">{comment.content}</p>
+        </button>
+    );
+
+    const renderHistoryCommentList = () => {
+        const topComments = comments.filter((comment) => (comment.parentId ?? null) === null);
+        const fragments: JSX.Element[] = [];
+
+        topComments.forEach((comment) => {
+            fragments.push(
+                <div key={`history-top-${comment.id}`} className="space-y-2">
+                    {historyCommentButton(comment)}
+                    {comments
+                        .filter((reply) => reply.parentId === comment.id)
+                        .map((reply) => (
+                            <div key={`history-reply-${reply.id}`} className="pl-5">
+                                {historyCommentButton(reply, comment)}
+                            </div>
+                        ))}
+                </div>,
+            );
+        });
+
+        return fragments;
+    };
+
     // ───────────── 메인 렌더 ─────────────
+
+    const historyViewComment = historyViewCommentId
+        ? comments.find((comment) => comment.id === historyViewCommentId) ?? null
+        : null;
+    const historyNeedsScroll = (historyViewComment?.history?.length ?? 0) >= 5;
+    const currentCommentsNeedScroll = true;
 
     return (
         <div className="w-full max-w-5xl mx-auto p-6 space-y-2">
@@ -1009,6 +1088,55 @@ export function ProjectPostDetail({
                 metaItems={postMetaItems}
                 extraMenu={postActionMenu}
             />
+
+            {(postAttachments.length > 0 || postLinks.length > 0) && (
+                <Card2>
+                    <CardContent className="space-y-4 p-4 text-sm">
+                        {postAttachments.length > 0 && (
+                            <div>
+                                <p className="font-medium">첨부 파일</p>
+                                <ul className="list-disc pl-5 text-muted-foreground space-y-1">
+                                    {postAttachments.map((file) => (
+                                        <li key={file.id}>
+                                            {file.dataUrl ? (
+                                                <a
+                                                    href={file.dataUrl}
+                                                    download={file.name}
+                                                    className="text-primary underline"
+                                                >
+                                                    {file.name}
+                                                </a>
+                                            ) : (
+                                                file.name
+                                            )}
+                                        </li>
+                                    ))}
+                                </ul>
+                            </div>
+                        )}
+                        {postLinks.length > 0 && (
+                            <div>
+                                <p className="font-medium">링크</p>
+                                <ul className="list-disc pl-5 text-muted-foreground space-y-1">
+                                    {postLinks.map((link, index) => (
+                                        <li key={`${link.url}-${index}`}>
+                                            {link.description ? `${link.description} - ` : ""}
+                                            <a
+                                                href={link.url}
+                                                target="_blank"
+                                                rel="noreferrer"
+                                                className="text-primary underline"
+                                            >
+                                                {link.url}
+                                            </a>
+                                        </li>
+                                    ))}
+                                </ul>
+                            </div>
+                        )}
+                    </CardContent>
+                </Card2>
+            )}
 
             {/* 선택된 답글 카드 */}
             {focusedReply && (
@@ -1022,8 +1150,10 @@ export function ProjectPostDetail({
                         }}
                         metaItems={[
                             focusedReply.author && `작성자: ${focusedReply.author}`,
-                            focusedReply.createdAt && `작성일: ${formatReplyDisplayDate(focusedReply.createdAt)}`,
-                            focusedReply.updatedAt && `수정일: ${getReplyUpdatedLabel(focusedReply)}`,
+                            focusedReply.createdAt &&
+                            `작성일: ${formatReplyDisplayDate(focusedReply.createdAt)}`,
+                            focusedReply.updatedAt &&
+                            `수정일: ${getReplyUpdatedLabel(focusedReply)}`,
                         ].filter(Boolean) as string[]}
                         extraMenu={
                             <div className="relative">
@@ -1070,9 +1200,21 @@ export function ProjectPostDetail({
                                 {focusedReply.attachments.length > 0 && (
                                     <div>
                                         <p className="font-medium">첨부 파일</p>
-                                        <ul className="list-disc pl-5 text-muted-foreground">
+                                        <ul className="list-disc pl-5 text-muted-foreground space-y-1">
                                             {focusedReply.attachments.map((file, index) => (
-                                                <li key={`${file.name}-${index}`}>{file.name}</li>
+                                                <li key={`${file.name}-${index}`}>
+                                                    {file.dataUrl ? (
+                                                        <a
+                                                            href={file.dataUrl}
+                                                            download={file.name}
+                                                            className="text-primary underline"
+                                                        >
+                                                            {file.name}
+                                                        </a>
+                                                    ) : (
+                                                        file.name
+                                                    )}
+                                                </li>
                                             ))}
                                         </ul>
                                     </div>
@@ -1106,7 +1248,20 @@ export function ProjectPostDetail({
             {/* 댓글 카드 */}
             <Card2>
                 <CardContent className="space-y-4 p-6">
-                    <h2 className="text-lg font-semibold mb-2">댓글</h2>
+                    <div className="flex items-center justify-between mb-2">
+                        <h2 className="text-lg font-semibold">댓글</h2>
+                        <Button2
+                            variant="ghost"
+                            size="sm"
+                            className="text-sm text-muted-foreground"
+                            onClick={() => {
+                                setHistoryViewCommentId(null);
+                                setIsCommentHistoryOpen(true);
+                            }}
+                        >
+                            댓글 이력 보기
+                        </Button2>
+                    </div>
 
                     <div className="space-y-2">
                         {renderCommentList(paginatedTopLevel)}
@@ -1171,6 +1326,81 @@ export function ProjectPostDetail({
                 </div>
             )}
 
+            {/* 댓글 이력 모달 */}
+            {isCommentHistoryOpen && (
+                <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm">
+                    <div className="absolute inset-0" onClick={closeCommentHistory} aria-hidden />
+                    <div className="relative z-10 flex h-full items-center justify-center p-4">
+                        <Card2 className="h-full w-full max-w-4xl max-h-[80vh] flex flex-col overflow-hidden">
+                            <CardHeader className="border-b text-center">
+                                <h3 className="text-lg font-semibold">댓글 이력</h3>
+                            </CardHeader>
+                            <CardContent className="flex flex-1 min-h-0 flex-col gap-4 overflow-hidden px-6 py-6">
+                                <div className="grid flex-1 min-h-0 gap-4 overflow-hidden md:grid-cols-2">
+                                    {/* 왼쪽: 현재 댓글 목록 */}
+                                    <div className="flex min-h-0 flex-col space-y-2 overflow-hidden">
+                                        <p className="text-sm font-medium text-muted-foreground">현재 댓글</p>
+                                        <div className="flex-1 space-y-2 overflow-y-auto pr-1">
+                                            {comments.length === 0
+                                                ? (
+                                                    <p className="text-sm text-muted-foreground">
+                                                        아직 댓글이 없습니다.
+                                                    </p>
+                                                )
+                                                : renderHistoryCommentList()}
+                                        </div>
+                                    </div>
+
+                                    {/* 오른쪽: 선택한 댓글의 히스토리 (스크롤 영역) */}
+                                    <div className="flex h-full min-h-0 flex-col space-y-2 overflow-hidden">
+                                        <div className="flex items-center justify-between text-sm text-muted-foreground">
+                                            <p className="font-medium">선택한 댓글의 히스토리</p>
+                                            {historyViewComment && (
+                                                <span>총 {historyViewComment.history?.length ?? 0}건</span>
+                                            )}
+                                        </div>
+                                        <div className="flex-1 overflow-y-auto rounded-lg border bg-muted/30 p-3">
+                                            <div className="space-y-2">
+                                                {!historyViewComment && (
+                                                    <p className="text-sm text-muted-foreground">
+                                                        왼쪽 목록에서 댓글을 선택해 주세요.
+                                                    </p>
+                                                )}
+
+                                                {historyViewComment &&
+                                                    (!historyViewComment.history ||
+                                                        historyViewComment.history.length === 0) && (
+                                                        <p className="text-sm text-muted-foreground">
+                                                            수정 이력이 없습니다.
+                                                        </p>
+                                                    )}
+
+                                                {historyViewComment?.history?.map((entry) => (
+                                                    <div
+                                                        key={entry.id}
+                                                        className="rounded-md border bg-background p-2 text-sm space-y-1"
+                                                    >
+                                                        <span className="text-xs text-muted-foreground">
+                                                            {entry.timestamp}
+                                                        </span>
+                                                        <p className="whitespace-pre-wrap">{entry.content}</p>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </CardContent>
+                            <CardFooter className="border-t">
+                                <Button2 className="w-full justify-center" onClick={closeCommentHistory}>
+                                    닫기
+                                </Button2>
+                            </CardFooter>
+                        </Card2>
+                    </div>
+                </div>
+            )}
+
             {/* 하단 버튼들 */}
             {showBackButton && (
                 <div className="mt-2 flex w-full justify-between">
@@ -1191,7 +1421,7 @@ export function ProjectPostDetail({
                 </div>
             )}
 
-            {/* 수정 이력 모달 */}
+            {/* 수정 이력 모달 (게시글) */}
             {isHistoryOpen && (
                 <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm">
                     <div className="absolute inset-0" aria-hidden onClick={closeHistory} />

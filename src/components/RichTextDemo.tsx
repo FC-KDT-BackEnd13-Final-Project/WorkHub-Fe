@@ -4,10 +4,17 @@ import { Card, CardContent } from "./ui/card";
 import { Button } from "./ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 
+export interface AttachmentDraft {
+    id: string;
+    name: string;
+    size: number;
+    dataUrl: string;
+}
+
 export interface RichTextDraft {
     title: string;
     content: string;
-    attachments: File[];
+    attachments: AttachmentDraft[];
     links: { url: string; description: string }[];
     type: "공지" | "질문" | "일반";
 }
@@ -58,12 +65,37 @@ export function RichTextDemo({ actionButtons, onChange, initialDraft, showTypeSe
         setDraftWithNotify(() => ({ ...defaultDraft }));
     };
 
-    const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const fileToAttachment = (file: File): Promise<AttachmentDraft> =>
+        new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => {
+                resolve({
+                    id: `att-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+                    name: file.name,
+                    size: file.size,
+                    dataUrl: typeof reader.result === "string" ? reader.result : "",
+                });
+            };
+            reader.onerror = () => reject(reader.error);
+            reader.readAsDataURL(file);
+        });
+
+    const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
         const files = Array.from(event.target.files ?? []);
         if (files.length === 0) return;
-        setDraftWithNotify((prev) => ({ ...prev, attachments: [...prev.attachments, ...files] }));
-        if (fileInputRef.current) {
-            fileInputRef.current.value = "";
+        try {
+            const attachments = await Promise.all(files.map(fileToAttachment));
+            setDraftWithNotify((prev) => ({
+                ...prev,
+                attachments: [...prev.attachments, ...attachments],
+            }));
+        } catch (error) {
+            // eslint-disable-next-line no-console
+            console.error("첨부 파일을 읽는 중 오류가 발생했습니다.", error);
+        } finally {
+            if (fileInputRef.current) {
+                fileInputRef.current.value = "";
+            }
         }
     };
 
@@ -204,7 +236,7 @@ export function RichTextDemo({ actionButtons, onChange, initialDraft, showTypeSe
                             <div className="space-y-2">
                                 {draft.attachments.map((file, index) => (
                                     <div
-                                        key={`${file.name}-${index}`}
+                                        key={file.id}
                                         className="flex w-full items-center justify-between rounded-md border bg-background px-3 py-2 text-sm"
                                     >
                                         <span className="truncate">{file.name}</span>
