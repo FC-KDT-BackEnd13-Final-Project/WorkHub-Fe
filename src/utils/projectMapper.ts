@@ -6,7 +6,7 @@ export interface Project {
   name: string;
   brand: string;
   managers?: string[];
-  developers?: string[];
+  developers: { id: string; name: string }[];
   manager?: string;
   developer?: string;
   startDate: string;
@@ -35,7 +35,10 @@ export function mapApiProjectToUiProject(apiProject: ProjectApiItem): Project {
 
     // 배열 변환: 객체 배열 → 이름 문자열 배열
     managers: apiProject.clientMembers.map((m) => m.clientMemberName),
-    developers: apiProject.devMembers.map((d) => d.devMemberName),
+    developers: apiProject.devMembers.map((d) => ({
+      id: String(d.devMemberId),
+      name: d.devMemberName,
+    })),
 
     // API에서 제공하지 않는 필드는 기본값 설정
     progress: 0, // TODO: workflowStep 기반 계산 로직 추가 가능

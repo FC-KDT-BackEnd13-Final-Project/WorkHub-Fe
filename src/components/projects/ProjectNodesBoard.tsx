@@ -106,6 +106,7 @@ const createWorkflowFormState = () => ({
   title: "",
   description: "",
   developer: "",
+  developerUserId: undefined as number | undefined,
   startDate: "",
   endDate: "",
   approvalStatus: "PENDING" as ApprovalStatus,
@@ -166,9 +167,12 @@ export function ProjectNodesBoard() {
   const { projectId } = useParams<{ projectId: string }>();
   const navigate = useNavigate();
   const location = useLocation();
-  const locationState = location.state as { projectName?: string; projectDevelopers?: string[] } | null;
+  const locationState = location.state as {
+    projectName?: string;
+    developers?: { id: string; name: string }[];
+  } | null;
   const projectNameFromState = locationState?.projectName;
-  const projectDevelopersFromState = locationState?.projectDevelopers ?? [];
+  const developerOptions = locationState?.developers ?? [];
   console.log("ProjectNodesBoard - 현재 projectId:", projectId);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<"전체" | NodeStatus>("전체");
@@ -186,16 +190,14 @@ export function ProjectNodesBoard() {
   const [error, setError] = useState<string | null>(null);
   const nextProjectNodeId = useRef(1);
   const developerFilterOptions = useMemo(() => {
-    const names = projectDevelopersFromState
-      .map((developer) => developer.trim())
+    const names = developerOptions
+      .map((developer) => developer.name.trim())
       .filter(Boolean);
     return ["전체", ...names];
-  }, [projectDevelopersFromState]);
+  }, [developerOptions]);
   const workflowDeveloperOptions = useMemo(() => {
-    return projectDevelopersFromState
-      .map((developer) => developer.trim())
-      .filter(Boolean);
-  }, [projectDevelopersFromState]);
+    return developerOptions;
+  }, [developerOptions]);
   const hasWorkflowDeveloperOptions = workflowDeveloperOptions.length > 0;
 
   const isEditingWorkflow = Boolean(editingNode);
@@ -207,6 +209,8 @@ export function ProjectNodesBoard() {
       },
     }),
   );
+  const isCreateMode = !editingNode;
+  const isCreateBlocked = isCreateMode && (!hasWorkflowDeveloperOptions || !newWorkflow.developerUserId);
 
   const filteredNodes = useMemo(() => {
     const term = search.toLowerCase();
@@ -357,9 +361,9 @@ export function ProjectNodesBoard() {
     };
   }, [closeWorkflowModal, isWorkflowModalOpen]);
 
-  const handleSaveWorkflow = () => {
+  const handleSaveWorkflow = async () => {
+    if (!projectId) return;
     if (!newWorkflow.title.trim()) return;
-    if (!newWorkflow.developer.trim()) return;
     if (!newWorkflow.startDate || !newWorkflow.endDate) return;
     if (new Date(newWorkflow.endDate) <= new Date(newWorkflow.startDate)) return;
 
@@ -372,6 +376,7 @@ export function ProjectNodesBoard() {
             title: newWorkflow.title,
             description: newWorkflow.description,
             developer: newWorkflow.developer.trim(),
+            developerUserId: newWorkflow.developerUserId,
             startDate: newWorkflow.startDate,
             endDate: newWorkflow.endDate,
             approvalStatus: newWorkflow.approvalStatus,
@@ -379,29 +384,31 @@ export function ProjectNodesBoard() {
           };
         }),
       );
-    } else {
-      const node: Node = {
-        id: crypto.randomUUID(),
-        projectNodeId: nextProjectNodeId.current++,
-        title: newWorkflow.title,
-        description: newWorkflow.description,
-        tags: [], // Tags are removed, so an empty array is passed
-        filesCount: 0,
-        linksCount: 0,
-        developer: newWorkflow.developer.trim(),
-        status: "NOT_STARTED",
-        approvalStatus: newWorkflow.approvalStatus,
-        updatedAt: new Date().toISOString(),
-        startDate: newWorkflow.startDate,
-        endDate: newWorkflow.endDate,
-        hasNotification: true,
-      };
-
-      setNodes((prev) => [node, ...prev]);
+      setNewWorkflow(createWorkflowFormState());
+      closeWorkflowModal();
+      return;
     }
 
-    setNewWorkflow(createWorkflowFormState());
-    closeWorkflowModal();
+    if (!newWorkflow.developerUserId) return;
+
+    try {
+      setIsLoading(true);
+      await projectApi.createNode(projectId, {
+        title: newWorkflow.title,
+        description: newWorkflow.description,
+        developerUserId: newWorkflow.developerUserId,
+        startDate: newWorkflow.startDate,
+        endDate: newWorkflow.endDate,
+      });
+
+      await fetchNodes();
+      setNewWorkflow(createWorkflowFormState());
+      closeWorkflowModal();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "노드 생성에 실패했습니다.");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const syncNodeOrder = useCallback(
@@ -453,11 +460,20 @@ export function ProjectNodesBoard() {
 
   const handleEditNode = useCallback(
     (node: Node) => {
+      const matchedDeveloperById = node.developerUserId
+        ? developerOptions.find((dev) => Number(dev.id) === node.developerUserId)
+        : undefined;
+      const matchedDeveloperByName = developerOptions.find((dev) => dev.name === node.developer);
+      const matchedDeveloper = matchedDeveloperById || matchedDeveloperByName;
+
       setEditingNode(node);
       setNewWorkflow({
         title: node.title,
         description: node.description,
         developer: node.developer,
+        developerUserId: matchedDeveloper
+          ? Number(matchedDeveloper.id)
+          : node.developerUserId ?? undefined,
         startDate: node.startDate,
         endDate: node.endDate,
         approvalStatus: node.approvalStatus || "PENDING",
@@ -467,7 +483,7 @@ export function ProjectNodesBoard() {
         navigate(workflowBasePath, { replace: true, state: location.state });
       }
     },
-    [location.pathname, location.state, navigate, workflowBasePath],
+    [developerOptions, location.pathname, location.state, navigate, workflowBasePath],
   );
 
   const handleDeleteNode = useCallback(
@@ -694,32 +710,50 @@ export function ProjectNodesBoard() {
                         </Label>
                         {hasWorkflowDeveloperOptions ? (
                           <Select
-                            value={newWorkflow.developer || undefined}
-                            onValueChange={(value) =>
-                              setNewWorkflow((prev) => ({ ...prev, developer: value }))
+                            value={
+                              newWorkflow.developerUserId
+                                ? String(newWorkflow.developerUserId)
+                                : undefined
                             }
+                            onValueChange={(value) => {
+                              const selected = workflowDeveloperOptions.find((dev) => dev.id === value);
+                              setNewWorkflow((prev) => ({
+                                ...prev,
+                                developerUserId: Number(value),
+                                developer: selected?.name ?? "",
+                              }));
+                            }}
                           >
                             <SelectTrigger className="h-9 rounded-md border border-border bg-input-background px-3 py-1 focus:bg-white focus:border-primary transition-colors">
-                            <SelectValue placeholder="개발 담당자를 선택하세요" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {workflowDeveloperOptions.map((developer, index) => (
-                              <SelectItem key={`${developer}-${index}`} value={developer}>
-                                {developer}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                              <SelectValue placeholder="개발 담당자를 선택하세요" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {workflowDeveloperOptions.map((developer, index) => (
+                                <SelectItem key={`${developer.id}-${index}`} value={developer.id}>
+                                  {developer.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
                         ) : (
                           <Input
                             id="workflowDeveloper"
                             value={newWorkflow.developer}
                             onChange={(event) =>
-                              setNewWorkflow((prev) => ({ ...prev, developer: event.target.value }))
+                              setNewWorkflow((prev) => ({
+                                ...prev,
+                                developer: event.target.value,
+                                developerUserId: undefined,
+                              }))
                             }
                             placeholder="담당자 이름을 입력하세요"
                             className="h-9 rounded-md border border-border bg-input-background px-3 py-1 focus:bg-white focus:border-primary transition-colors"
                           />
+                        )}
+                        {isCreateMode && !hasWorkflowDeveloperOptions && (
+                          <p className="text-sm text-destructive">
+                            개발자 목록을 불러올 수 없어 새 워크플로를 생성할 수 없습니다.
+                          </p>
                         )}
                       </div>
                     </div>
@@ -727,7 +761,12 @@ export function ProjectNodesBoard() {
                       <Button variant="secondary" className="w-1/2" onClick={closeWorkflowModal}>
                         취소
                       </Button>
-                      <Button className="w-1/2" onClick={handleSaveWorkflow}>
+                      <Button
+                        className="w-1/2"
+                        onClick={handleSaveWorkflow}
+                        disabled={isCreateBlocked}
+                        title={isCreateBlocked ? "개발자 선택 후 생성할 수 있습니다." : undefined}
+                      >
                         {isEditingWorkflow ? "저장" : "생성"}
                       </Button>
                     </div>
