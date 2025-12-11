@@ -166,8 +166,9 @@ export function ProjectNodesBoard() {
   const { projectId } = useParams<{ projectId: string }>();
   const navigate = useNavigate();
   const location = useLocation();
-  const projectNameFromState =
-      (location.state as { projectName?: string } | null)?.projectName;
+  const locationState = location.state as { projectName?: string; projectDevelopers?: string[] } | null;
+  const projectNameFromState = locationState?.projectName;
+  const projectDevelopersFromState = locationState?.projectDevelopers ?? [];
   console.log("ProjectNodesBoard - 현재 projectId:", projectId);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<"전체" | NodeStatus>("전체");
@@ -185,15 +186,17 @@ export function ProjectNodesBoard() {
   const [error, setError] = useState<string | null>(null);
   const nextProjectNodeId = useRef(1);
   const developerFilterOptions = useMemo(() => {
-    const names = new Set<string>();
-    nodes.forEach((node) => {
-      const trimmed = node.developer.trim();
-      if (trimmed) {
-        names.add(trimmed);
-      }
-    });
-    return ["전체", ...Array.from(names).sort()];
-  }, [nodes]);
+    const names = projectDevelopersFromState
+      .map((developer) => developer.trim())
+      .filter(Boolean);
+    return ["전체", ...names];
+  }, [projectDevelopersFromState]);
+  const workflowDeveloperOptions = useMemo(() => {
+    return projectDevelopersFromState
+      .map((developer) => developer.trim())
+      .filter(Boolean);
+  }, [projectDevelopersFromState]);
+  const hasWorkflowDeveloperOptions = workflowDeveloperOptions.length > 0;
 
   const isEditingWorkflow = Boolean(editingNode);
 
@@ -262,9 +265,9 @@ export function ProjectNodesBoard() {
     }
     if (location.pathname !== workflowModalPath) {
       console.log("workflowModalPath로 이동:", workflowModalPath);
-      navigate(workflowModalPath, { replace: true });
+      navigate(workflowModalPath, { replace: true, state: location.state });
     }
-  }, [isWorkflowModalOpen, location.pathname, navigate, workflowModalPath]);
+  }, [isWorkflowModalOpen, location.pathname, location.state, navigate, workflowModalPath]);
 
   const closeWorkflowModal = useCallback(() => {
     console.log("closeWorkflowModal 호출, 현재 isWorkflowModalOpen:", isWorkflowModalOpen);
@@ -275,9 +278,9 @@ export function ProjectNodesBoard() {
     setEditingNode(null);
     if (location.pathname !== workflowBasePath) {
       console.log("workflowBasePath로 이동:", workflowBasePath);
-      navigate(workflowBasePath, { replace: true });
+      navigate(workflowBasePath, { replace: true, state: location.state });
     }
-  }, [isWorkflowModalOpen, location.pathname, navigate, workflowBasePath]);
+  }, [isWorkflowModalOpen, location.pathname, location.state, navigate, workflowBasePath]);
 
   // API 호출 함수
   const fetchNodes = useCallback(async () => {
@@ -461,10 +464,10 @@ export function ProjectNodesBoard() {
       });
       setIsWorkflowModalOpen(true);
       if (location.pathname !== workflowBasePath) {
-        navigate(workflowBasePath, { replace: true });
+        navigate(workflowBasePath, { replace: true, state: location.state });
       }
     },
-    [location.pathname, navigate, workflowBasePath],
+    [location.pathname, location.state, navigate, workflowBasePath],
   );
 
   const handleDeleteNode = useCallback(
@@ -689,15 +692,35 @@ export function ProjectNodesBoard() {
                         <Label htmlFor="workflowDeveloper" className="text-gray-700">
                           개발 담당자
                         </Label>
-                        <Input
-                          id="workflowDeveloper"
-                          value={newWorkflow.developer}
-                          onChange={(event) =>
-                            setNewWorkflow((prev) => ({ ...prev, developer: event.target.value }))
-                          }
-                          placeholder="담당자 이름을 입력하세요"
-                          className="h-9 rounded-md border border-border bg-input-background px-3 py-1 focus:bg-white focus:border-primary transition-colors"
-                        />
+                        {hasWorkflowDeveloperOptions ? (
+                          <Select
+                            value={newWorkflow.developer || undefined}
+                            onValueChange={(value) =>
+                              setNewWorkflow((prev) => ({ ...prev, developer: value }))
+                            }
+                          >
+                            <SelectTrigger className="h-9 rounded-md border border-border bg-input-background px-3 py-1 focus:bg-white focus:border-primary transition-colors">
+                            <SelectValue placeholder="개발 담당자를 선택하세요" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {workflowDeveloperOptions.map((developer, index) => (
+                              <SelectItem key={`${developer}-${index}`} value={developer}>
+                                {developer}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        ) : (
+                          <Input
+                            id="workflowDeveloper"
+                            value={newWorkflow.developer}
+                            onChange={(event) =>
+                              setNewWorkflow((prev) => ({ ...prev, developer: event.target.value }))
+                            }
+                            placeholder="담당자 이름을 입력하세요"
+                            className="h-9 rounded-md border border-border bg-input-background px-3 py-1 focus:bg-white focus:border-primary transition-colors"
+                          />
+                        )}
                       </div>
                     </div>
                     <div className="mt-6 pt-6 flex justify-between gap-2">
@@ -761,8 +784,8 @@ export function ProjectNodesBoard() {
             <SelectValue placeholder="전체 개발 담당자" />
           </SelectTrigger>
           <SelectContent>
-            {developerFilterOptions.map((option) => (
-              <SelectItem key={option} value={option}>
+            {developerFilterOptions.map((option, index) => (
+              <SelectItem key={`${option}-${index}`} value={option}>
                 {option === "전체" ? "전체 개발 담당자" : option}
               </SelectItem>
             ))}

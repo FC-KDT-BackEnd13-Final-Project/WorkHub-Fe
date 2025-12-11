@@ -1014,6 +1014,7 @@ export function ProjectsIndex() {
                               navigate(`/projects/${project.id}/nodes`, {
                                 state: {
                                   projectName: project.name,      // 예: "모바일 앱 개발"
+                                  projectDevelopers: project.developers ?? [],
                                   // 필요하면 brand도 같이 보낼 수 있음
                                   // brand: project.brand,
                                 },
