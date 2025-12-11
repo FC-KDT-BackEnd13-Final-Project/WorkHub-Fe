@@ -1,10 +1,12 @@
-// src/components/ui/CheckboxQuestion2.tsx
-"use client";
-
 import { useEffect, useRef } from "react";
 import { Checkbox2 } from "./checkbox2";
 import { Textarea2 } from "./textarea2";
 import { EvidenceUpload2 } from "./EvidenceUpload2";
+
+interface EvidenceData {
+    files: File[];
+    links: string[];
+}
 
 interface CheckboxQuestionProps {
     titleValue: string;
@@ -12,13 +14,16 @@ interface CheckboxQuestionProps {
     options: string[];
     selectedIndexes: number[];
     onSelectionChange: (index: number, checked: boolean) => void;
-    evidences: Record<string, File[]>;
+    evidences: Record<string, EvidenceData>;
     onEvidenceUpload: (id: string, files: File[]) => void;
+    onEvidenceLinksChange: (id: string, links: string[]) => void;
     fieldName: string;
     onOptionChange: (index: number, newValue: string) => void;
 
     onAddOption: () => void;
     onRemoveOption: (index: number) => void;
+    disabled?: boolean;
+    selectionEnabled?: boolean;
 }
 
 export function CheckboxQuestion2({
@@ -29,12 +34,16 @@ export function CheckboxQuestion2({
                                       onSelectionChange,
                                       evidences,
                                       onEvidenceUpload,
+                                      onEvidenceLinksChange,
                                       fieldName,
                                       onOptionChange,
                                       onAddOption,
                                       onRemoveOption,
+                                      disabled = false,
+                                      selectionEnabled,
                                   }: CheckboxQuestionProps) {
     const textareaRefs = useRef<(HTMLTextAreaElement | null)[]>([]);
+    const canSelect = selectionEnabled ?? !disabled;
 
     const autoResize = (index: number) => {
         const el = textareaRefs.current[index];
@@ -47,6 +56,8 @@ export function CheckboxQuestion2({
         options.forEach((_, idx) => autoResize(idx));
     }, [options]);
 
+    const optionList = options.map((option, idx) => ({ option, idx }));
+
     return (
         <div className="space-y-2">
             {/* 체크리스트 제목 입력 */}
@@ -55,64 +66,70 @@ export function CheckboxQuestion2({
                 onChange={(e) => onTitleChange(e.target.value)}
                 className="w-full px-3 py-2 rounded-md border text-sm"
                 placeholder="제목을 입력하세요"
+                disabled={disabled}
             />
 
             {/* 체크 항목: 2열 레이아웃 */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                {options.map((option, index) => {
-                    const isChecked = selectedIndexes.includes(index);
-                    const evidenceId = `${fieldName}-${index}`;
-                    const hasEvidence = evidences[evidenceId]?.length > 0;
-                    const isLast = index === options.length - 1;
+                {optionList.map(({ option, idx }) => {
+                    const isChecked = selectedIndexes.includes(idx);
+                    const evidenceId = `${fieldName}-${idx}`;
+                    const evidenceItem = evidences[evidenceId];
+                    const hasEvidence =
+                        (evidenceItem?.files?.length ?? 0) > 0 || (evidenceItem?.links?.length ?? 0) > 0;
+                    const isLast = idx === options.length - 1;
 
                     return (
-                        <div key={index} className="space-y-2">
+                        <div key={idx} className="space-y-2">
                             {/* 한 줄: 체크박스 + 입력창 + (마지막 줄이면 + / -) */}
                             <div className="flex items-center gap-2 px-2 py-1 rounded-md hover:bg-muted/70 transition-colors">
                                 {/* 체크박스 */}
                                 <Checkbox2
-                                    id={`${fieldName}-${index}`}
+                                    id={`${fieldName}-${idx}`}
                                     checked={isChecked}
-                                    onCheckedChange={(checked) =>
-                                        onSelectionChange(index, checked as boolean)
-                                    }
+                                    onCheckedChange={(checked) => {
+                                        if (!canSelect) return;
+                                        onSelectionChange(idx, checked as boolean);
+                                    }}
                                     className="shrink-0"
+                                    disabled={!canSelect}
                                 />
 
                                 {/* 입력창 */}
                                 <div className="flex-1">
                                     <Textarea2
-                                        ref={(el) => (textareaRefs.current[index] = el)}
+                                        ref={(el) => (textareaRefs.current[idx] = el)}
                                         value={option}
                                         onChange={(e) => {
-                                            onOptionChange(index, e.target.value);
-                                            autoResize(index);
+                                            onOptionChange(idx, e.target.value);
+                                            autoResize(idx);
                                         }}
                                         className="w-full min-h-[38px] resize-none overflow-hidden"
-                                        placeholder={`check list ${index + 1}`}
+                                        placeholder={`check list ${idx + 1}`}
+                                        disabled={disabled}
                                     />
                                 </div>
 
-                                {/* 마지막 항목에만 세로 + / - 표시 */}
-                                {isLast && (
+                                {/* 마지막 항목에만 + / - 표시 */}
+                                {isLast && !disabled && (
                                     <div className="flex flex-col items-center justify-center ml-1 select-none text-sm text-muted-foreground">
-                    <span
-                        role="button"
-                        onClick={onAddOption}
-                        className="cursor-pointer hover:text-foreground leading-none"
-                    >
-                      +
-                    </span>
+                                        <span
+                                            role="button"
+                                            onClick={onAddOption}
+                                            className="leading-none cursor-pointer hover:text-foreground"
+                                        >
+                                            +
+                                        </span>
                                         <span
                                             role="button"
                                             onClick={() => {
-                                                if (options.length <= 1) return; // 최소 한 개는 남기기
-                                                onRemoveOption(index);
+                                                if (options.length <= 1) return;
+                                                onRemoveOption(idx);
                                             }}
-                                            className="mt-1 cursor-pointer hover:text-foreground leading-none"
+                                            className="mt-1 leading-none cursor-pointer hover:text-foreground"
                                         >
-                      -
-                    </span>
+                                            -
+                                        </span>
                                     </div>
                                 )}
                             </div>
@@ -122,7 +139,10 @@ export function CheckboxQuestion2({
                                 id={evidenceId}
                                 isChecked={isChecked}
                                 onImageUpload={onEvidenceUpload}
-                                files={hasEvidence ? evidences[evidenceId] : []}
+                                onLinksChange={onEvidenceLinksChange}
+                                files={evidenceItem?.files ?? []}
+                                links={evidenceItem?.links ?? []}
+                                disabled={disabled}
                             />
                         </div>
                     );

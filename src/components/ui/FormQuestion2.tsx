@@ -5,12 +5,17 @@ import { CheckboxQuestion2 } from "./CheckboxQuestion2";
 import { Textarea2 } from "./textarea2";
 import { MessagesSquare } from "lucide-react";
 
+interface EvidenceItem {
+    files: File[];
+    links: string[];
+}
+
 interface ChecklistGroup {
     id: number;
     title: string;
     rules: string[];
     selectedIndexes: number[];
-    evidences: Record<string, File[]>;
+    evidences: Record<string, EvidenceItem>;
     comment: string;
     isCommentOpen: boolean;
     status: "pending" | "approved" | "hold";
@@ -19,6 +24,10 @@ interface ChecklistGroup {
 
 interface FormQuestionProps {
     resetSignal: number;
+    disabled?: boolean;
+    unlockSignal?: number;
+    allowSelectionWhenDisabled?: boolean;
+    allowCommentWhenDisabled?: boolean;
 }
 
 const createChecklistGroup = (id: number): ChecklistGroup => ({
@@ -33,27 +42,66 @@ const createChecklistGroup = (id: number): ChecklistGroup => ({
     locked: false,
 });
 
-export function FormQuestion2({ resetSignal }: FormQuestionProps) {
+export function FormQuestion2({
+    resetSignal,
+    disabled = false,
+    unlockSignal = 0,
+    allowSelectionWhenDisabled = false,
+    allowCommentWhenDisabled = false,
+}: FormQuestionProps) {
     const [groups, setGroups] = useState<ChecklistGroup[]>([
         createChecklistGroup(1),
     ]);
+
+    const canSelect = !disabled || allowSelectionWhenDisabled;
+    const canComment = !disabled || allowCommentWhenDisabled;
+    const canDecide = !disabled || allowSelectionWhenDisabled;
+    const shouldClearSelectionsForReview = disabled && allowSelectionWhenDisabled;
+    const [hasClearedForReview, setHasClearedForReview] = useState(false);
 
     // RESET
     useEffect(() => {
         setGroups([createChecklistGroup(1)]);
     }, [resetSignal]);
 
+    // UNLOCK (e.g., 수정 버튼 클릭 시 group 상태 초기화)
+    useEffect(() => {
+        if (!unlockSignal) return;
+        setGroups((prev) => prev.map((group) => ({ ...group, status: "pending", locked: false })));
+    }, [unlockSignal]);
+
+    // Client 리뷰 모드에서는 기존 체크 상태를 초기화한다.
+    useEffect(() => {
+        if (shouldClearSelectionsForReview && !hasClearedForReview) {
+            setGroups((prev) =>
+                prev.map((group) =>
+                    group.selectedIndexes.length
+                        ? { ...group, selectedIndexes: [] }
+                        : group,
+                ),
+            );
+            setHasClearedForReview(true);
+        }
+
+        if (!shouldClearSelectionsForReview && hasClearedForReview) {
+            setHasClearedForReview(false);
+        }
+    }, [shouldClearSelectionsForReview, hasClearedForReview]);
+
     // 체크리스트 카드 추가
     const handleAddGroup = () => {
+        if (disabled) return;
         setGroups((prev) => [...prev, createChecklistGroup(prev.length + 1)]);
     };
 
     // 체크리스트 카드 제거
     const handleRemoveGroup = () => {
+        if (disabled) return;
         setGroups((prev) => (prev.length <= 1 ? prev : prev.slice(0, -1)));
     };
 
     const toggleComment = (groupIndex: number) => {
+        if (!canComment) return;
         setGroups((prev) =>
             prev.map((g, i) =>
                 i === groupIndex ? { ...g, isCommentOpen: !g.isCommentOpen } : g
@@ -62,9 +110,10 @@ export function FormQuestion2({ resetSignal }: FormQuestionProps) {
     };
 
     const updateComment = (groupIndex: number, value: string) => {
+        if (!canComment) return;
         setGroups((prev) =>
             prev.map((g, i) =>
-                i === groupIndex ? { ...g, comment: value } : g
+                i === groupIndex && !g.locked ? { ...g, comment: value } : g
             )
         );
     };
@@ -77,22 +126,24 @@ export function FormQuestion2({ resetSignal }: FormQuestionProps) {
                     체크리스트
                 </Label2>
 
-                <div className="flex items-center gap-1">
-                    <button
-                        type="button"
-                        onClick={handleAddGroup}
-                        className="h-6 w-6 rounded-md border text-xs flex items-center justify-center hover:bg-muted/80"
-                    >
-                        +
-                    </button>
-                    <button
-                        type="button"
-                        onClick={handleRemoveGroup}
-                        className="h-6 w-6 rounded-md border text-xs flex items-center justify-center hover:bg-muted/80"
-                    >
-                        -
-                    </button>
-                </div>
+                {!disabled && (
+                    <div className="flex items-center gap-1">
+                        <button
+                            type="button"
+                            onClick={handleAddGroup}
+                            className="h-6 w-6 rounded-md border text-xs flex items-center justify-center hover:bg-muted/80"
+                        >
+                            +
+                        </button>
+                        <button
+                            type="button"
+                            onClick={handleRemoveGroup}
+                            className="h-6 w-6 rounded-md border text-xs flex items-center justify-center hover:bg-muted/80"
+                        >
+                            -
+                        </button>
+                    </div>
+                )}
             </div>
 
             {/* 체크리스트 카드들 */}
@@ -105,63 +156,93 @@ export function FormQuestion2({ resetSignal }: FormQuestionProps) {
                         <CardContent className="pt-4">
                             <CheckboxQuestion2
                                 titleValue={group.title}
-                                onTitleChange={(value) =>
+                                onTitleChange={(value) => {
+                                    if (disabled) return;
                                     setGroups((prev) =>
                                         prev.map((g, i) =>
                                             i === groupIndex ? { ...g, title: value } : g,
                                         ),
-                                    )
-                                }
+                                    );
+                                }}
                                 fieldName={`preCheck-${group.id}`}
                                 options={group.rules}
                                 selectedIndexes={group.selectedIndexes}
-                                onSelectionChange={(itemIndex, checked) =>
+                                onSelectionChange={(itemIndex, checked) => {
+                                    if (!canSelect) return;
                                     setGroups((prev) =>
                                         prev.map((g, i) => {
-                                            if (i !== groupIndex) return g;
+                                            if (i !== groupIndex || g.locked) return g;
                                             const selected = checked
                                                 ? [...g.selectedIndexes, itemIndex]
                                                 : g.selectedIndexes.filter((v) => v !== itemIndex);
                                             return { ...g, selectedIndexes: selected };
                                         }),
-                                    )
-                                }
+                                    );
+                                }}
                                 evidences={group.evidences}
-                                onEvidenceUpload={(evidenceId, files) =>
+                                onEvidenceUpload={(evidenceId, files) => {
+                                    if (disabled) return;
                                     setGroups((prev) =>
                                         prev.map((g, i) => {
-                                            if (i !== groupIndex) return g;
+                                            if (i !== groupIndex || g.locked) return g;
                                             return {
                                                 ...g,
-                                                evidences: { ...g.evidences, [evidenceId]: files },
+                                                evidences: {
+                                                    ...g.evidences,
+                                                    [evidenceId]: {
+                                                        files,
+                                                        links: g.evidences[evidenceId]?.links ?? [],
+                                                    },
+                                                },
                                             };
                                         }),
-                                    )
-                                }
-                                onOptionChange={(itemIndex, newValue) =>
+                                    );
+                                }}
+                                onEvidenceLinksChange={(evidenceId, links) => {
+                                    if (disabled) return;
                                     setGroups((prev) =>
                                         prev.map((g, i) => {
-                                            if (i !== groupIndex) return g;
+                                            if (i !== groupIndex || g.locked) return g;
+                                            return {
+                                                ...g,
+                                                evidences: {
+                                                    ...g.evidences,
+                                                    [evidenceId]: {
+                                                        files: g.evidences[evidenceId]?.files ?? [],
+                                                        links,
+                                                    },
+                                                },
+                                            };
+                                        }),
+                                    );
+                                }}
+                                onOptionChange={(itemIndex, newValue) => {
+                                    if (disabled) return;
+                                    setGroups((prev) =>
+                                        prev.map((g, i) => {
+                                            if (i !== groupIndex || g.locked) return g;
                                             const nextRules = [...g.rules];
                                             nextRules[itemIndex] = newValue;
                                             return { ...g, rules: nextRules };
                                         }),
-                                    )
-                                }
+                                    );
+                                }}
 
-                                onAddOption={() =>
+                                onAddOption={() => {
+                                    if (disabled) return;
                                     setGroups((prev) =>
                                         prev.map((g, i) =>
-                                            i === groupIndex
+                                            i === groupIndex && !g.locked
                                                 ? { ...g, rules: [...g.rules, ""] } // 새 항목 하나 추가
                                                 : g,
                                         ),
-                                    )
-                                }
-                                onRemoveOption={(removeIndex) =>
+                                    );
+                                }}
+                                onRemoveOption={(removeIndex) => {
+                                    if (disabled) return;
                                     setGroups((prev) =>
                                         prev.map((g, i) => {
-                                            if (i !== groupIndex) return g;
+                                            if (i !== groupIndex || g.locked) return g;
                                             if (g.rules.length <= 1) return g; // 최소 한 개는 남기기
 
                                             // 1) rules에서 해당 인덱스 제거
@@ -174,12 +255,12 @@ export function FormQuestion2({ resetSignal }: FormQuestionProps) {
 
                                             // 3) evidences 키 재정렬
                                             const prefix = `preCheck-${g.id}-`;
-                                            const newEvidences: Record<string, File[]> = {};
+                                            const newEvidences: Record<string, EvidenceItem> = {};
 
-                                            for (const [key, files] of Object.entries(g.evidences)) {
+                                            for (const [key, evidenceItem] of Object.entries(g.evidences)) {
                                                 // prefix랑 상관 없는 건 그대로 복사
                                                 if (!key.startsWith(prefix)) {
-                                                    newEvidences[key] = files;
+                                                    newEvidences[key] = evidenceItem;
                                                     continue;
                                                 }
 
@@ -188,7 +269,7 @@ export function FormQuestion2({ resetSignal }: FormQuestionProps) {
 
                                                 // 숫자로 파싱이 안 되면 그냥 놔둠
                                                 if (Number.isNaN(oldIndex)) {
-                                                    newEvidences[key] = files;
+                                                    newEvidences[key] = evidenceItem;
                                                     continue;
                                                 }
 
@@ -200,7 +281,7 @@ export function FormQuestion2({ resetSignal }: FormQuestionProps) {
                                                 // 그 뒤에 있던 인덱스는 -1 해줌
                                                 const newIndex = oldIndex > removeIndex ? oldIndex - 1 : oldIndex;
                                                 const newKey = `${prefix}${newIndex}`;
-                                                newEvidences[newKey] = files;
+                                                newEvidences[newKey] = evidenceItem;
                                             }
 
                                             return {
@@ -210,8 +291,10 @@ export function FormQuestion2({ resetSignal }: FormQuestionProps) {
                                                 evidences: newEvidences,
                                             };
                                         }),
-                                    )
-                                }
+                                    );
+                                }}
+                                disabled={disabled}
+                                selectionEnabled={canSelect}
                             />
 
                             {/* 하단: 코멘트 / 버튼 영역 */}
@@ -219,8 +302,9 @@ export function FormQuestion2({ resetSignal }: FormQuestionProps) {
                                 {/* 말풍선 버튼 */}
                                 <button
                                     type="button"
+                                    disabled={!canComment}
                                     onClick={() => toggleComment(groupIndex)}
-                                    className="h-8 w-8 flex items-center justify-center rounded-md border border-border bg-background hover:bg-muted transition-colors"
+                                    className="h-8 w-8 flex items-center justify-center rounded-md border border-border bg-background hover:bg-muted transition-colors disabled:cursor-not-allowed"
                                 >
                                     <MessagesSquare className="h-4 w-4 text-muted-foreground" />
                                 </button>
@@ -230,14 +314,14 @@ export function FormQuestion2({ resetSignal }: FormQuestionProps) {
                                     {/* 동의 */}
                                     <button
                                         type="button"
-                                        disabled={group.locked}
+                                        disabled={group.locked || !canDecide}
                                         className={`h-9 px-4 text-sm rounded-md border ${
                                             group.status === "approved"
                                                 ? "bg-primary text-primary-foreground border-primary"
                                                 : "bg-background border-border hover:bg-muted"
-                                        } ${group.locked ? "opacity-70" : ""}`}
+                                        }`}
                                         onClick={() => {
-                                            if (group.locked) return;
+                                            if (group.locked || !canDecide) return;
                                             if (!confirm("‘동의’로 확정하시겠습니까?")) return;
                                             setGroups((prev) =>
                                                 prev.map((g, i) =>
@@ -254,14 +338,14 @@ export function FormQuestion2({ resetSignal }: FormQuestionProps) {
                                     {/* 보류 */}
                                     <button
                                         type="button"
-                                        disabled={group.locked}
+                                        disabled={group.locked || !canDecide}
                                         className={`h-9 px-4 text-sm rounded-md border ${
                                             group.status === "hold"
                                                 ? "bg-primary text-primary-foreground border-primary"
                                                 : "bg-background border-border hover:bg-muted"
-                                        } ${group.locked ? "opacity-70" : ""}`}
+                                        }`}
                                         onClick={() => {
-                                            if (group.locked) return;
+                                            if (group.locked || !canDecide) return;
                                             if (!confirm("‘보류’로 확정하시겠습니까?")) return;
                                             setGroups((prev) =>
                                                 prev.map((g, i) =>
@@ -281,6 +365,7 @@ export function FormQuestion2({ resetSignal }: FormQuestionProps) {
                                 <div className="mt-3 pb-6">
                                     <Textarea2
                                         value={group.comment}
+                                        disabled={!canComment || group.locked}
                                         onChange={(e) =>
                                             updateComment(groupIndex, e.target.value)
                                         }

@@ -1,4 +1,4 @@
-import { useState, useRef, type ChangeEvent } from "react";
+import { useState, useRef, useEffect, type ChangeEvent } from "react";
 import { Button2 } from "./button2";
 import { Input2 } from "./input2";
 import { X, Upload, Link as LinkIcon } from "lucide-react";
@@ -8,6 +8,9 @@ interface EvidenceUploadProps {
     isChecked: boolean;
     onImageUpload: (id: string, files: File[]) => void;
     files: File[];
+    links: string[];
+    onLinksChange: (id: string, links: string[]) => void;
+    disabled?: boolean;
 }
 
 export function EvidenceUpload2({
@@ -15,20 +18,27 @@ export function EvidenceUpload2({
                                    isChecked,
                                    onImageUpload,
                                    files,
+                                   links = [],
+                                   onLinksChange,
+                                   disabled = false,
                                }: EvidenceUploadProps) {
     // 파일 목록
     const [fileList, setFileList] = useState<File[]>(files || []);
     const fileInputRef = useRef<HTMLInputElement | null>(null);
 
-    // 링크 목록
-    const [linkList, setLinkList] = useState<string[]>([]);
+    useEffect(() => {
+        setFileList(files || []);
+    }, [files]);
+
+    const hasLinks = links?.length > 0;
     const [isAddingLink, setIsAddingLink] = useState(false);
     const [linkInput, setLinkInput] = useState("");
-
-    if (!isChecked) return null;
+    const shouldRender = isChecked || fileList.length > 0 || hasLinks;
+    if (!shouldRender) return null;
 
     // 파일 선택 시
     const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
+        if (disabled) return;
         const newFiles = Array.from(event.target.files || []);
         const updatedFiles = [...fileList, ...newFiles];
 
@@ -43,6 +53,7 @@ export function EvidenceUpload2({
 
     // 파일 제거
     const removeFile = (index: number) => {
+        if (disabled) return;
         const newFiles = fileList.filter((_, i) => i !== index);
         setFileList(newFiles);
         onImageUpload(id, newFiles);
@@ -50,20 +61,23 @@ export function EvidenceUpload2({
 
     // 링크 추가
     const handleAddLink = () => {
+        if (disabled) return;
         const url = linkInput.trim();
         if (!url) return;
 
-        setLinkList((prev) => [...prev, url]);
+        onLinksChange(id, [...links, url]);
         setLinkInput("");
         setIsAddingLink(false);
     };
 
     // 링크 제거
     const removeLink = (index: number) => {
-        setLinkList((prev) => prev.filter((_, i) => i !== index));
+        if (disabled) return;
+        const next = links.filter((_, i) => i !== index);
+        onLinksChange(id, next);
     };
 
-    const hasAnyItem = fileList.length > 0 || linkList.length > 0;
+    const hasAnyItem = fileList.length > 0 || hasLinks;
 
     return (
         <div className="mt-2 p-6 border rounded-md bg-muted/40">
@@ -75,6 +89,7 @@ export function EvidenceUpload2({
                 onChange={handleFileChange}
                 style={{ display: "none" }}
                 id={`file-${id}`}
+                disabled={disabled}
             />
 
             {/* 파일, 링크 업로드 */}
@@ -85,7 +100,11 @@ export function EvidenceUpload2({
                     variant="outline"
                     size="sm"
                     className="cursor-pointer flex items-center gap-2"
-                    onClick={() => fileInputRef.current?.click()}
+                    onClick={() => {
+                        if (disabled) return;
+                        fileInputRef.current?.click();
+                    }}
+                    disabled={disabled}
                 >
                     <Upload className="h-4 w-4" />
                     파일 선택
@@ -97,7 +116,11 @@ export function EvidenceUpload2({
                     variant="outline"
                     size="sm"
                     className="cursor-pointer flex items-center gap-2"
-                    onClick={() => setIsAddingLink((prev) => !prev)}
+                    onClick={() => {
+                        if (disabled) return;
+                        setIsAddingLink((prev) => !prev);
+                    }}
+                    disabled={disabled}
                 >
                     <LinkIcon className="h-4 w-4" />
                     링크 삽입
@@ -113,6 +136,7 @@ export function EvidenceUpload2({
                         value={linkInput}
                         onChange={(e) => setLinkInput(e.target.value)}
                         className="flex-1 h-8 text-sm"
+                        disabled={disabled}
                     />
                     {/* 추가 버튼 */}
                     <Button2
@@ -120,6 +144,7 @@ export function EvidenceUpload2({
                         size="sm"
                         className="h-8 px-3"
                         onClick={handleAddLink}
+                        disabled={disabled}
                     >
                         추가
                     </Button2>
@@ -134,6 +159,7 @@ export function EvidenceUpload2({
                             setIsAddingLink(false);
                             setLinkInput("");
                         }}
+                        disabled={disabled}
                     >
                         취소
                     </Button2>
@@ -158,6 +184,7 @@ export function EvidenceUpload2({
                                 variant="destructive"
                                 className="h-6 w-6 p-0 flex items-center justify-center"
                                 onClick={() => removeFile(index)}
+                                disabled={disabled}
                             >
                                 <X className="h-4 w-4" />
                             </Button2>
@@ -165,7 +192,7 @@ export function EvidenceUpload2({
                     ))}
 
                     {/* 링크들 */}
-                    {linkList.map((url, index) => (
+                    {links.map((url, index) => (
                         <div
                             key={`link-${index}`}
                             className="flex justify-between items-center p-2 border rounded-md bg-white shadow-sm"
@@ -186,6 +213,7 @@ export function EvidenceUpload2({
                                 variant="destructive"
                                 className="h-6 w-6 p-0 flex items-center justify-center"
                                 onClick={() => removeLink(index)}
+                                disabled={disabled}
                             >
                                 <X className="h-4 w-4" />
                             </Button2>
