@@ -13,6 +13,7 @@ export interface Node {
   filesCount: number;
   linksCount: number;
   developer: string;
+  developerUserId?: number;
   status: NodeStatus;
   approvalStatus?: ApprovalStatus; // optional (서버에서 제공하지 않으면 undefined)
   updatedAt: string;
@@ -57,8 +58,9 @@ export function mapApiNodeToUiNode(apiNode: NodeApiItem): Node {
     startDate: apiNode.starDate, // API의 오타(starDate)를 그대로 사용
     endDate: apiNode.endDate,
 
-    // 개발자 이름 합치기
+    // 개발자 정보
     developer: apiNode.devMembers?.devMemberName || "",
+    developerUserId: apiNode.devMembers?.devMemberId,
 
     // API에서 제공하지 않는 필드는 기본값 설정
     tags: [],

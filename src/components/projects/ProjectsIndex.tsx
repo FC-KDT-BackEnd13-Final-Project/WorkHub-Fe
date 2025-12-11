@@ -100,7 +100,7 @@ const createProjectFormState = () => ({
   description: "",
   brand: "",
   managers: [] as string[],
-  developers: [] as string[],
+  developers: [] as { id: string; name: string }[],
   startDate: "",
   endDate: "",
 });
@@ -192,24 +192,20 @@ export function ProjectsIndex() {
   };
 
   const addDeveloper = () => {
-    if (
-        currentDeveloperInput.trim() &&
-        !newProject.developers.includes(currentDeveloperInput.trim())
-    ) {
-      setNewProject((prev) => ({
-        ...prev,
-        developers: [...prev.developers, currentDeveloperInput.trim()],
-      }));
-      setCurrentDeveloperInput("");
-    }
+    const trimmed = currentDeveloperInput.trim();
+    if (!trimmed) return;
+    if (newProject.developers.some((dev) => dev.name === trimmed)) return;
+    setNewProject((prev) => ({
+      ...prev,
+      developers: [...prev.developers, { id: crypto.randomUUID(), name: trimmed }],
+    }));
+    setCurrentDeveloperInput("");
   };
 
   const removeDeveloper = (developerToRemove: string) => {
     setNewProject((prev) => ({
       ...prev,
-      developers: prev.developers.filter(
-          (developer) => developer !== developerToRemove,
-      ),
+      developers: prev.developers.filter((developer) => developer.name !== developerToRemove),
     }));
   };
 
@@ -326,7 +322,7 @@ export function ProjectsIndex() {
     if (new Date(newProject.endDate) <= new Date(newProject.startDate)) return;
 
     const managerText = newProject.managers.join(", ");
-    const developerText = newProject.developers.join(", ");
+    const developerText = newProject.developers.map((dev) => dev.name).join(", ");
     const teamSize = newProject.managers.length + newProject.developers.length;
 
     if (editingProject) {
@@ -381,7 +377,11 @@ export function ProjectsIndex() {
         ? project.manager.split(",").map((name) => name.trim()).filter(Boolean)
         : project.managers ?? [];
     const developerList = project.developer
-        ? project.developer.split(",").map((name) => name.trim()).filter(Boolean)
+        ? project.developer
+            .split(",")
+            .map((name) => name.trim())
+            .filter(Boolean)
+            .map((name) => ({ id: name, name }))
         : project.developers ?? [];
 
     setNewProject({
@@ -475,7 +475,7 @@ export function ProjectsIndex() {
   const getDeveloperDisplay = (project: Project) => {
     if (project.developer) return project.developer;
     if (project.developers && project.developers.length > 0) {
-      return project.developers.join(", ");
+      return project.developers.map((dev) => dev.name).join(", ");
     }
     return "";
   };
@@ -762,14 +762,14 @@ export function ProjectsIndex() {
                           <div className="flex flex-wrap gap-2 mt-2">
                             {newProject.developers.map((developer, index) => (
                                 <Badge
-                                    key={index}
+                                    key={`${developer.id}-${index}`}
                                     variant="secondary"
                                     className="flex items-center gap-1"
                                 >
-                                  {developer}
+                                  {developer.name}
                                   <button
                                       type="button"
-                                      onClick={() => removeDeveloper(developer)}
+                                      onClick={() => removeDeveloper(developer.name)}
                                       className="ml-1 text-xs text-secondary-foreground/70 hover:text-secondary-foreground"
                                   >
                                     &times;
@@ -1014,7 +1014,7 @@ export function ProjectsIndex() {
                               navigate(`/projects/${project.id}/nodes`, {
                                 state: {
                                   projectName: project.name,      // 예: "모바일 앱 개발"
-                                  projectDevelopers: project.developers ?? [],
+                                  developers: project.developers ?? [],
                                   // 필요하면 brand도 같이 보낼 수 있음
                                   // brand: project.brand,
                                 },
