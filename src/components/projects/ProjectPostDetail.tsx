@@ -6,7 +6,7 @@ import { Button2 } from "../ui/button2";
 import { Textarea2 } from "../ui/textarea2";
 import { MoreVertical, Pencil, Trash2, CornerDownRight, History } from "lucide-react";
 import { PostCard } from "./PostCard";
-import { RichTextDemo, type RichTextDraft } from "../RichTextDemo";
+import { RichTextDemo, type RichTextDraft, type AttachmentDraft } from "../RichTextDemo";
 import { postRevisionsByPostId, type PostRevision } from "../../data/postRevisions";
 import {
     loadRepliesForPost,
@@ -120,7 +120,7 @@ export function ProjectPostDetail({
     const [postContentState, setPostContentState] = useState(post.content);
     const [postTypeState, setPostTypeState] = useState<PostPayload["type"]>(post.type);
     const [ticketStatus, setTicketStatus] = useState<SupportTicketStatus | undefined>(post.ticketStatus);
-    const [postAttachments, setPostAttachments] = useState<File[]>([]);
+    const [postAttachments, setPostAttachments] = useState<AttachmentDraft[]>([]);
     const [postLinks, setPostLinks] = useState<{ url: string; description: string }[]>([]);
     const [isPostEditing, setIsPostEditing] = useState(startInEditMode);
     const [postEditorKey, setPostEditorKey] = useState(0);
@@ -292,7 +292,13 @@ export function ProjectPostDetail({
         setReplyDraft({
             title: target.title,
             content: target.content,
-            attachments: [],
+            attachments:
+                target.attachments?.map((file, index) => ({
+                    id: `reply-edit-${target.id}-${index}`,
+                    name: file.name,
+                    size: file.size ?? 0,
+                    dataUrl: file.dataUrl ?? "",
+                })) ?? [],
             links: target.links,
         });
         setReplyEditorKey((prev) => prev + 1);
@@ -351,6 +357,7 @@ export function ProjectPostDetail({
             attachments: replyDraft.attachments.map((file) => ({
                 name: file.name,
                 size: file.size,
+                dataUrl: file.dataUrl,
             })),
             links: replyDraft.links,
         };
@@ -591,16 +598,7 @@ export function ProjectPostDetail({
                 </div>
                 <RichTextDemo
                     key={replyEditorKey}
-                    initialDraft={
-                        isEditingReply && editingReply
-                            ? {
-                                title: editingReply.title,
-                                content: editingReply.content,
-                                attachments: [],
-                                links: editingReply.links,
-                            }
-                            : undefined
-                    }
+                    initialDraft={isEditingReply ? replyDraft : undefined}
                     onChange={setReplyDraft}
                     showTypeSelector={false}
                     actionButtons={({ clear }) => (
@@ -1010,6 +1008,55 @@ export function ProjectPostDetail({
                 extraMenu={postActionMenu}
             />
 
+            {(postAttachments.length > 0 || postLinks.length > 0) && (
+                <Card2>
+                    <CardContent className="space-y-4 p-4 text-sm">
+                        {postAttachments.length > 0 && (
+                            <div>
+                                <p className="font-medium">첨부 파일</p>
+                                <ul className="list-disc pl-5 text-muted-foreground space-y-1">
+                                    {postAttachments.map((file) => (
+                                        <li key={file.id}>
+                                            {file.dataUrl ? (
+                                                <a
+                                                    href={file.dataUrl}
+                                                    download={file.name}
+                                                    className="text-primary underline"
+                                                >
+                                                    {file.name}
+                                                </a>
+                                            ) : (
+                                                file.name
+                                            )}
+                                        </li>
+                                    ))}
+                                </ul>
+                            </div>
+                        )}
+                        {postLinks.length > 0 && (
+                            <div>
+                                <p className="font-medium">링크</p>
+                                <ul className="list-disc pl-5 text-muted-foreground space-y-1">
+                                    {postLinks.map((link, index) => (
+                                        <li key={`${link.url}-${index}`}>
+                                            {link.description ? `${link.description} - ` : ""}
+                                            <a
+                                                href={link.url}
+                                                target="_blank"
+                                                rel="noreferrer"
+                                                className="text-primary underline"
+                                            >
+                                                {link.url}
+                                            </a>
+                                        </li>
+                                    ))}
+                                </ul>
+                            </div>
+                        )}
+                    </CardContent>
+                </Card2>
+            )}
+
             {/* 선택된 답글 카드 */}
             {focusedReply && (
                 <div className="space-y-4">
@@ -1070,9 +1117,21 @@ export function ProjectPostDetail({
                                 {focusedReply.attachments.length > 0 && (
                                     <div>
                                         <p className="font-medium">첨부 파일</p>
-                                        <ul className="list-disc pl-5 text-muted-foreground">
+                                        <ul className="list-disc pl-5 text-muted-foreground space-y-1">
                                             {focusedReply.attachments.map((file, index) => (
-                                                <li key={`${file.name}-${index}`}>{file.name}</li>
+                                                <li key={`${file.name}-${index}`}>
+                                                    {file.dataUrl ? (
+                                                        <a
+                                                            href={file.dataUrl}
+                                                            download={file.name}
+                                                            className="text-primary underline"
+                                                        >
+                                                            {file.name}
+                                                        </a>
+                                                    ) : (
+                                                        file.name
+                                                    )}
+                                                </li>
                                             ))}
                                         </ul>
                                     </div>
