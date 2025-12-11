@@ -19,10 +19,7 @@ export const apiClient = axios.create({
 // 요청 인터셉터 - 토큰이 있으면 자동으로 헤더에 추가
 apiClient.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('authToken'); // 로컬 스토리지에 저장된 인증 토큰 조회
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`; // 서버에 인증 토큰을 실어 보냄
-    }
+    // 세션 기반 인증이라 JSESSIONID 쿠키만 있으면 됨. withCredentials 옵션으로 자동 전송됨.
     return config;
   },
   (error) => {
