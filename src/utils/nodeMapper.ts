@@ -1,0 +1,70 @@
+import type { NodeApiItem, NodeStatus as ApiNodeStatus } from "../types/projectNodeList";
+
+// ProjectNodesBoard의 Node 타입
+export type NodeStatus = "NOT_STARTED" | "IN_PROGRESS" | "PENDING_REVIEW" | "ON_HOLD";
+export type ApprovalStatus = "PENDING" | "APPROVED" | "REJECTED";
+
+export interface Node {
+  id: string;
+  projectNodeId: number;
+  title: string;
+  description: string;
+  tags: string[];
+  filesCount: number;
+  linksCount: number;
+  developer: string;
+  status: NodeStatus;
+  approvalStatus?: ApprovalStatus; // optional (서버에서 제공하지 않으면 undefined)
+  updatedAt: string;
+  startDate: string;
+  endDate: string;
+  hasNotification: boolean;
+}
+
+/**
+ * API NodeStatus를 UI NodeStatus로 변환
+ */
+function mapApiStatusToUiStatus(apiStatus: ApiNodeStatus): NodeStatus {
+  switch (apiStatus) {
+    case "NOT_STARTED":
+      return "NOT_STARTED";
+    case "PENDING_REVIEW":
+      return "PENDING_REVIEW";
+    case "ON_HOLD":
+      return "ON_HOLD";
+    case "DONE":
+      // DONE은 UI에서 IN_PROGRESS로 매핑 (또는 다른 상태로 변경 가능)
+      return "IN_PROGRESS";
+    case "DELETED":
+      // DELETED는 ON_HOLD로 매핑 (또는 필터링 가능)
+      return "ON_HOLD";
+    default:
+      return "NOT_STARTED";
+  }
+}
+
+/**
+ * API 응답 데이터를 UI에서 사용하는 Node 타입으로 변환
+ */
+export function mapApiNodeToUiNode(apiNode: NodeApiItem): Node {
+  return {
+    id: String(apiNode.projectNodeId), // number → string 변환
+    projectNodeId: apiNode.projectNodeId,
+    title: apiNode.title,
+    description: apiNode.description,
+    status: mapApiStatusToUiStatus(apiNode.nodeStatus),
+    updatedAt: apiNode.updatedAt,
+    startDate: apiNode.starDate, // API의 오타(starDate)를 그대로 사용
+    endDate: apiNode.endDate,
+
+    // 개발자 이름 합치기
+    developer: apiNode.devMembers?.devMemberName || "",
+
+    // API에서 제공하지 않는 필드는 기본값 설정
+    tags: [],
+    filesCount: 0,
+    linksCount: 0,
+    // approvalStatus는 서버에서 제공하지 않으므로 undefined
+    hasNotification: false,
+  };
+}

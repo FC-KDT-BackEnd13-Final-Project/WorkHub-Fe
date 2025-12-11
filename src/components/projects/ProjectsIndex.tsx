@@ -244,7 +244,20 @@ export function ProjectsIndex() {
       setHasMore(response.hasNext);
     } catch (err) {
       console.error("프로젝트 목록 로드 실패:", err);
-      setError("프로젝트를 불러오는데 실패했습니다.");
+
+      // 서버 응답 메시지 추출
+      let errorMessage = "프로젝트를 불러오는데 실패했습니다.";
+
+      if (err instanceof Error) {
+        // API에서 던진 에러 메시지 (api.ts의 throw new Error(message))
+        errorMessage = err.message;
+      } else if (typeof err === 'object' && err !== null && 'response' in err) {
+        // axios 에러인 경우
+        const axiosError = err as any;
+        errorMessage = axiosError.response?.data?.message || errorMessage;
+      }
+
+      setError(errorMessage);
     } finally {
       setIsLoading(false);
     }
@@ -1001,6 +1014,7 @@ export function ProjectsIndex() {
                               navigate(`/projects/${project.id}/nodes`, {
                                 state: {
                                   projectName: project.name,      // 예: "모바일 앱 개발"
+                                  projectDevelopers: project.developers ?? [],
                                   // 필요하면 brand도 같이 보낼 수 있음
                                   // brand: project.brand,
                                 },
