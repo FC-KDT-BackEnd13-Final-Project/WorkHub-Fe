@@ -41,15 +41,6 @@ export function ProjectChecklist2() {
     },
   );
 
-  const [isChecklistFinalized, setIsChecklistFinalized] = useLocalStorageValue<boolean>(
-    "workhub:checklist-finalized",
-    {
-      defaultValue: false,
-      parser: (value) => value === "true",
-      serializer: (value) => (value ? "true" : "false"),
-    },
-  );
-
   const userRole = useMemo(
     () => normalizeUserRole(storedProfileSettings?.profile?.role) ?? null,
     [storedProfileSettings?.profile?.role],
@@ -79,12 +70,11 @@ export function ProjectChecklist2() {
     setQuestionResetKey((prev) => prev + 1);
   };
 
-  const isFormDisabled = isClient || (roleLocksChecklist && isLocked) || isChecklistFinalized;
-  const allowClientReview = isClient && !isChecklistFinalized;
+  const isFormDisabled = isClient || (roleLocksChecklist && isLocked);
+  const allowClientReview = isClient;
   const handleUnlock = (event: MouseEvent<HTMLButtonElement>) => {
     event.preventDefault();
     event.stopPropagation();
-    if (isChecklistFinalized) return;
     setIsLocked(false);
     setUnlockSignal((prev) => prev + 1);
   };
@@ -170,10 +160,9 @@ export function ProjectChecklist2() {
                   unlockSignal={unlockSignal}
                   allowSelectionWhenDisabled={allowClientReview}
                   allowCommentWhenDisabled={allowClientReview}
-                  onFinalize={() => setIsChecklistFinalized(true)}
               />
 
-              {!isClient && !isChecklistFinalized && (
+              {!isClient && (
                 <div className="flex flex-col md:flex-row gap-3 pt-6 pb-4 border-t">
                   {roleLocksChecklist && isLocked ? (
                       <Button2 type="button" className="flex-1" onClick={handleUnlock}>

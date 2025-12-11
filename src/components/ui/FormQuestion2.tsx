@@ -28,7 +28,6 @@ interface FormQuestionProps {
     unlockSignal?: number;
     allowSelectionWhenDisabled?: boolean;
     allowCommentWhenDisabled?: boolean;
-    onFinalize?: () => void;
 }
 
 const createChecklistGroup = (id: number): ChecklistGroup => ({
@@ -49,7 +48,6 @@ export function FormQuestion2({
     unlockSignal = 0,
     allowSelectionWhenDisabled = false,
     allowCommentWhenDisabled = false,
-    onFinalize,
 }: FormQuestionProps) {
     const [groups, setGroups] = useState<ChecklistGroup[]>([
         createChecklistGroup(1),
@@ -118,12 +116,6 @@ export function FormQuestion2({
                 i === groupIndex && !g.locked ? { ...g, comment: value } : g
             )
         );
-    };
-
-    const notifyFinalize = () => {
-        if (allowSelectionWhenDisabled && onFinalize) {
-            onFinalize();
-        }
     };
 
     return (
@@ -338,7 +330,6 @@ export function FormQuestion2({
                                                         : g
                                                 )
                                             );
-                                            notifyFinalize();
                                         }}
                                     >
                                         동의
@@ -363,7 +354,6 @@ export function FormQuestion2({
                                                         : g
                                                 )
                                             );
-                                            notifyFinalize();
                                         }}
                                     >
                                         보류
