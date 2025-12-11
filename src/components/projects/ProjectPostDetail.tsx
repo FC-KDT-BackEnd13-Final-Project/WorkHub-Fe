@@ -555,7 +555,7 @@ export function ProjectPostDetail({
                     onChange={(draft) => {
                         handlePostDraftChange(draft);
                     }}
-                    showTypeSelector
+                    showTypeSelector={!post.ticketStatus}
                     actionButtons={({ clear }) => (
                         <div className="flex items-center gap-2">
                             <Button2

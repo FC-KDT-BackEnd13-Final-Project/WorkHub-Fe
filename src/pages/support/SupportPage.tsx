@@ -167,6 +167,7 @@ export function SupportPage() {
     ...ticket,
     type: supportTicketStatusLabel[ticket.status],
     ticketStatus: ticket.status,
+    isOwner: true,
   });
 
   const navigateToDetail = (ticket: Ticket, reply?: PostReplyItem) => {

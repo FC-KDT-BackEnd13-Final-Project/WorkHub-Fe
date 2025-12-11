@@ -28,6 +28,7 @@ export function SupportTicketDetail() {
     status: effectiveStatus,
     type: supportTicketStatusLabel[effectiveStatus],
     ticketStatus: effectiveStatus,
+    isOwner: true,
   };
 
   return (
