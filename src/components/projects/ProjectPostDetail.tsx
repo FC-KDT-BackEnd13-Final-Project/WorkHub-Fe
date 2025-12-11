@@ -47,6 +47,7 @@ interface CommentHistoryEntry {
     id: string;
     content: string;
     timestamp: string;
+    action?: "created" | "edited" | "deleted" | "restored";
 }
 
 interface CommentItem {
@@ -63,6 +64,9 @@ interface CommentItem {
     menuOpen?: boolean; // … 메뉴 열림 여부
     history?: CommentHistoryEntry[];
     parentAuthor?: string;
+    status?: "active" | "deleted";
+    deletedAt?: string;
+    deletedBy?: string;
 }
 
 interface ProjectPostDetailProps {
@@ -217,12 +221,22 @@ export function ProjectPostDetail({
             createdAt: "2025-11-22 10:32",
             isOwner: false,
             parentId: null,
-            history: [],
+            history: [
+                {
+                    id: "hist-c1-initial",
+                    content: "요청 사항 확인했습니다. 추가 자료 부탁드립니다.",
+                    timestamp: "2025-11-22 10:32",
+                    action: "created",
+                },
+            ],
+            status: "active",
         },
     ]);
     const [newComment, setNewComment] = useState("");
 
-    const topLevelComments = comments.filter((c) => (c.parentId ?? null) === null);
+    const activeComments = comments.filter((comment) => comment.status !== "deleted");
+    const deletedComments = comments.filter((comment) => comment.status === "deleted");
+    const topLevelComments = activeComments.filter((c) => (c.parentId ?? null) === null);
     const totalCommentPages = calculateTotalPages(topLevelComments.length, COMMENTS_PER_PAGE);
     const paginatedTopLevel = paginate(topLevelComments, commentPage, COMMENTS_PER_PAGE);
 
@@ -651,17 +665,28 @@ export function ProjectPostDetail({
         const nextTopLevelCount = topLevelComments.length + 1;
         const nextPage = calculateTotalPages(nextTopLevelCount, COMMENTS_PER_PAGE);
 
+        const createdAt = new Date().toLocaleString("ko-KR");
+        const trimmed = newComment.trim();
+        const now = Date.now();
+        const newCommentId = `c-${now}`;
+        const initialHistory: CommentHistoryEntry = {
+            id: `hist-${newCommentId}-created`,
+            content: trimmed,
+            timestamp: createdAt,
+            action: "created",
+        };
         setComments((prev) => [
             ...prev,
             {
-                id: `c-${Date.now()}`,
+                id: newCommentId,
                 author: "나",
-                content: newComment.trim(),
-                createdAt: new Date().toLocaleString("ko-KR"),
+                content: trimmed,
+                createdAt,
                 isOwner: true,
                 parentId: null,
-                history: [],
+                history: [initialHistory],
                 parentAuthor: undefined,
+                status: "active",
             },
         ]);
         setNewComment("");
@@ -669,7 +694,50 @@ export function ProjectPostDetail({
     };
 
     const handleDeleteComment = (id: string) => {
-        setComments((prev) => prev.filter((comment) => comment.id !== id));
+        setComments((prev) => {
+            const target = prev.find((comment) => comment.id === id);
+            if (!target) {
+                return prev;
+            }
+
+            const deletedAt = new Date().toLocaleString("ko-KR");
+            const relatedIds =
+                (target.parentId ?? null) === null
+                    ? [
+                        target.id,
+                        ...prev.filter((comment) => comment.parentId === target.id).map((comment) => comment.id),
+                    ]
+                    : [target.id];
+
+            return prev.map((comment) => {
+                if (!relatedIds.includes(comment.id)) {
+                    return comment;
+                }
+
+                if (comment.status === "deleted") {
+                    return comment;
+                }
+
+                return {
+                    ...comment,
+                    status: "deleted",
+                    deletedAt,
+                    deletedBy: comment.author,
+                    menuOpen: false,
+                    showReply: false,
+                    replyContent: "",
+                    history: [
+                        ...(comment.history ?? []),
+                        {
+                            id: `hist-${comment.id}-${Date.now()}`,
+                            content: comment.content,
+                            timestamp: deletedAt,
+                            action: "deleted",
+                        },
+                    ],
+                };
+            });
+        });
     };
 
     const handleToggleEdit = (id: string, editing: boolean) => {
@@ -681,19 +749,21 @@ export function ProjectPostDetail({
     };
 
     const handleUpdateComment = (id: string, content: string) => {
+        const updatedAt = new Date().toLocaleString("ko-KR");
         setComments((prev) =>
             prev.map((comment) =>
                 comment.id === id
                     ? {
                         ...comment,
                         content,
-                        updatedAt: new Date().toLocaleString("ko-KR"),
+                        updatedAt,
                         history: [
                             ...(comment.history ?? []),
                             {
                                 id: `hist-${Date.now()}`,
                                 content: comment.content,
-                                timestamp: comment.updatedAt ?? comment.createdAt,
+                                timestamp: updatedAt,
+                                action: "edited",
                             },
                         ],
                         isEditing: false,
@@ -733,19 +803,29 @@ export function ProjectPostDetail({
                 c.id === targetId ? { ...c, showReply: false, replyContent: "" } : c,
             );
 
-            return [
-                ...updated,
-                {
-                    id: `${rootId}-reply-${Date.now()}`,
-                    author: "나",
-                    content: text,
-                    createdAt: new Date().toLocaleString("ko-KR"),
-                    isOwner: true,
-                    parentId: rootId,
-                    history: [],
-                    parentAuthor: target.author,
-                } as CommentItem,
-            ];
+            const createdAt = new Date().toLocaleString("ko-KR");
+            const now = Date.now();
+            const replyId = `${rootId}-reply-${now}`;
+            const newReply: CommentItem = {
+                id: replyId,
+                author: "나",
+                content: text,
+                createdAt,
+                isOwner: true,
+                parentId: rootId,
+                history: [
+                    {
+                        id: `hist-${replyId}-created`,
+                        content: text,
+                        timestamp: createdAt,
+                        action: "created",
+                    },
+                ],
+                parentAuthor: target.author,
+                status: "active",
+            };
+
+            return [...updated, newReply];
         });
     };
 
@@ -761,7 +841,9 @@ export function ProjectPostDetail({
 
     const renderCommentList = (targetTopLevel: CommentItem[]) => {
         return targetTopLevel.map((comment) => {
-            const replies = comments.filter((c) => c.parentId === comment.id);
+            const replies = comments.filter(
+                (c) => c.parentId === comment.id && c.status !== "deleted",
+            );
 
             return (
                 <div key={comment.id} className="space-y-2">
@@ -1027,48 +1109,88 @@ export function ProjectPostDetail({
         });
     };
 
-    const historyCommentButton = (comment: CommentItem, parent?: CommentItem) => (
-        <button
-            key={comment.id}
-            type="button"
-            className={`w-full rounded-lg border px-3 py-2 text-left text-sm ${
-                historyViewCommentId === comment.id ? "border-primary bg-primary/10" : "hover:bg-muted"
-            }`}
-            onClick={() => setHistoryViewCommentId(comment.id)}
-        >
-            <div className="flex items-center justify-between text-xs text-muted-foreground">
-                <span className="flex items-center gap-1">
-                    {parent && <CornerDownRight className="h-4 w-4 text-primary" />}
-                    <span>{comment.author || "익명"}</span>
-                </span>
-                <span>
-                    {comment.updatedAt ? `${comment.updatedAt} (수정됨)` : comment.createdAt}
-                </span>
-            </div>
-            <p className="mt-1 line-clamp-2 whitespace-pre-wrap text-foreground">{comment.content}</p>
-        </button>
-    );
+    const historyCommentButton = (comment: CommentItem, parent?: CommentItem) => {
+        const isSelected = historyViewCommentId === comment.id;
+        const isDeleted = comment.status === "deleted";
+        const timestamp = comment.deletedAt
+            ? `${comment.deletedAt} (삭제됨)`
+            : comment.updatedAt
+                ? `${comment.updatedAt} (수정됨)`
+                : comment.createdAt;
+        return (
+            <button
+                key={comment.id}
+                type="button"
+                className={`w-full rounded-lg border px-3 py-2 text-left text-sm transition ${
+                    isSelected ? "border-primary bg-primary/10" : "hover:bg-muted"
+                } ${isDeleted ? "border-destructive/40 bg-destructive/5" : ""}`}
+                onClick={() => setHistoryViewCommentId(comment.id)}
+            >
+                <div className="flex items-center justify-between text-xs text-muted-foreground">
+                    <span className="flex items-center gap-1">
+                        {parent && <CornerDownRight className="h-4 w-4 text-primary" />}
+                        <span className={isDeleted ? "text-destructive" : "text-foreground"}>
+                            {comment.author || "익명"}
+                        </span>
+                        {isDeleted && <Badge2 variant="outline">삭제됨</Badge2>}
+                    </span>
+                    <span className={isDeleted ? "text-destructive" : undefined}>{timestamp}</span>
+                </div>
+                <p className="mt-1 line-clamp-2 whitespace-pre-wrap text-foreground">
+                    {comment.content}
+                </p>
+            </button>
+        );
+    };
 
     const renderHistoryCommentList = () => {
-        const topComments = comments.filter((comment) => (comment.parentId ?? null) === null);
-        const fragments: JSX.Element[] = [];
-
-        topComments.forEach((comment) => {
-            fragments.push(
-                <div key={`history-top-${comment.id}`} className="space-y-2">
-                    {historyCommentButton(comment)}
-                    {comments
-                        .filter((reply) => reply.parentId === comment.id)
-                        .map((reply) => (
-                            <div key={`history-reply-${reply.id}`} className="pl-5">
-                                {historyCommentButton(reply, comment)}
-                            </div>
-                        ))}
-                </div>,
+        const topComments = comments.filter(
+            (comment) => (comment.parentId ?? null) === null && comment.status !== "deleted",
+        );
+        if (topComments.length === 0) {
+            return (
+                <p className="text-sm text-muted-foreground">
+                    아직 등록된 댓글이 없습니다.
+                </p>
             );
-        });
+        }
 
-        return fragments;
+        return topComments.map((comment) => (
+            <div key={`history-top-${comment.id}`} className="space-y-2">
+                {historyCommentButton(comment)}
+                {comments
+                    .filter((reply) => reply.parentId === comment.id && reply.status !== "deleted")
+                    .map((reply) => (
+                        <div key={`history-reply-${reply.id}`} className="pl-5">
+                            {historyCommentButton(reply, comment)}
+                        </div>
+                    ))}
+            </div>
+        ));
+    };
+
+    const renderDeletedCommentList = () => {
+        const deletedOnly = comments.filter((comment) => comment.status === "deleted");
+        if (deletedOnly.length === 0) {
+            return (
+                <p className="text-sm text-muted-foreground">삭제된 댓글이 없습니다.</p>
+            );
+        }
+
+        return deletedOnly
+            .sort((a, b) => {
+                const aTime = a.deletedAt ? new Date(a.deletedAt).getTime() : 0;
+                const bTime = b.deletedAt ? new Date(b.deletedAt).getTime() : 0;
+                return bTime - aTime;
+            })
+            .map((comment) => {
+                const parent = comment.parentId
+                    ? comments.find((root) => root.id === comment.parentId)
+                    : undefined;
+                return (
+                    <div key={`history-deleted-${comment.id}`}>{historyCommentButton(comment, parent)}</div>
+                );
+            });
     };
 
     // ───────────── 메인 렌더 ─────────────
@@ -1078,6 +1200,16 @@ export function ProjectPostDetail({
         : null;
     const historyNeedsScroll = (historyViewComment?.history?.length ?? 0) >= 5;
     const currentCommentsNeedScroll = true;
+    const historyTimeline = historyViewComment?.history ?? [];
+    const historyParentComment = historyViewComment?.parentId
+        ? comments.find((comment) => comment.id === historyViewComment.parentId) ?? null
+        : null;
+    const getHistoryActionLabel = (action?: CommentHistoryEntry["action"]) => {
+        if (action === "deleted") return "삭제됨";
+        if (action === "created") return "등록됨";
+        if (action === "restored") return "복구됨";
+        return "수정됨";
+    };
 
     return (
         <div className="w-full max-w-5xl mx-auto p-6 space-y-2">
@@ -1265,7 +1397,7 @@ export function ProjectPostDetail({
 
                     <div className="space-y-2">
                         {renderCommentList(paginatedTopLevel)}
-                        {comments.length === 0 && (
+                        {topLevelComments.length === 0 && (
                             <p className="text-sm text-muted-foreground">아직 댓글이 없습니다.</p>
                         )}
                     </div>
@@ -1337,17 +1469,21 @@ export function ProjectPostDetail({
                             </CardHeader>
                             <CardContent className="flex flex-1 min-h-0 flex-col gap-4 overflow-hidden px-6 py-6">
                                 <div className="grid flex-1 min-h-0 gap-4 overflow-hidden md:grid-cols-2">
-                                    {/* 왼쪽: 현재 댓글 목록 */}
-                                    <div className="flex min-h-0 flex-col space-y-2 overflow-hidden">
-                                        <p className="text-sm font-medium text-muted-foreground">현재 댓글</p>
-                                        <div className="flex-1 space-y-2 overflow-y-auto pr-1">
-                                            {comments.length === 0
-                                                ? (
-                                                    <p className="text-sm text-muted-foreground">
-                                                        아직 댓글이 없습니다.
-                                                    </p>
-                                                )
-                                                : renderHistoryCommentList()}
+                                    {/* 왼쪽: 현재/삭제 댓글 목록 */}
+                                    <div className="flex min-h-0 flex-col gap-4 overflow-y-auto pr-1">
+                                        <div className="space-y-2">
+                                            <div className="flex items-center justify-between text-sm text-muted-foreground">
+                                                <p className="font-medium text-foreground">현재 댓글</p>
+                                                <span>총 {activeComments.length}건</span>
+                                            </div>
+                                            <div className="space-y-2">{renderHistoryCommentList()}</div>
+                                        </div>
+                                        <div className="space-y-2">
+                                            <div className="flex items-center justify-between text-sm text-muted-foreground">
+                                                <p className="font-medium text-muted-foreground">삭제된 댓글</p>
+                                                <span>총 {deletedComments.length}건</span>
+                                            </div>
+                                            <div className="space-y-2">{renderDeletedCommentList()}</div>
                                         </div>
                                     </div>
 
@@ -1355,37 +1491,59 @@ export function ProjectPostDetail({
                                     <div className="flex h-full min-h-0 flex-col space-y-2 overflow-hidden">
                                         <div className="flex items-center justify-between text-sm text-muted-foreground">
                                             <p className="font-medium">선택한 댓글의 히스토리</p>
-                                            {historyViewComment && (
-                                                <span>총 {historyViewComment.history?.length ?? 0}건</span>
-                                            )}
+                                            {historyViewComment && <span>총 {historyTimeline.length}건</span>}
                                         </div>
                                         <div className="flex-1 overflow-y-auto rounded-lg border bg-muted/30 p-3">
-                                            <div className="space-y-2">
+                                            <div className="space-y-3">
                                                 {!historyViewComment && (
                                                     <p className="text-sm text-muted-foreground">
                                                         왼쪽 목록에서 댓글을 선택해 주세요.
                                                     </p>
                                                 )}
 
-                                                {historyViewComment &&
-                                                    (!historyViewComment.history ||
-                                                        historyViewComment.history.length === 0) && (
-                                                        <p className="text-sm text-muted-foreground">
-                                                            수정 이력이 없습니다.
-                                                        </p>
-                                                    )}
-
-                                                {historyViewComment?.history?.map((entry) => (
-                                                    <div
-                                                        key={entry.id}
-                                                        className="rounded-md border bg-background p-2 text-sm space-y-1"
-                                                    >
-                                                        <span className="text-xs text-muted-foreground">
-                                                            {entry.timestamp}
-                                                        </span>
-                                                        <p className="whitespace-pre-wrap">{entry.content}</p>
-                                                    </div>
-                                                ))}
+                                                {historyViewComment && (
+                                                    <>
+                                                        {historyParentComment && (
+                                                            <div className="rounded-md border bg-background p-3 space-y-1">
+                                                                <span className="text-xs text-muted-foreground">원 댓글</span>
+                                                                <p className="text-xs text-muted-foreground">
+                                                                    {historyParentComment.author || "익명"}
+                                                                </p>
+                                                                <p className="text-sm whitespace-pre-wrap text-foreground">
+                                                                    {historyParentComment.content || "내용이 없습니다."}
+                                                                </p>
+                                                            </div>
+                                                        )}
+                                                        {historyTimeline.length === 0 ? (
+                                                            <p className="text-sm text-muted-foreground">
+                                                                수정/삭제 이력이 없습니다.
+                                                            </p>
+                                                        ) : (
+                                                            historyTimeline.map((entry) => {
+                                                                const actionLabel = getHistoryActionLabel(entry.action);
+                                                                const isDeletedAction = entry.action === "deleted";
+                                                                return (
+                                                                    <div
+                                                                        key={entry.id}
+                                                                        className="rounded-md border bg-background p-2 text-sm space-y-1"
+                                                                    >
+                                                                        <div className="flex items-center justify-between text-xs text-muted-foreground">
+                                                                            <span className={isDeletedAction ? "text-destructive" : undefined}>
+                                                                                {actionLabel}
+                                                                            </span>
+                                                                            <span className={isDeletedAction ? "text-destructive" : undefined}>
+                                                                                {entry.timestamp}
+                                                                            </span>
+                                                                        </div>
+                                                                        <p className="whitespace-pre-wrap">
+                                                                            {entry.content || "내용이 없습니다."}
+                                                                        </p>
+                                                                    </div>
+                                                                );
+                                                            })
+                                                        )}
+                                                    </>
+                                                )}
                                             </div>
                                         </div>
                                     </div>
