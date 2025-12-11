@@ -142,6 +142,7 @@ export function ProjectPost2() {
   // 페이징 상태
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
+  const indexOfFirstItem = (currentPage - 1) * itemsPerPage;
 
   const totalPages = calculateTotalPages(filteredCustomers.length, itemsPerPage);
   const paginatedRows = paginate(filteredCustomers, currentPage, itemsPerPage);
