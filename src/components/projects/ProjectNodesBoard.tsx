@@ -30,27 +30,10 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "../ui/dropdown-menu";
+import { projectApi } from "@/lib/api";
+import { mapApiNodeToUiNode, type Node, type NodeStatus, type ApprovalStatus } from "../../utils/nodeMapper";
 
 // 프로젝트 내 노드(작업 카드)와 워크플로우를 관리하는 보드 화면
-type NodeStatus = "NOT_STARTED" | "IN_PROGRESS" | "PENDING_REVIEW" | "ON_HOLD";
-type ApprovalStatus = "PENDING" | "APPROVED" | "REJECTED";
-
-interface Node {
-  id: string;
-  projectNodeId: number;
-  title: string;
-  description: string;
-  tags: string[];
-  filesCount: number;
-  linksCount: number;
-  developer: string;
-  status: NodeStatus;
-  approvalStatus: ApprovalStatus;
-  updatedAt: string;
-  startDate: string;
-  endDate: string;
-  hasNotification: boolean;
-}
 
 const defaultNodes: Node[] = [
   {
@@ -190,17 +173,17 @@ export function ProjectNodesBoard() {
   const [statusFilter, setStatusFilter] = useState<"전체" | NodeStatus>("전체");
   const [approvalFilter, setApprovalFilter] = useState<ApprovalFilter>("전체");
   const [developerFilter, setDeveloperFilter] = useState<string>("전체");
-  const [nodes, setNodes] = useState<Node[]>(defaultNodes);
+  const [nodes, setNodes] = useState<Node[]>([]);
   const [isWorkflowModalOpen, setIsWorkflowModalOpen] = useState(false);
   const [newWorkflow, setNewWorkflow] = useState(createWorkflowFormState);
   const [isReorderMode, setIsReorderMode] = useState(false);
   const [editingNode, setEditingNode] = useState<Node | null>(null);
   const [statusModalNode, setStatusModalNode] = useState<Node | null>(null);
   const [statusModalStatus, setStatusModalStatus] = useState<NodeStatus | "">("");
-  const [statusModalApproval, setStatusModalApproval] = useState<ApprovalStatus | "">("");
-  const nextProjectNodeId = useRef(
-    defaultNodes.reduce((max, node) => Math.max(max, node.projectNodeId), 0) + 1,
-  );
+  const [statusModalApproval, setStatusModalApproval] = useState<ApprovalStatus | undefined>(undefined);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const nextProjectNodeId = useRef(1);
   const developerFilterOptions = useMemo(() => {
     const names = new Set<string>();
     nodes.forEach((node) => {
@@ -295,6 +278,52 @@ export function ProjectNodesBoard() {
       navigate(workflowBasePath, { replace: true });
     }
   }, [isWorkflowModalOpen, location.pathname, navigate, workflowBasePath]);
+
+  // API 호출 함수
+  const fetchNodes = useCallback(async () => {
+    if (!projectId) return;
+
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const response = await projectApi.getNodes(projectId);
+
+      // API 응답을 UI 타입으로 변환
+      // response가 배열인지, response.projectNodes가 배열인지 확인
+      const nodeArray = Array.isArray(response) ? response : (response.projectNodes ?? []);
+      const uiNodes = nodeArray.map(mapApiNodeToUiNode);
+
+      setNodes(uiNodes);
+
+      // nextProjectNodeId 업데이트
+      if (uiNodes.length > 0) {
+        const maxId = Math.max(...uiNodes.map(n => n.projectNodeId));
+        nextProjectNodeId.current = maxId + 1;
+      }
+    } catch (err) {
+      console.error("노드 목록 로드 실패:", err);
+
+      // 서버 응답 메시지 추출
+      let errorMessage = "노드 목록을 불러오는데 실패했습니다.";
+
+      if (err instanceof Error) {
+        errorMessage = err.message;
+      } else if (typeof err === 'object' && err !== null && 'response' in err) {
+        const axiosError = err as any;
+        errorMessage = axiosError.response?.data?.message || errorMessage;
+      }
+
+      setError(errorMessage);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [projectId]);
+
+  // 초기 로드
+  useEffect(() => {
+    fetchNodes();
+  }, [fetchNodes]);
 
   useEffect(() => {
     if (editingNode) return;
@@ -428,7 +457,7 @@ export function ProjectNodesBoard() {
         developer: node.developer,
         startDate: node.startDate,
         endDate: node.endDate,
-        approvalStatus: node.approvalStatus,
+        approvalStatus: node.approvalStatus || "PENDING",
       });
       setIsWorkflowModalOpen(true);
       if (location.pathname !== workflowBasePath) {
@@ -460,7 +489,7 @@ export function ProjectNodesBoard() {
   const closeStatusModal = useCallback(() => {
     setStatusModalNode(null);
     setStatusModalStatus("");
-    setStatusModalApproval("");
+    setStatusModalApproval(undefined);
   }, []);
 
   const handleApplyStatusChange = useCallback(() => {
@@ -759,7 +788,43 @@ export function ProjectNodesBoard() {
           </Button>
         </div>
       </div>
-      {isReorderMode ? (
+
+      {/* 로딩 상태 */}
+      {isLoading && !nodes.length && (
+        <div className="text-center py-12">
+          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+          <p className="mt-4 text-muted-foreground">노드 목록을 불러오는 중...</p>
+        </div>
+      )}
+
+      {/* 에러 상태 */}
+      {error && (
+        <div className="rounded-2xl bg-white p-6 shadow-sm text-center">
+          <p className="text-red-600 mb-4">{error}</p>
+          <Button onClick={() => fetchNodes()} variant="outline">
+            다시 시도
+          </Button>
+        </div>
+      )}
+
+      {/* 결과 없음 */}
+      {!isLoading && !error && filteredNodes.length === 0 && nodes.length === 0 && (
+        <div className="rounded-2xl bg-white p-12 shadow-sm text-center">
+          <p className="text-muted-foreground">노드가 없습니다.</p>
+        </div>
+      )}
+
+      {/* 검색 결과 없음 */}
+      {!isLoading && !error && filteredNodes.length === 0 && nodes.length > 0 && (
+        <div className="rounded-2xl bg-white p-12 shadow-sm text-center">
+          <p className="text-muted-foreground">검색 결과가 없습니다.</p>
+        </div>
+      )}
+
+      {/* 노드 카드 리스트 */}
+      {!isLoading && !error && filteredNodes.length > 0 && (
+        <>
+          {isReorderMode ? (
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
           <SortableContext items={filteredNodes.map((node) => node.id)} strategy={rectSortingStrategy}>
             <div className="grid grid-cols-2 gap-4 lg:grid-cols-3">
@@ -796,6 +861,9 @@ export function ProjectNodesBoard() {
           ))}
         </div>
       )}
+        </>
+      )}
+
       <div className="flex justify-end">
         <Button variant="outline" onClick={() => navigate(-1)}>
           ← 뒤로가기
@@ -862,16 +930,18 @@ function NodeCardBase({
               >
                 {node.status}
               </Badge>
-              <Badge
-                variant="outline"
-                style={{
-                  backgroundColor: approvalBadgeStyles[node.approvalStatus].background,
-                  color: approvalBadgeStyles[node.approvalStatus].text,
-                  borderColor: approvalBadgeStyles[node.approvalStatus].border,
-                }}
-              >
-                {node.approvalStatus}
-              </Badge>
+              {node.approvalStatus && (
+                <Badge
+                  variant="outline"
+                  style={{
+                    backgroundColor: approvalBadgeStyles[node.approvalStatus].background,
+                    color: approvalBadgeStyles[node.approvalStatus].text,
+                    borderColor: approvalBadgeStyles[node.approvalStatus].border,
+                  }}
+                >
+                  {node.approvalStatus}
+                </Badge>
+              )}
             </div>
             {rightActions && (
               <div className="flex items-center gap-2" data-node-card-action="true">

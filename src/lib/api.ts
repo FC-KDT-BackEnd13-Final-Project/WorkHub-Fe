@@ -1,5 +1,6 @@
 import axios from 'axios';
 import type { ProjectApiResponse, ProjectListParams } from '@/types/project';
+import type { NodeListApiResponse } from '@/types/projectNodeList';
 
 // 모든 API 요청이 갈 기본 서버 주소
 const API_BASE_URL = 'https://workhub.o-r.kr'
@@ -70,5 +71,23 @@ export const projectApi = {
 
     // success가 false일 때
     throw new Error(message || '프로젝트 목록 조회에 실패했습니다.');
+  },
+
+  /**
+   * 프로젝트 노드 목록 조회
+   * @param projectId - 프로젝트 ID
+   * @returns 노드 목록
+   */
+  getNodes: async (projectId: string): Promise<NodeListApiResponse> => {
+    const response = await apiClient.get(`/api/v1/projects/${projectId}/nodes`);
+
+    const { success, message, data } = response.data;
+
+    // success가 true일 때
+    if (success === true)
+      return data;
+
+    // success가 false일 때
+    throw new Error(message || '노드 목록 조회에 실패했습니다.');
   },
 };
