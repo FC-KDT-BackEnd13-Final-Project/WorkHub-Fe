@@ -23,7 +23,7 @@ import {
 import { companyUsers } from "./userData";
 import { PageHeader } from "../common/PageHeader";
 import { FilterToolbar } from "../common/FilterToolbar";
-import { calculateTotalPages, clampPage, paginate } from "../../utils/pagination";
+import { calculateTotalPages, clampPage, paginate } from "../../../src/utils/pagination";
 import { PaginationControls } from "../common/PaginationControls";
 
 const statusStyles = {

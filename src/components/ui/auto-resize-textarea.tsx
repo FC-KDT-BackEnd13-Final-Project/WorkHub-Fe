@@ -1,5 +1,5 @@
 import React, { useRef, useEffect, useLayoutEffect } from "react";
-import { cn } from "../ui/utils";
+import { cn } from "./utils";
 
 interface AutoResizeTextareaProps
   extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {
