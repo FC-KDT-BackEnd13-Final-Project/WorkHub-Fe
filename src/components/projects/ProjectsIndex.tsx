@@ -682,6 +682,18 @@ export function ProjectsIndex() {
             ...prev,
             [project.id]: { total, completed, progress },
           }));
+
+          setProjects((prev) =>
+            prev.map((item) =>
+              item.id === project.id
+                ? {
+                    ...item,
+                    tasks: total,
+                    progress,
+                  }
+                : item,
+            ),
+          );
         } catch (error) {
           console.error(`프로젝트(${project.id}) 진행률 계산 실패:`, error);
           setProjectProgressMap((prev) => ({
