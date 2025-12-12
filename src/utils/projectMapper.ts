@@ -5,6 +5,7 @@ export interface Project {
   id: string;
   name: string;
   brand: string;
+  brandContact?: string;
   managers?: string[];
   developers: { id: string; name: string }[];
   manager?: string;
@@ -27,6 +28,7 @@ export function mapApiProjectToUiProject(apiProject: ProjectApiItem): Project {
     name: apiProject.projectTitle,
     description: apiProject.projectDescription,
     brand: apiProject.company.companyName,
+    brandContact: "",
     startDate: apiProject.contractStartDate,
     endDate: apiProject.contractEndDate,
     status: apiProject.status,

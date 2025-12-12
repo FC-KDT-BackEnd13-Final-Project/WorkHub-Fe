@@ -345,7 +345,7 @@ export function ProjectNodesBoard() {
     }
   }, [editingNode, location.pathname, workflowModalPath]);
 
-  useEffect(() => {
+useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         closeWorkflowModal();
@@ -600,22 +600,31 @@ export function ProjectNodesBoard() {
         </div>
       )}
       {isWorkflowModalOpen && (
-        <div className="fixed inset-0 z-50 backdrop-blur-sm flex items-center justify-end px-0">
-          <div className="absolute inset-0" aria-hidden="true" onClick={closeWorkflowModal}></div>
-          <div className="relative z-10 h-full max-w-lg w-full overflow-y-auto bg-white shadow-2xl border-l">
-            <div className="min-h-screen bg-white flex items-center justify-center p-4">
-            <div className="w-full" style={{ maxWidth: "var(--login-card-max-width, 42rem)" }}>
-              <Card className="login-theme border border-border shadow-lg">
-                <CardHeader className="space-y-2 pb-6">
-                  <h2 className="text-xl text-center">
-                    {isEditingWorkflow ? "워크플로 수정" : "새 워크플로 만들기"}
-                  </h2>
-                  <p className="text-sm text-muted-foreground text-center">
-                    {isEditingWorkflow
-                      ? "선택한 워크플로 단계를 업데이트하고 저장하세요."
-                      : "새로운 워크플로 단계를 작성하고 세부 정보를 입력하세요."}
-                  </p>
-                </CardHeader>
+        <div className="fixed inset-0 z-50">
+          <div
+            className="absolute inset-0 bg-black/30 backdrop-blur-sm"
+            aria-hidden="true"
+            onClick={closeWorkflowModal}
+            onWheel={(event) => event.preventDefault()}
+            onTouchMove={(event) => event.preventDefault()}
+          ></div>
+          <div className="relative z-10 min-h-screen p-4 flex items-center justify-center">
+            <div
+              className="w-full max-h-[90vh]"
+              style={{ maxWidth: "var(--login-card-max-width, 42rem)" }}
+            >
+              <div className="max-h-[90vh] overflow-y-auto rounded-2xl bg-white shadow-2xl">
+                <Card className="login-theme border border-border shadow-lg">
+                  <CardHeader className="space-y-2 pb-6">
+                    <h2 className="text-xl text-center">
+                      {isEditingWorkflow ? "워크플로 수정" : "새 워크플로 만들기"}
+                    </h2>
+                    <p className="text-sm text-muted-foreground text-center">
+                      {isEditingWorkflow
+                        ? "선택한 워크플로 단계를 업데이트하고 저장하세요."
+                        : "새로운 워크플로 단계를 작성하고 세부 정보를 입력하세요."}
+                    </p>
+                  </CardHeader>
                   <CardContent>
                     <div className="space-y-4">
                       <div className="space-y-2">
@@ -641,7 +650,7 @@ export function ProjectNodesBoard() {
                         onChange={(event) =>
                           setNewWorkflow((prev) => ({ ...prev, description: event.target.value }))
                         }
-                        className="w-full border rounded-md border-border bg-input-background px-3 py-2 focus:bg-white focus:border-primary transition-colors"
+                        className="w-full border rounded-md border-border bg-input-background px-3 py-2 text-sm focus:bg-white focus:border-primary transition-colors"
                         placeholder="단계에 대한 설명을 입력하세요."
                         minHeight="36px"
                         maxHeight="200px"
