@@ -5,7 +5,19 @@ import { Card, CardContent, CardHeader } from './ui/card'
 import { Button } from './ui/button'
 import { Input } from './ui/input'
 import { Label } from './ui/label'
-import { authApi } from '../lib/api' 
+import { authApi } from '../lib/api'
+import { PROFILE_STORAGE_KEY, normalizeUserRole } from '../constants/profile';
+
+const STORAGE_EVENT_NAME = 'workhub:local-storage';
+
+const broadcastStorageChange = (key: string, value: unknown) => {
+    if (typeof window === "undefined") return;
+    window.dispatchEvent(
+        new CustomEvent(STORAGE_EVENT_NAME, {
+            detail: { key, value },
+        }),
+    );
+};
 
 interface LoginScreenProps {
     onSuccess?: () => void;
@@ -51,6 +63,24 @@ export function LoginScreen({
         return Object.keys(newErrors).length === 0
     }
 
+    const syncProfileStorage = (userData?: Partial<{ name: string; loginId: string; email: string; phone: string; role: string; avatarUrl?: string; photoUrl?: string }>) => {
+        if (typeof window === 'undefined') return;
+        const normalizedRole = normalizeUserRole(userData?.role) ?? 'DEVELOPER';
+        const profilePayload = {
+            profile: {
+                id: userData?.name || userData?.loginId || userId,
+                email: userData?.email || '',
+                phone: userData?.phone || '',
+                role: normalizedRole,
+            },
+            photo: userData?.avatarUrl || userData?.photoUrl || '/default-profile.png',
+            twoFactorEnabled: false,
+            updatedAt: new Date().toISOString(),
+        };
+        localStorage.setItem(PROFILE_STORAGE_KEY, JSON.stringify(profilePayload));
+        broadcastStorageChange(PROFILE_STORAGE_KEY, profilePayload);
+    };
+
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault()
 
@@ -72,6 +102,18 @@ export function LoginScreen({
             // 유저 정보 저장
             if (data.user) {
                 localStorage.setItem('user', JSON.stringify(data.user))
+                broadcastStorageChange('user', data.user)
+                syncProfileStorage({
+                    name: data.user.name,
+                    loginId: data.user.loginId,
+                    email: data.user.email,
+                    phone: data.user.phone,
+                    role: data.user.role,
+                    avatarUrl: data.user.avatarUrl,
+                    photoUrl: data.user.photoUrl,
+                })
+            } else {
+                syncProfileStorage({ loginId: userId })
             }
 
             onSuccess?.()
