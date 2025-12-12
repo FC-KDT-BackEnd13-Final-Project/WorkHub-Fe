@@ -1,4 +1,5 @@
 import { MouseEvent, PointerEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
 import {
   Card,
@@ -664,6 +665,19 @@ export function ProjectsIndex() {
   }, [isProjectModalOpen]);
 
   useEffect(() => {
+    if (!statusModalProject) return;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        closeStatusModal();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [statusModalProject]);
+
+  useEffect(() => {
     projects.forEach((project) => {
       if (!project.id || fetchedProjectProgress.current.has(project.id)) return;
       fetchedProjectProgress.current.add(project.id);
@@ -753,57 +767,65 @@ export function ProjectsIndex() {
 
   return (
       <div className="space-y-6">
-        {statusModalProject && (
-            <div className="fixed inset-0 z-40">
-              <div className="min-h-screen flex items-center justify-center p-4 bg-black/40">
-                <div className="w-full" style={{ maxWidth: "28rem" }}>
-                  <Card className="border border-border shadow-lg">
-                    <CardHeader className="space-y-2 pb-4">
-                      <h2 className="text-lg font-semibold text-center">프로젝트 상태 변경</h2>
-                      <p className="text-sm text-muted-foreground text-center">
-                        "{statusModalProject.name}"의 상태를 선택하세요.
-                      </p>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                      <Select
-                          value={statusModalValue || undefined}
-                          onValueChange={(value) => setStatusModalValue(value as ProjectStatus)}
-                      >
-                        <SelectTrigger className="h-10 w-full">
-                          <SelectValue placeholder="상태 선택" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {projectStatusOptions.map((option) => (
-                              <SelectItem key={option} value={option}>
-                                {option}
-                              </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <div className="flex gap-2">
-                        <Button
-                            type="button"
-                            variant="secondary"
-                            className="w-1/2"
-                            onClick={closeStatusModal}
-                        >
-                          취소
-                        </Button>
-                        <Button
-                            type="button"
-                            className="w-1/2"
-                            disabled={!statusModalValue}
-                            onClick={handleApplyStatusChange}
-                        >
-                          상태 변경
-                        </Button>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </div>
-              </div>
-            </div>
-        )}
+        {statusModalProject &&
+            typeof document !== "undefined" &&
+            createPortal(
+                <div className="fixed inset-0" style={{ zIndex: 9999 }}>
+                  <div
+                      className="absolute inset-0 bg-black/30 backdrop-blur-sm"
+                      aria-hidden="true"
+                      onClick={closeStatusModal}
+                  ></div>
+                  <div className="relative z-10 min-h-screen flex items-center justify-center p-4">
+                    <div className="w-full" style={{ maxWidth: "28rem" }}>
+                      <Card className="border border-border shadow-lg" style={{ backgroundColor: "#fff" }}>
+                        <CardHeader className="space-y-2 pb-4">
+                          <h2 className="text-lg font-semibold text-center">프로젝트 상태 변경</h2>
+                          <p className="text-sm text-muted-foreground text-center">
+                            "{statusModalProject.name}"의 상태를 선택하세요.
+                          </p>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                          <Select
+                              value={statusModalValue || undefined}
+                              onValueChange={(value) => setStatusModalValue(value as ProjectStatus)}
+                          >
+                            <SelectTrigger className="h-10 w-full">
+                              <SelectValue placeholder="상태 선택" />
+                            </SelectTrigger>
+                            <SelectContent style={{ zIndex: 10001 }}>
+                              {projectStatusOptions.map((option) => (
+                                  <SelectItem key={option} value={option}>
+                                    {option}
+                                  </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <div className="flex gap-2">
+                            <Button
+                                type="button"
+                                variant="secondary"
+                                className="w-1/2"
+                                onClick={closeStatusModal}
+                            >
+                              취소
+                            </Button>
+                            <Button
+                                type="button"
+                                className="w-1/2"
+                                disabled={!statusModalValue}
+                                onClick={handleApplyStatusChange}
+                            >
+                              상태 변경
+                            </Button>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </div>
+                  </div>
+                </div>,
+                document.body,
+            )}
         {/* 프로젝트 생성 모달 */}
         {isProjectModalOpen && (
             <div className="fixed inset-0 z-50" ref={projectModalRef}>
@@ -1579,19 +1601,16 @@ function ProjectActionMenu({ project, onEdit, onDelete, onChangeStatus }: Projec
 
   const handleEdit = (event: Event) => {
     event.stopPropagation();
-    event.preventDefault();
     onEdit(project);
   };
 
   const handleDelete = (event: Event) => {
     event.stopPropagation();
-    event.preventDefault();
     onDelete(project);
   };
 
   const handleStatusChange = (event: Event) => {
     event.stopPropagation();
-    event.preventDefault();
     onChangeStatus(project);
   };
 
