@@ -19,10 +19,7 @@ export const apiClient = axios.create({
 // 요청 인터셉터 - 토큰이 있으면 자동으로 헤더에 추가
 apiClient.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('authToken'); // 로컬 스토리지에 저장된 인증 토큰 조회
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`; // 서버에 인증 토큰을 실어 보냄
-    }
+    // 세션 기반 인증이라 JSESSIONID 쿠키만 있으면 됨. withCredentials 옵션으로 자동 전송됨.
     return config;
   },
   (error) => {
@@ -36,6 +33,12 @@ apiClient.interceptors.response.use(
   (error) => {
     if (error.response?.status === 401) {
       localStorage.removeItem('authToken'); // 인증 만료 시 토큰 삭제하여 재로그인 유도
+      localStorage.removeItem('user');
+      localStorage.setItem('workhub:auth', 'false');
+      if (typeof window !== 'undefined' && window.location.pathname !== '/') {
+        // 새 세션으로 다시 로그인하도록 랜딩/로그인 페이지로 이동
+        window.location.replace('/');
+      }
     }
     return Promise.reject(error); // 호출한 쪽에서 에러를 처리하도록 던짐
   }
@@ -80,7 +83,7 @@ export const projectApi = {
    * @returns 노드 목록
    */
   getNodes: async (projectId: string): Promise<NodeListApiResponse> => {
-    const response = await apiClient.get(`/api/v1/projects/${projectId}/nodes`);
+    const response = await apiClient.get(`/api/v1/projects/${projectId}/nodes/list`);
 
     const { success, message, data } = response.data;
 
@@ -100,7 +103,7 @@ export const projectApi = {
      */
   createNode: async (projectId: string, payload: CreateNodePayload) => {
       const response = await apiClient.post(
-          `/api/v1/projects/${projectId}/nodes`,
+          `/api/v1/projects/${projectId}/nodes/create`,
           payload
       );
 
@@ -112,4 +115,3 @@ export const projectApi = {
       throw new Error(message || '노드 생성에 실패했습니다.');
   },
 };
-
