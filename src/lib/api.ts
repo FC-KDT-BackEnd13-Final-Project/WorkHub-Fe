@@ -83,7 +83,7 @@ export const projectApi = {
    * @returns 노드 목록
    */
   getNodes: async (projectId: string): Promise<NodeListApiResponse> => {
-    const response = await apiClient.get(`/api/v1/projects/${projectId}/nodes`);
+    const response = await apiClient.get(`/api/v1/projects/${projectId}/nodes/list`);
 
     const { success, message, data } = response.data;
 
@@ -103,7 +103,7 @@ export const projectApi = {
      */
   createNode: async (projectId: string, payload: CreateNodePayload) => {
       const response = await apiClient.post(
-          `/api/v1/projects/${projectId}/nodes`,
+          `/api/v1/projects/${projectId}/nodes/create`,
           payload
       );
 
