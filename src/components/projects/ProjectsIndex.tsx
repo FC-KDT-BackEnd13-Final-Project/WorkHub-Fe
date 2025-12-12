@@ -22,13 +22,14 @@ import { Label } from "../ui/label";
 import { AutoResizeTextarea } from "../ui/auto-resize-textarea";
 import { format } from "date-fns";
 import { companyUsers } from "../admin/userData";
-import { ChevronDown, MoreHorizontal } from "lucide-react";
+import { Check, MoreHorizontal } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "../ui/dropdown-menu";
+import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
 import { projectApi } from "../../lib/api";
 import { mapApiProjectToUiProject, type Project } from "../../utils/projectMapper";
 import type { ProjectListParams, SortOrder } from "../../types/project";
@@ -103,12 +104,45 @@ type CompanyContact = {
   avatarUrl?: string;
 };
 
+type DeveloperSelection = {
+  id: string;
+  name: string;
+  email?: string;
+  avatarUrl?: string;
+};
+
+const parseLabelToNameAndId = (label: string) => {
+  const match = label.match(/^(.*)\s+\(([^)]+)\)$/);
+  if (match) {
+    return {
+      name: match[1].trim(),
+      id: match[2].trim(),
+    };
+  }
+  const trimmed = label.trim();
+  return {
+    name: trimmed,
+    id: "",
+  };
+};
+
+const normalizeText = (value: string) => value.toLowerCase().replace(/\s+/g, "");
+const stripLabelSuffix = (value: string) => value.replace(/\s*\([^)]*\)\s*$/, "").trim();
+const formatLabelString = (value?: string) =>
+  value
+    ? value
+        .split(",")
+        .map((item) => stripLabelSuffix(item))
+        .filter(Boolean)
+        .join(", ")
+    : "";
+
 const createProjectFormState = () => ({
   name: "",
   description: "",
   brand: "",
   managers: [] as string[],
-  developers: [] as { id: string; name: string }[],
+  developers: [] as DeveloperSelection[],
   startDate: "",
   endDate: "",
 });
@@ -163,11 +197,18 @@ export function ProjectsIndex() {
   const [filterStartDate, setFilterStartDate] = useState("");
   const [filterEndDate, setFilterEndDate] = useState("");
 
-  const [currentDeveloperInput, setCurrentDeveloperInput] = useState("");
   const [selectedCompany, setSelectedCompany] = useState<string | null>(null);
+  const [selectedCompanyContacts, setSelectedCompanyContacts] = useState<CompanyContact[]>([]);
   const [companySearchTerm, setCompanySearchTerm] = useState("");
-  const [selectedCompanyContacts, setSelectedCompanyContacts] = useState<string[]>([]);
+  const [contactSearchTerm, setContactSearchTerm] = useState("");
+  const [developerSearchTerm, setDeveloperSearchTerm] = useState("");
+  const [isCompanyDropdownOpen, setIsCompanyDropdownOpen] = useState(false);
   const [isContactDropdownOpen, setIsContactDropdownOpen] = useState(false);
+  const [isDeveloperDropdownOpen, setIsDeveloperDropdownOpen] = useState(false);
+  const [projectProgressMap, setProjectProgressMap] = useState<
+    Record<string, { total: number; completed: number; progress: number }>
+  >({});
+  const fetchedProjectProgress = useRef(new Set<string>());
   const navigate = useNavigate();
   const isEditingProjectForm = Boolean(editingProject);
 
@@ -179,24 +220,63 @@ export function ProjectsIndex() {
 
   // 무한 스크롤을 위한 ref
   const observerTarget = useRef<HTMLDivElement>(null);
-  const contactDropdownRef = useRef<HTMLDivElement>(null);
+  const projectModalRef = useRef<HTMLDivElement>(null);
 
-  const addDeveloper = () => {
-    const trimmed = currentDeveloperInput.trim();
-    if (!trimmed) return;
-    if (newProject.developers.some((dev) => dev.name === trimmed)) return;
-    setNewProject((prev) => ({
-      ...prev,
-      developers: [...prev.developers, { id: crypto.randomUUID(), name: trimmed }],
-    }));
-    setCurrentDeveloperInput("");
-  };
+  const developerDirectory = useMemo(() => {
+    const map = new Map<string, DeveloperSelection>();
 
-  const removeDeveloper = (developerToRemove: string) => {
-    setNewProject((prev) => ({
-      ...prev,
-      developers: prev.developers.filter((developer) => developer.name !== developerToRemove),
-    }));
+    companyUsers.forEach((user) => {
+      map.set(user.id, {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        avatarUrl: user.avatarUrl,
+      });
+    });
+
+    projects.forEach((project) => {
+      project.developers.forEach((developer) => {
+        if (!map.has(developer.id)) {
+          map.set(developer.id, {
+            id: developer.id,
+            name: developer.name,
+          });
+        }
+      });
+    });
+
+    return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name, "ko-KR"));
+  }, [projects]);
+
+  const availableDeveloperOptions = useMemo(() => developerDirectory, [developerDirectory]);
+  const visibleDeveloperOptions = useMemo(() => {
+    const term = normalizeText(developerSearchTerm.trim());
+    if (!term) return availableDeveloperOptions;
+    return availableDeveloperOptions.filter((developer) =>
+      normalizeText(`${developer.name} ${developer.email ?? ""} ${developer.id}`).includes(term),
+    );
+  }, [availableDeveloperOptions, developerSearchTerm]);
+  const hasDeveloperSearch = developerSearchTerm.trim().length > 0;
+  const selectedContactsLabel = useMemo(
+    () => selectedCompanyContacts.map((contact) => contact.name).join(", "),
+    [selectedCompanyContacts],
+  );
+  const selectedDevelopersLabel = useMemo(
+    () => newProject.developers.map((developer) => developer.name).join(", "),
+    [newProject.developers],
+  );
+
+  const toggleDeveloperSelection = (developerId: string) => {
+    const selected = developerDirectory.find((developer) => developer.id === developerId);
+    if (!selected) return;
+
+    setNewProject((prev) => {
+      const exists = prev.developers.some((developer) => developer.id === developerId);
+      const developers = exists
+        ? prev.developers.filter((developer) => developer.id !== developerId)
+        : [...prev.developers, selected];
+      return { ...prev, developers };
+    });
   };
 
   // API 호출 함수
@@ -304,25 +384,44 @@ export function ProjectsIndex() {
   }, [companyUsers]);
 
   const filteredCompanyDirectory = useMemo(() => {
-    const term = companySearchTerm.toLowerCase().trim();
+    const term = normalizeText(companySearchTerm.trim());
     if (!term) return [];
-    return companyDirectory
-      .filter((name) => name.toLowerCase().includes(term))
-      .filter((name) => name !== selectedCompany);
-  }, [companyDirectory, companySearchTerm, selectedCompany]);
+    return companyDirectory.filter((name) => normalizeText(name).includes(term));
+  }, [companyDirectory, companySearchTerm]);
 
   const currentCompanyMembers: CompanyContact[] = selectedCompany
     ? companyContactMap.get(selectedCompany) ?? []
     : [];
 
   const filteredCompanyMembers = currentCompanyMembers;
+  const visibleCompanyContacts = useMemo(() => {
+    const term = normalizeText(contactSearchTerm.trim());
+    if (!term) return filteredCompanyMembers;
+    return filteredCompanyMembers.filter((member) =>
+      normalizeText(`${member.name} ${member.email ?? ""} ${member.id}`).includes(term),
+    );
+  }, [filteredCompanyMembers, contactSearchTerm]);
+  const hasContactSearch = contactSearchTerm.trim().length > 0;
+  const formatContactLabel = (contact: CompanyContact) => {
+    if (!contact.id || contact.id === contact.name) return contact.name;
+    return `${contact.name} (${contact.id})`;
+  };
+
+  const formatDeveloperLabel = (developer: DeveloperSelection) => {
+    if (!developer.id || developer.id === developer.name) return developer.name;
+    return `${developer.name} (${developer.id})`;
+  };
 
   const handleSelectCompany = (companyName: string) => {
     setSelectedCompany(companyName);
     setCompanySearchTerm(companyName);
 
     setSelectedCompanyContacts([]);
+    setContactSearchTerm("");
     setIsContactDropdownOpen(false);
+    setIsCompanyDropdownOpen(false);
+    setIsDeveloperDropdownOpen(false);
+    setDeveloperSearchTerm("");
 
     setNewProject((prev) => ({
       ...prev,
@@ -331,14 +430,20 @@ export function ProjectsIndex() {
     }));
   };
 
-  const handleToggleCompanyContact = (contactName: string) => {
+  const handleToggleCompanyContact = (contact: CompanyContact) => {
     setSelectedCompanyContacts((prev) => {
-      const exists = prev.includes(contactName);
-      const next = exists ? prev.filter((name) => name !== contactName) : [...prev, contactName];
+      const exists = prev.some((item) =>
+        item.id && contact.id ? item.id === contact.id : item.name === contact.name,
+      );
+      const next = exists
+        ? prev.filter((item) =>
+            item.id && contact.id ? item.id !== contact.id : item.name !== contact.name,
+          )
+        : [...prev, contact];
 
       setNewProject((prevProject) => ({
         ...prevProject,
-        managers: next,
+        managers: next.map((item) => formatContactLabel(item)),
       }));
 
       return next;
@@ -347,11 +452,14 @@ export function ProjectsIndex() {
 
   const resetCreateForm = useCallback(() => {
     setNewProject(createProjectFormState());
-    setCurrentDeveloperInput("");
     setSelectedCompany(null);
     setCompanySearchTerm("");
     setSelectedCompanyContacts([]);
+    setIsCompanyDropdownOpen(false);
     setIsContactDropdownOpen(false);
+    setIsDeveloperDropdownOpen(false);
+    setContactSearchTerm("");
+    setDeveloperSearchTerm("");
   }, []);
 
   const closeProjectModal = useCallback(() => {
@@ -376,7 +484,7 @@ export function ProjectsIndex() {
     if (new Date(newProject.endDate) <= new Date(newProject.startDate)) return;
 
     const managerText = newProject.managers.join(", ");
-    const developerText = newProject.developers.map((dev) => dev.name).join(", ");
+    const developerText = newProject.developers.map((dev) => formatDeveloperLabel(dev)).join(", ");
     const teamSize = newProject.managers.length + newProject.developers.length;
 
     if (editingProject) {
@@ -431,25 +539,58 @@ export function ProjectsIndex() {
     const developerList = project.developer
         ? project.developer
             .split(",")
-            .map((name) => name.trim())
+            .map((entry) => entry.trim())
             .filter(Boolean)
-            .map((name) => ({ id: name, name }))
+            .map((entry) => {
+              const parsed = parseLabelToNameAndId(entry);
+              return {
+                id: parsed.id || parsed.name,
+                name: parsed.name,
+              };
+            })
         : project.developers ?? [];
+
+    const companyMembersForBrand = project.brand ? companyContactMap.get(project.brand) ?? [] : [];
+    const selectedContactsForBrand =
+        managerList.length > 0
+            ? managerList.map((label) => {
+                const parsed = parseLabelToNameAndId(label);
+                return (
+                    companyMembersForBrand.find(
+                        (member) =>
+                            (!!parsed.id && member.id === parsed.id) ||
+                            member.name === parsed.name,
+                    ) ?? {
+                      id: parsed.id || "",
+                      name: parsed.name,
+                      email: "",
+                      company: project.brand ?? "",
+                      avatarUrl: undefined,
+                    }
+                );
+              })
+            : [];
 
     setNewProject({
       name: project.name,
       description: project.description,
       brand: project.brand,
-      managers: managerList,
+      managers:
+          selectedContactsForBrand.length > 0
+              ? selectedContactsForBrand.map((contact) => formatContactLabel(contact))
+              : managerList,
       developers: developerList,
       startDate: project.startDate,
       endDate: project.endDate,
     });
-    setCurrentDeveloperInput("");
     setSelectedCompany(project.brand ? project.brand : null);
     setCompanySearchTerm(project.brand ?? "");
-    setSelectedCompanyContacts(managerList);
+    setSelectedCompanyContacts(selectedContactsForBrand);
+    setIsCompanyDropdownOpen(false);
     setIsContactDropdownOpen(false);
+    setIsDeveloperDropdownOpen(false);
+    setContactSearchTerm("");
+    setDeveloperSearchTerm("");
     setEditingProject(project);
     setIsProjectModalOpen(true);
   };
@@ -505,35 +646,71 @@ export function ProjectsIndex() {
   }, [closeProjectModal, isProjectModalOpen]);
 
   useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (!contactDropdownRef.current) return;
-      if (!contactDropdownRef.current.contains(event.target as Node)) {
-        setIsContactDropdownOpen(false);
-      }
-    };
-
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, []);
-
-  useEffect(() => {
     setIsContactDropdownOpen(false);
   }, [selectedCompany]);
 
+  useEffect(() => {
+    if (availableDeveloperOptions.length === 0) {
+      setIsDeveloperDropdownOpen(false);
+    }
+  }, [availableDeveloperOptions.length]);
+
+  useEffect(() => {
+    if (!isProjectModalOpen) {
+      setIsCompanyDropdownOpen(false);
+      setIsContactDropdownOpen(false);
+      setIsDeveloperDropdownOpen(false);
+    }
+  }, [isProjectModalOpen]);
+
+  useEffect(() => {
+    projects.forEach((project) => {
+      if (!project.id || fetchedProjectProgress.current.has(project.id)) return;
+      fetchedProjectProgress.current.add(project.id);
+
+      void (async () => {
+        try {
+          const response = await projectApi.getNodes(project.id);
+          const nodes = response.projectNodes ?? [];
+          const total = nodes.length;
+          const completed = nodes.filter((node) =>
+            ["DONE", "COMPLETED"].includes(node.nodeStatus),
+          ).length;
+          const progress = total === 0 ? 0 : Math.round((completed / total) * 100);
+
+          setProjectProgressMap((prev) => ({
+            ...prev,
+            [project.id]: { total, completed, progress },
+          }));
+        } catch (error) {
+          console.error(`프로젝트(${project.id}) 진행률 계산 실패:`, error);
+          setProjectProgressMap((prev) => ({
+            ...prev,
+            [project.id]: {
+              total: project.tasks ?? 0,
+              completed: 0,
+              progress: project.progress ?? 0,
+            },
+          }));
+        }
+      })();
+    });
+  }, [projects]);
+
   const getManagerDisplay = (project: Project) => {
-    if (project.manager) return project.manager;
+    const fromString = formatLabelString(project.manager);
+    if (fromString) return fromString;
     if (project.managers && project.managers.length > 0) {
-      return project.managers.join(", ");
+      return project.managers.map((manager) => stripLabelSuffix(manager)).filter(Boolean).join(", ");
     }
     return "";
   };
 
   const getDeveloperDisplay = (project: Project) => {
-    if (project.developer) return project.developer;
+    const fromString = formatLabelString(project.developer);
+    if (fromString) return fromString;
     if (project.developers && project.developers.length > 0) {
-      return project.developers.map((dev) => dev.name).join(", ");
+      return project.developers.map((dev) => dev.name).filter(Boolean).join(", ");
     }
     return "";
   };
@@ -617,8 +794,13 @@ export function ProjectsIndex() {
         )}
         {/* 프로젝트 생성 모달 */}
         {isProjectModalOpen && (
-            <div className="fixed inset-0 z-50">
-              <div className="min-h-screen flex items-center justify-center">
+            <div className="fixed inset-0 z-50" ref={projectModalRef}>
+              <div
+                  className="absolute inset-0 bg-black/30 backdrop-blur-sm"
+                  aria-hidden="true"
+                  onClick={closeProjectModal}
+              ></div>
+              <div className="relative z-10 min-h-screen flex items-center justify-center p-4">
                 <div
                     className="w-full"
                     style={{ maxWidth: "var(--login-card-max-width, 42rem)" }}
@@ -680,195 +862,347 @@ export function ProjectsIndex() {
 
                         {/* 회사 & 담당자 */}
                         <div className="grid gap-6 md:grid-cols-2">
-                          {/* 1단계: 회사 선택 */}
+                          {/* 1단계: 고객사 선택 */}
                           <div className="space-y-2">
                             <Label className="text-sm font-semibold text-gray-800">고객사</Label>
-                            <div className="relative">
-                              <Input
-                                value={companySearchTerm}
-                                onChange={(e) => {
-                                  const value = e.target.value;
-                                  setCompanySearchTerm(value);
-                                  setSelectedCompany(null);
-                                  setSelectedCompanyContacts([]);
-                                  setContactSearchTerm("");
-                                  setNewProject((prev) => ({
-                                    ...prev,
-                                    brand: value,
-                                    managers: [],
-                                  }));
-                                }}
-                                placeholder="회사명을 입력하세요"
-                                className="rounded-md border border-border bg-input-background px-3 py-2 text-sm focus:bg-white focus:border-primary transition-colors"
-                              />
-
-                              {filteredCompanyDirectory.length > 0 && (
-                                <div className="absolute left-0 right-0 z-30 mt-1 w-full max-h-52 overflow-y-auto rounded-md border border-border bg-white shadow-md">
-                                  <div className="divide-y divide-border">
-                                    {filteredCompanyDirectory.map((company) => {
-                                      const isActive = selectedCompany === company;
-                                      return (
-                                        <button
-                                          key={company}
-                                          type="button"
-                                          onClick={() => handleSelectCompany(company)}
-                                          className={cn(
-                                            "flex w-full items-center justify-between px-3 py-2 text-left text-sm transition-colors",
-                                            isActive
-                                              ? "bg-primary/5 text-primary"
-                                              : "bg-white hover:bg-accent/60",
-                                          )}
-                                        >
-                                          <span>{company}</span>
-                                          {isActive && (
-                                            <span className="text-[11px] font-medium text-primary">
-                                              선택됨
-                                            </span>
-                                          )}
-                                        </button>
-                                      );
-                                    })}
-                                  </div>
+                            <Popover
+                              open={isCompanyDropdownOpen}
+                              onOpenChange={(open) => {
+                                setIsCompanyDropdownOpen(open);
+                                if (open) {
+                                  setCompanySearchTerm(selectedCompany ?? "");
+                                }
+                              }}
+                            >
+                              <PopoverTrigger asChild>
+                                <button
+                                  type="button"
+                                  className="flex h-9 w-full items-center justify-between gap-2 rounded-md border border-border bg-input-background px-3 py-2 text-sm transition-colors hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+                                >
+                                  <span className="text-left text-sm text-foreground">
+                                    {selectedCompany ?? "고객사를 선택하세요"}
+                                  </span>
+                                  <svg
+                                    className={cn("h-4 w-4 transition-transform", isCompanyDropdownOpen && "rotate-180")}
+                                    viewBox="0 0 24 24"
+                                    fill="none"
+                                    xmlns="http://www.w3.org/2000/svg"
+                                  >
+                                    <path
+                                      d="m6 9 6 6 6-6"
+                                      stroke="currentColor"
+                                      strokeWidth="2"
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                    />
+                                  </svg>
+                                </button>
+                              </PopoverTrigger>
+                              <PopoverContent
+                                side="bottom"
+                                align="start"
+                                avoidCollisions={false}
+                                className="w-[var(--radix-popover-trigger-width)] max-w-none p-0"
+                                style={{ width: "var(--radix-popover-trigger-width)" }}
+                              >
+                                <div className="border-b border-border px-3 py-2">
+                                  <Input
+                                    autoFocus
+                                    value={companySearchTerm}
+                                    onChange={(event) => {
+                                      const value = event.target.value;
+                                      setCompanySearchTerm(value);
+                                    }}
+                                    placeholder="고객사를 검색하세요"
+                                    className="h-8 text-sm"
+                                  />
                                 </div>
-                              )}
-                            </div>
+                              <div className="max-h-[13.5rem] overflow-y-auto">
+                                {companySearchTerm.trim()
+                                  ? filteredCompanyDirectory.length > 0
+                                    ? filteredCompanyDirectory.map((company) => {
+                                        const isActive = selectedCompany === company;
+                                        return (
+                                          <button
+                                            type="button"
+                                            key={company}
+                                            onMouseDown={(event) => {
+                                              event.preventDefault();
+                                              handleSelectCompany(company);
+                                              setIsCompanyDropdownOpen(false);
+                                            }}
+                                            className={cn(
+                                              "flex w-full items-center justify-between px-3 py-2 text-left text-sm transition-colors",
+                                              isActive ? "bg-primary/5 text-primary" : "hover:bg-accent/60",
+                                            )}
+                                          >
+                                            <span>{company}</span>
+                                            {isActive && <Check className="h-4 w-4 text-primary" aria-hidden="true" />}
+                                          </button>
+                                        );
+                                      })
+                                    : (
+                                      <p className="px-3 py-4 text-center text-sm text-muted-foreground">
+                                        검색 결과가 없습니다.
+                                      </p>
+                                    )
+                                  : (
+                                    <p className="px-3 py-4 text-center text-sm text-muted-foreground">
+                                      검색어를 입력하면 고객사가 표시됩니다.
+                                    </p>
+                                  )}
+                              </div>
+                              </PopoverContent>
+                            </Popover>
                           </div>
 
                           {/* 2단계: 담당자 선택 */}
                           <div className="space-y-2">
                             <Label className="text-sm font-semibold text-gray-800">담당자</Label>
-
-                            <div className="relative" ref={contactDropdownRef}>
+                          <Popover
+                            open={selectedCompany ? isContactDropdownOpen : false}
+                            onOpenChange={(open) => {
+                              if (!selectedCompany) return;
+                              setIsContactDropdownOpen(open);
+                              if (open) {
+                                setContactSearchTerm("");
+                              }
+                            }}
+                          >
+                            <PopoverTrigger asChild>
                               <button
                                 type="button"
-                                onClick={() => selectedCompany && setIsContactDropdownOpen((prev) => !prev)}
                                 disabled={!selectedCompany}
-                                aria-haspopup="listbox"
-                                aria-expanded={isContactDropdownOpen}
                                 className={cn(
-                                  "flex h-9 w-full items-center justify-between gap-2 rounded-md border border-border bg-input-background px-3 py-2 text-sm transition-colors",
+                                  "flex h-9 w-full items-center justify-between rounded-md border border-border bg-input-background px-3 text-sm transition-colors",
                                   selectedCompany
                                     ? "hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
                                     : "cursor-not-allowed bg-muted text-muted-foreground",
                                 )}
                               >
-                                <span className="flex flex-1 flex-wrap gap-1 text-left">
-                                  {selectedCompanyContacts.length > 0 ? (
-                                    selectedCompanyContacts.map((name) => (
-                                      <span
-                                        key={name}
-                                        className="inline-flex items-center justify-center gap-1 rounded-md border border-transparent bg-secondary px-2 py-0.5 text-xs font-medium text-secondary-foreground"
-                                      >
-                                        {name}
-                                      </span>
-                                    ))
-                                  ) : (
-                                    <span className="text-sm text-muted-foreground">담당자를 선택하세요</span>
-                                  )}
-                                </span>
-                                <ChevronDown
+                                <span
                                   className={cn(
-                                    "h-4 w-4 shrink-0 text-muted-foreground transition-transform",
+                                    "flex-1 truncate text-left",
+                                    selectedContactsLabel ? "text-foreground" : "text-muted-foreground",
+                                  )}
+                                >
+                                  {selectedContactsLabel || "담당자를 선택하세요"}
+                                </span>
+                                <svg
+                                  className={cn(
+                                    "ml-2 h-4 w-4 text-muted-foreground transition-transform",
                                     isContactDropdownOpen ? "rotate-180" : "",
                                   )}
-                                />
+                                  viewBox="0 0 24 24"
+                                  fill="none"
+                                  xmlns="http://www.w3.org/2000/svg"
+                                >
+                                  <path
+                                    d="m6 9 6 6 6-6"
+                                    stroke="currentColor"
+                                    strokeWidth="2"
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                  />
+                                </svg>
                               </button>
-
-                              {isContactDropdownOpen && selectedCompany && (
-                                <div className="absolute left-0 right-0 z-30 mt-1 w-full max-h-56 overflow-y-auto rounded-md border border-border bg-white shadow-md">
-                                  {filteredCompanyMembers.length > 0 ? (
-                                    filteredCompanyMembers.map((member) => {
-                                      const isSelected = selectedCompanyContacts.includes(member.name);
-                                      return (
-                                        <button
-                                          key={member.id}
-                                          type="button"
-                                          onClick={() => handleToggleCompanyContact(member.name)}
-                                          className={`flex w-full items-center justify-between px-3 py-2 text-left text-sm hover:bg-accent/60 ${
-                                            isSelected ? "bg-primary/5 text-primary" : ""
-                                          }`}
-                                        >
-                                          <div className="flex items-center gap-3">
-                                            <img
-                                              src={member.avatarUrl || "/default-profile.png"}
-                                              alt={`${member.name} 프로필`}
-                                              className="h-6 w-6 rounded-full object-cover"
-                                            />
-                                            <div className="flex flex-col leading-tight">
-                                              <span className="text-sm font-medium">
-                                                {member.name} ({member.id})
-                                              </span>
-                                              <span className="text-xs text-muted-foreground">
-                                                {member.email}
-                                              </span>
+                            </PopoverTrigger>
+                            {selectedCompany && (
+                              <PopoverContent
+                                side="bottom"
+                                align="start"
+                                avoidCollisions={false}
+                                className="w-[var(--radix-popover-trigger-width)] max-w-none p-0"
+                                style={{ width: "var(--radix-popover-trigger-width)" }}
+                              >
+                                <div className="border-b border-border px-3 py-2">
+                                  <Input
+                                    value={contactSearchTerm}
+                                    onChange={(event) => setContactSearchTerm(event.target.value)}
+                                    placeholder="담당자를 검색하세요"
+                                    className="h-8 text-sm"
+                                    autoFocus
+                                  />
+                                </div>
+                                <div className="max-h-[13.5rem] overflow-y-auto">
+                                  {hasContactSearch ? (
+                                    visibleCompanyContacts.length > 0 ? (
+                                      visibleCompanyContacts.map((member) => {
+                                        const isSelected = selectedCompanyContacts.some(
+                                          (contact) =>
+                                            (!!contact.id && contact.id === member.id) ||
+                                            contact.name === member.name,
+                                        );
+                                        return (
+                                          <button
+                                            type="button"
+                                            key={member.id}
+                                            onMouseDown={(event) => {
+                                              event.preventDefault();
+                                              handleToggleCompanyContact(member);
+                                            }}
+                                            className={cn(
+                                              "flex w-full items-center justify-between px-3 py-1.5 text-left text-sm transition-colors",
+                                              isSelected ? "bg-primary/5 text-primary" : "hover:bg-accent/60",
+                                            )}
+                                          >
+                                            <div className="flex items-center gap-3">
+                                              <img
+                                                src={member.avatarUrl || "/default-profile.png"}
+                                                alt={`${member.name} 프로필`}
+                                                className="h-6 w-6 rounded-full object-cover"
+                                              />
+                                              <div className="flex flex-col leading-tight">
+                                                <span className="text-sm font-medium">
+                                                  {member.name} ({member.id})
+                                                </span>
+                                                <span className="text-xs text-muted-foreground">
+                                                  {member.email ?? "이메일 정보 없음"}
+                                                </span>
+                                              </div>
                                             </div>
-                                          </div>
-                                          <span className="text-xs font-medium text-primary">
-                                            {isSelected ? "선택됨" : ""}
-                                          </span>
-                                        </button>
-                                      );
-                                    })
+                                            {isSelected && <Check className="h-4 w-4 text-primary" aria-hidden="true" />}
+                                          </button>
+                                        );
+                                      })
+                                    ) : (
+                                      <p className="px-3 py-4 text-center text-sm text-muted-foreground">
+                                        검색 결과가 없습니다.
+                                      </p>
+                                    )
                                   ) : (
-                                    <p className="py-6 text-center text-xs text-muted-foreground">
-                                      등록된 담당자가 없습니다.
+                                    <p className="px-3 py-4 text-center text-sm text-muted-foreground">
+                                      검색어를 입력하면 결과가 표시됩니다.
                                     </p>
                                   )}
                                 </div>
-                              )}
-                            </div>
-                          </div>
+                              </PopoverContent>
+                            )}
+                          </Popover>
+                        </div>
                         </div>
 
                         {/* 담당 개발자 */}
                         <div className="space-y-2">
-                          <Label htmlFor="developer" className="text-gray-700">
-                            담당 개발자
-                          </Label>
-                          <div className="flex gap-2">
-                            <Input
-                                id="developer"
-                                value={currentDeveloperInput}
-                                onChange={(e) =>
-                                    setCurrentDeveloperInput(e.target.value)
-                                }
-                                onKeyDown={(e) => {
-                                  if (
-                                      e.key === "Enter" &&
-                                      currentDeveloperInput.trim()
-                                  ) {
-                                    addDeveloper();
-                                  }
-                                }}
-                                className="flex-grow rounded-md border border-border bg-input-background px-3 py-2 focus:bg-white focus:border-primary transition-colors"
-                                placeholder="개발자 이름을 입력하세요"
-                            />
-                            <Button
+                          <Label className="text-gray-700">담당 개발자</Label>
+                          <Popover
+                            open={isDeveloperDropdownOpen}
+                            onOpenChange={(open) => {
+                              if (availableDeveloperOptions.length === 0) return;
+                              setIsDeveloperDropdownOpen(open);
+                              if (open) {
+                                setDeveloperSearchTerm("");
+                              }
+                            }}
+                          >
+                            <PopoverTrigger asChild>
+                              <button
                                 type="button"
-                                onClick={addDeveloper}
-                                className="px-4 py-2"
-                            >
-                              추가
-                            </Button>
-                          </div>
-                          <div className="flex flex-wrap gap-2 mt-2">
-                            {newProject.developers.map((developer, index) => (
-                                <Badge
-                                    key={`${developer.id}-${index}`}
-                                    variant="secondary"
-                                    className="flex items-center gap-1"
+                                disabled={availableDeveloperOptions.length === 0}
+                                className={cn(
+                                  "flex h-9 w-full items-center justify-between rounded-md border border-border bg-input-background px-3 text-sm transition-colors",
+                                  availableDeveloperOptions.length > 0
+                                    ? "hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+                                    : "cursor-not-allowed bg-muted text-muted-foreground",
+                                )}
+                              >
+                                <span
+                                  className={cn(
+                                    "flex-1 truncate text-left",
+                                    selectedDevelopersLabel ? "text-foreground" : "text-muted-foreground",
+                                  )}
                                 >
-                                  {developer.name}
-                                  <button
-                                      type="button"
-                                      onClick={() => removeDeveloper(developer.name)}
-                                      className="ml-1 text-xs text-secondary-foreground/70 hover:text-secondary-foreground"
-                                  >
-                                    &times;
-                                  </button>
-                                </Badge>
-                            ))}
-                          </div>
+                                  {selectedDevelopersLabel ||
+                                    (availableDeveloperOptions.length === 0
+                                      ? "등록된 개발자가 없습니다"
+                                      : "개발 담당자를 선택하세요")}
+                                </span>
+                                <svg
+                                  className={cn(
+                                    "ml-2 h-4 w-4 text-muted-foreground transition-transform",
+                                    isDeveloperDropdownOpen ? "rotate-180" : "",
+                                  )}
+                                  viewBox="0 0 24 24"
+                                  fill="none"
+                                  xmlns="http://www.w3.org/2000/svg"
+                                >
+                                  <path
+                                    d="m6 9 6 6 6-6"
+                                    stroke="currentColor"
+                                    strokeWidth="2"
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                  />
+                                </svg>
+                              </button>
+                            </PopoverTrigger>
+                            {availableDeveloperOptions.length > 0 && (
+                              <PopoverContent
+                                side="bottom"
+                                align="start"
+                                avoidCollisions={false}
+                                className="w-[var(--radix-popover-trigger-width)] max-w-none p-0"
+                                style={{ width: "var(--radix-popover-trigger-width)" }}
+                              >
+                                <div className="border-b border-border px-3 py-2">
+                                  <Input
+                                    autoFocus
+                                    value={developerSearchTerm}
+                                    onChange={(event) => setDeveloperSearchTerm(event.target.value)}
+                                    placeholder="개발자 검색"
+                                    className="h-8 text-sm"
+                                  />
+                                </div>
+                                <div className="max-h-[13.5rem] overflow-y-auto">
+                                  {hasDeveloperSearch ? (
+                                    visibleDeveloperOptions.length > 0 ? (
+                                      visibleDeveloperOptions.map((developer) => {
+                                        const isSelected = newProject.developers.some(
+                                          (item) => item.id === developer.id,
+                                        );
+                                        return (
+                                          <button
+                                            type="button"
+                                            key={developer.id}
+                                            onMouseDown={(event) => {
+                                              event.preventDefault();
+                                              toggleDeveloperSelection(developer.id);
+                                            }}
+                                            className="flex w-full items-center justify-between px-3 py-1.5 text-left text-sm transition-colors hover:bg-accent/60"
+                                          >
+                                            <div className="flex items-center gap-3">
+                                              <img
+                                                src={developer.avatarUrl || "/default-profile.png"}
+                                                alt={`${developer.name} 프로필`}
+                                                className="h-6 w-6 rounded-full object-cover"
+                                              />
+                                              <div className="flex flex-col leading-tight">
+                                                <span className="text-sm font-medium">
+                                                  {developer.name} ({developer.id})
+                                                </span>
+                                                <span className="text-xs text-muted-foreground">
+                                                  {developer.email ?? "이메일 정보 없음"}
+                                                </span>
+                                              </div>
+                                            </div>
+                                            {isSelected && <Check className="h-4 w-4 text-primary" aria-hidden="true" />}
+                                          </button>
+                                        );
+                                      })
+                                    ) : (
+                                      <p className="px-3 py-4 text-center text-sm text-muted-foreground">
+                                        검색 결과가 없습니다.
+                                      </p>
+                                    )
+                                  ) : (
+                                    <p className="px-3 py-4 text-center text-sm text-muted-foreground">
+                                      검색어를 입력하면 결과가 표시됩니다.
+                                    </p>
+                                  )}
+                                </div>
+                              </PopoverContent>
+                            )}
+                          </Popover>
                         </div>
 
                         {/* 시작일 / 마감일 */}
@@ -1098,6 +1432,14 @@ export function ProjectsIndex() {
               <div className="grid gap-4 lg:grid-cols-3">
                 {filteredProjects.map((project) => {
                   const badgeColors = statusStyles[project.status];
+                  const brandDisplay = project.brand || "-";
+                  const managerDisplay = getManagerDisplay(project) || "담당자 없음";
+                  const developerDisplay = getDeveloperDisplay(project) || "개발자 없음";
+                  const progressInfo = projectProgressMap[project.id];
+                  const progressValue =
+                    progressInfo?.progress ?? (typeof project.progress === "number" ? project.progress : 0);
+                  const totalSteps = progressInfo?.total ?? project.tasks ?? 0;
+                  const completedSteps = progressInfo?.completed ?? 0;
                   return (
                       <Card
                           key={project.id}
@@ -1115,12 +1457,11 @@ export function ProjectsIndex() {
                       >
                         <CardHeader className="space-y-2">
                           <div className="flex items-start justify-between">
-                            <div>
-                              <p className="text-xs text-muted-foreground">{project.brand}</p>
+                            <div className="space-y-1">
+                              <p className="text-xs text-muted-foreground">고객사 · {brandDisplay}</p>
                               <CardTitle className="text-xl">{project.name}</CardTitle>
-                              <p className="text-xs text-muted-foreground mt-1">
-                                개발자 · {getDeveloperDisplay(project)}
-                              </p>
+                              <p className="text-xs text-muted-foreground">고객 담당자 · {managerDisplay}</p>
+                              <p className="text-xs text-muted-foreground">담당 개발자 · {developerDisplay}</p>
                             </div>
                             <div
                                 className="flex items-center gap-2"
@@ -1164,7 +1505,9 @@ export function ProjectsIndex() {
                             </div>
                             <div className="flex justify-between">
                               <span className="text-muted-foreground">워크플로 단계</span>
-                              <span className="font-medium">{project.tasks}건</span>
+                              <span className="font-medium">
+                                {progressInfo ? `${completedSteps}/${totalSteps}건` : `${totalSteps}건`}
+                              </span>
                             </div>
                             <div className="flex justify-between">
                               <span className="text-muted-foreground">시작일</span>
@@ -1182,9 +1525,9 @@ export function ProjectsIndex() {
                           <div>
                             <div className="flex items-center justify-between text-sm font-medium">
                               <span>진행률</span>
-                              <span>{project.progress}%</span>
+                              <span>{progressValue}%</span>
                             </div>
-                            <Progress value={project.progress} className="mt-2" />
+                            <Progress value={progressValue} className="mt-2" />
                           </div>
                         </CardContent>
                       </Card>

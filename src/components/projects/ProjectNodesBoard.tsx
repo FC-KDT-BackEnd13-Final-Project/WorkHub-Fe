@@ -20,8 +20,7 @@ import { Input } from "../ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
-import { Paperclip, Link as LinkIcon, MoreHorizontal
-} from "lucide-react";
+import { Paperclip, Link as LinkIcon, MoreHorizontal, Check } from "lucide-react";
 import { Label } from "../ui/label";
 import { AutoResizeTextarea } from "../ui/auto-resize-textarea";
 import {
@@ -32,6 +31,8 @@ import {
 } from "../ui/dropdown-menu";
 import { projectApi } from "@/lib/api";
 import { mapApiNodeToUiNode, type Node, type NodeStatus, type ApprovalStatus } from "../../utils/nodeMapper";
+import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
+import { cn } from "../ui/utils";
 
 // 프로젝트 내 노드(작업 카드)와 워크플로우를 관리하는 보드 화면
 
@@ -145,6 +146,15 @@ const statusBadgeStyles: Record<NodeStatus, StatusBadgeStyles> = {
   },
 };
 
+const formatWorkflowDeveloperLabel = (developer: { id: string; name: string }) => {
+  if (!developer.id || developer.id === developer.name) {
+    return developer.name;
+  }
+  return `${developer.name} (${developer.id})`;
+};
+
+const stripDeveloperLabel = (value: string) => value.replace(/\s+\([^)]*\)$/, "");
+
 const approvalBadgeStyles: Record<ApprovalStatus, StatusBadgeStyles> = {
   PENDING: {
     background: "#FEF3C7", // Amber
@@ -169,7 +179,7 @@ export function ProjectNodesBoard() {
   const location = useLocation();
   const locationState = location.state as {
     projectName?: string;
-    developers?: { id: string; name: string }[];
+    developers?: { id: string; name: string; email?: string; avatarUrl?: string }[];
   } | null;
   const projectNameFromState = locationState?.projectName;
   const developerOptions = locationState?.developers ?? [];
@@ -182,6 +192,8 @@ export function ProjectNodesBoard() {
   const [isWorkflowModalOpen, setIsWorkflowModalOpen] = useState(false);
   const [newWorkflow, setNewWorkflow] = useState(createWorkflowFormState);
   const [isReorderMode, setIsReorderMode] = useState(false);
+  const [isWorkflowDeveloperDropdownOpen, setIsWorkflowDeveloperDropdownOpen] = useState(false);
+  const [workflowDeveloperSearchTerm, setWorkflowDeveloperSearchTerm] = useState("");
   const [editingNode, setEditingNode] = useState<Node | null>(null);
   const [statusModalNode, setStatusModalNode] = useState<Node | null>(null);
   const [statusModalStatus, setStatusModalStatus] = useState<NodeStatus | "">("");
@@ -190,14 +202,23 @@ export function ProjectNodesBoard() {
   const [error, setError] = useState<string | null>(null);
   const nextProjectNodeId = useRef(1);
   const developerFilterOptions = useMemo(() => {
-    const names = developerOptions
-      .map((developer) => developer.name.trim())
+    const labels = developerOptions
+      .map((developer) => formatWorkflowDeveloperLabel(developer).trim())
       .filter(Boolean);
-    return ["전체", ...names];
+    const uniqueLabels = Array.from(new Set(labels));
+    return ["전체", ...uniqueLabels];
   }, [developerOptions]);
   const workflowDeveloperOptions = useMemo(() => {
     return developerOptions;
   }, [developerOptions]);
+  const visibleWorkflowDeveloperOptions = useMemo(() => {
+    const term = workflowDeveloperSearchTerm.toLowerCase().replace(/\s+/g, "");
+    if (!term) return workflowDeveloperOptions;
+    return workflowDeveloperOptions.filter((developer) =>
+      `${developer.name} ${developer.email ?? ""} ${developer.id}`.toLowerCase().replace(/\s+/g, "").includes(term),
+    );
+  }, [workflowDeveloperOptions, workflowDeveloperSearchTerm]);
+  const hasWorkflowDeveloperSearch = workflowDeveloperSearchTerm.trim().length > 0;
   const hasWorkflowDeveloperOptions = workflowDeveloperOptions.length > 0;
 
   const isEditingWorkflow = Boolean(editingNode);
@@ -221,7 +242,10 @@ export function ProjectNodesBoard() {
         node.tags.some((tag) => tag.toLowerCase().includes(term));
       const matchesStatus = statusFilter === "전체" || node.status === statusFilter;
       const matchesApproval = approvalFilter === "전체" || node.approvalStatus === approvalFilter;
-      const matchesDeveloper = developerFilter === "전체" || node.developer === developerFilter;
+      const matchesDeveloper =
+        developerFilter === "전체" ||
+        node.developer === developerFilter ||
+        node.developer === stripDeveloperLabel(developerFilter);
       return matchesSearch && matchesStatus && matchesApproval && matchesDeveloper;
     });
   }, [nodes, search, statusFilter, approvalFilter, developerFilter]);
@@ -345,6 +369,13 @@ export function ProjectNodesBoard() {
     }
   }, [editingNode, location.pathname, workflowModalPath]);
 
+  useEffect(() => {
+    if (!isWorkflowModalOpen) {
+      setIsWorkflowDeveloperDropdownOpen(false);
+      setWorkflowDeveloperSearchTerm("");
+    }
+  }, [isWorkflowModalOpen]);
+
 useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
@@ -463,7 +494,9 @@ useEffect(() => {
       const matchedDeveloperById = node.developerUserId
         ? developerOptions.find((dev) => Number(dev.id) === node.developerUserId)
         : undefined;
-      const matchedDeveloperByName = developerOptions.find((dev) => dev.name === node.developer);
+      const matchedDeveloperByName = developerOptions.find(
+        (dev) => dev.name === stripDeveloperLabel(node.developer ?? ""),
+      );
       const matchedDeveloper = matchedDeveloperById || matchedDeveloperByName;
 
       setEditingNode(node);
@@ -718,32 +751,118 @@ useEffect(() => {
                           개발 담당자
                         </Label>
                         {hasWorkflowDeveloperOptions ? (
-                          <Select
-                            value={
-                              newWorkflow.developerUserId
-                                ? String(newWorkflow.developerUserId)
-                                : undefined
-                            }
-                            onValueChange={(value) => {
-                              const selected = workflowDeveloperOptions.find((dev) => dev.id === value);
-                              setNewWorkflow((prev) => ({
-                                ...prev,
-                                developerUserId: Number(value),
-                                developer: selected?.name ?? "",
-                              }));
+                          <Popover
+                            open={isWorkflowDeveloperDropdownOpen}
+                            onOpenChange={(open) => {
+                              setIsWorkflowDeveloperDropdownOpen(open);
+                              if (open) {
+                                setWorkflowDeveloperSearchTerm("");
+                              }
                             }}
                           >
-                            <SelectTrigger className="h-9 rounded-md border border-border bg-input-background px-3 py-1 focus:bg-white focus:border-primary transition-colors">
-                              <SelectValue placeholder="개발 담당자를 선택하세요" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {workflowDeveloperOptions.map((developer, index) => (
-                                <SelectItem key={`${developer.id}-${index}`} value={developer.id}>
-                                  {developer.name}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
+                            <PopoverTrigger asChild>
+                              <button
+                                type="button"
+                                className="flex h-9 w-full items-center justify-between rounded-md border border-border bg-input-background px-3 text-sm transition-colors hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+                              >
+                                <span
+                                  className={cn(
+                                    "flex-1 truncate text-left",
+                                    newWorkflow.developer ? "text-foreground" : "text-muted-foreground",
+                                  )}
+                                >
+                                  {newWorkflow.developer || "개발 담당자를 선택하세요"}
+                                </span>
+                                <svg
+                                  className={cn(
+                                    "ml-2 h-4 w-4 text-muted-foreground transition-transform",
+                                    isWorkflowDeveloperDropdownOpen ? "rotate-180" : "",
+                                  )}
+                                  viewBox="0 0 24 24"
+                                  fill="none"
+                                  xmlns="http://www.w3.org/2000/svg"
+                                >
+                                  <path
+                                    d="m6 9 6 6 6-6"
+                                    stroke="currentColor"
+                                    strokeWidth="2"
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                  />
+                                </svg>
+                              </button>
+                            </PopoverTrigger>
+                            <PopoverContent
+                              side="bottom"
+                              align="start"
+                              avoidCollisions={false}
+                              className="w-[var(--radix-popover-trigger-width)] max-w-none p-0"
+                              style={{ width: "var(--radix-popover-trigger-width)" }}
+                            >
+                              <div className="border-b border-border px-3 py-2">
+                                <Input
+                                  value={workflowDeveloperSearchTerm}
+                                  onChange={(event) => setWorkflowDeveloperSearchTerm(event.target.value)}
+                                  placeholder="개발자를 검색하세요"
+                                  className="h-8 text-sm"
+                                  autoFocus
+                                />
+                              </div>
+                              <div className="max-h-[13.5rem] overflow-y-auto">
+                                {hasWorkflowDeveloperSearch ? (
+                                  visibleWorkflowDeveloperOptions.length > 0 ? (
+                                    visibleWorkflowDeveloperOptions.map((developer) => {
+                                      const isSelected =
+                                        newWorkflow.developerUserId &&
+                                        Number(developer.id) === newWorkflow.developerUserId;
+                                      return (
+                                        <button
+                                          type="button"
+                                          key={developer.id}
+                                          onMouseDown={(event) => {
+                                            event.preventDefault();
+                                            setNewWorkflow((prev) => ({
+                                              ...prev,
+                                              developerUserId: Number(developer.id),
+                                              developer: developer.name,
+                                            }));
+                                            setIsWorkflowDeveloperDropdownOpen(false);
+                                            setWorkflowDeveloperSearchTerm("");
+                                          }}
+                                          className="flex w-full items-center justify-between px-3 py-1.5 text-left text-sm transition-colors hover:bg-accent/60"
+                                        >
+                                          <div className="flex items-center gap-3">
+                                            <img
+                                              src={developer.avatarUrl || "/default-profile.png"}
+                                              alt={`${developer.name} 프로필`}
+                                              className="h-6 w-6 rounded-full object-cover"
+                                            />
+                                            <div className="flex flex-col leading-tight">
+                                              <span className="text-sm font-medium">
+                                                {developer.name} ({developer.id})
+                                              </span>
+                                              <span className="text-xs text-muted-foreground">
+                                                {developer.email ?? "이메일 정보 없음"}
+                                              </span>
+                                            </div>
+                                          </div>
+                                          {isSelected && <Check className="h-4 w-4 text-primary" aria-hidden="true" />}
+                                        </button>
+                                      );
+                                    })
+                                  ) : (
+                                    <p className="px-3 py-4 text-center text-sm text-muted-foreground">
+                                      검색 결과가 없습니다.
+                                    </p>
+                                  )
+                                ) : (
+                                  <p className="px-3 py-4 text-center text-sm text-muted-foreground">
+                                    검색어를 입력하면 결과가 표시됩니다.
+                                  </p>
+                                )}
+                              </div>
+                            </PopoverContent>
+                          </Popover>
                         ) : (
                           <Input
                             id="workflowDeveloper"
