@@ -11,6 +11,7 @@ import { MessageSquare, Upload, CheckCircle, LogIn, AlertCircle } from "lucide-r
 import logoImage from "../../../image/logo.png";
 import { companyUsers, activityHistory } from "./userData";
 import { activityTypePalette } from "./activityPalette";
+import { useUserProjects } from "../../hooks/useUserProjects";
 
 const activityIconMap: Record<string, JSX.Element> = {
   comment: <MessageSquare className="h-4 w-4 text-slate-500" />,
@@ -158,8 +159,39 @@ export function AdminUserDetail() {
     }
   }, [location.pathname, initPasswordModalPath]);
 
-  const [showAllProjects] = useState(false);
-  const canViewAllProjects = (user?.projects.length ?? 0) >= 4;
+  const {
+    projects: assignedProjects,
+    isLoading: isProjectsLoading,
+    error: projectsError,
+    refetch: refetchProjects,
+  } = useUserProjects(userId);
+  const normalizeStatus = useCallback((status?: string) => {
+    if (!status) return "";
+    return status.replace(/_/g, " ").replace(/\s+/g, "").toLowerCase();
+  }, []);
+  const isActiveStatus = useCallback(
+    (status?: string) => {
+      const normalized = normalizeStatus(status);
+      if (!normalized) return false;
+      const activeStatusKeywords = [
+        "inprogress",
+        "review",
+        "planning",
+        "contract",
+        "검토중",
+        "진행중",
+      ];
+      return activeStatusKeywords.some((keyword) => normalized.includes(keyword));
+    },
+    [normalizeStatus],
+  );
+  const activeProjects = useMemo(
+    () => assignedProjects.filter((project) => isActiveStatus(project.status)),
+    [assignedProjects, isActiveStatus],
+  );
+  const displayedProjects = activeProjects.slice(0, 3);
+  const hasOverflowingActiveProjects = activeProjects.length > 3;
+  const canViewAllProjects = assignedProjects.length > 0;
   const userActivityHistory = useMemo(
     () => activityHistory.filter((activity) => activity.actor === user?.name),
     [user?.name],
@@ -456,7 +488,7 @@ export function AdminUserDetail() {
               <Button
                 variant="link"
                 className="px-0 text-sm"
-                disabled={!canViewAllProjects}
+                disabled={!canViewAllProjects || isProjectsLoading}
                 onClick={() => canViewAllProjects && navigate(`/admin/users/${user.id}/projects`)}
               >
                 전체 보기
@@ -465,63 +497,89 @@ export function AdminUserDetail() {
           </div>
           <div
             className={`grid gap-4 pt-4 ${
-              user.projects.length > 3 ? "max-h-[520px] overflow-y-auto pr-1" : ""
+              hasOverflowingActiveProjects ? "max-h-[520px] overflow-y-auto pr-1" : ""
             }`}
           >
-            {user.projects.slice(0, 3).map((project) => (
-              <div
-                key={project.id}
-                className="cursor-pointer rounded-2xl border border-white/70 bg-white/90 shadow-sm backdrop-blur transition-shadow hover:shadow-lg"
-                onClick={() => navigate(`/projects/${project.id}/nodes`)}
-              >
-                <div className="space-y-2 px-6 pt-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-xs text-muted-foreground">{project.client}</p>
-                      <h4 className="text-xl font-semibold">{project.title}</h4>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        {project.role} · {project.owner}
-                      </p>
-                    </div>
-                    <Badge>{project.status}</Badge>
-                  </div>
-                  <p className="text-sm text-muted-foreground">{project.description}</p>
-                </div>
-                <div className="space-y-4 px-6 py-4">
-                  <div className="grid gap-2 text-sm">
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">고객 담당자</span>
-                      <span className="font-medium">{project.manager}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">팀 규모</span>
-                      <span className="font-medium">{project.teamSize}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">워크플로 단계</span>
-                      <span className="font-medium">{project.tasks}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">시작일</span>
-                      <span className="font-medium">{project.start}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">마감일</span>
-                      <span className="font-medium">{project.due}</span>
-                    </div>
-                  </div>
-                  <div>
-                    <div className="flex items-center justify-between text-sm font-medium">
-                      <span>진행률</span>
-                      <span>{project.progress}%</span>
-                    </div>
-                    <div className="relative mt-2 h-2 w-full overflow-hidden rounded-full bg-primary/20">
-                      <div className="h-full w-full bg-primary" style={{ transform: `translateX(-${100 - project.progress}%)` }} />
-                    </div>
-                  </div>
-                </div>
+            {isProjectsLoading ? (
+              <div className="rounded-xl border border-dashed border-border bg-muted/30 p-6 text-center text-sm text-muted-foreground">
+                프로젝트를 불러오는 중입니다...
               </div>
-            ))}
+            ) : null}
+            {!isProjectsLoading && projectsError ? (
+              <div className="rounded-xl border border-destructive/50 bg-destructive/10 p-6 text-center text-sm text-destructive">
+                <p>프로젝트 정보를 가져오는 데 실패했습니다.</p>
+                <Button variant="outline" size="sm" className="mt-3" onClick={refetchProjects}>
+                  다시 시도
+                </Button>
+              </div>
+            ) : null}
+            {!isProjectsLoading && !projectsError && displayedProjects.length === 0 ? (
+              <div className="rounded-xl border border-dashed border-border bg-muted/30 p-6 text-center text-sm text-muted-foreground">
+                현재 진행 중인 프로젝트가 없습니다.
+              </div>
+            ) : null}
+            {!isProjectsLoading && !projectsError
+              ? displayedProjects.map((project) => {
+                  const managerLabel = project.managers?.join(", ") || "미지정";
+                  const developerLabel =
+                    project.developers?.map((developer) => developer.name).join(", ") || "";
+                  const progressValue = typeof project.progress === "number" ? project.progress : 0;
+                  return (
+                    <div
+                      key={project.id}
+                      className="cursor-pointer rounded-2xl border border-white/70 bg-white/90 shadow-sm backdrop-blur transition-shadow hover:shadow-lg"
+                      onClick={() => navigate(`/projects/${project.id}/nodes`)}
+                    >
+                      <div className="space-y-2 px-6 pt-6">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-xs text-muted-foreground">{project.brand}</p>
+                            <h4 className="text-xl font-semibold">{project.name}</h4>
+                            <p className="text-xs text-muted-foreground mt-1">
+                              {developerLabel ? `담당자 · ${developerLabel}` : "담당자 정보 없음"}
+                            </p>
+                          </div>
+                          <Badge>{project.status}</Badge>
+                        </div>
+                        <p className="text-sm text-muted-foreground">{project.description}</p>
+                      </div>
+                      <div className="space-y-4 px-6 py-4">
+                        <div className="grid gap-2 text-sm">
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">고객 담당자</span>
+                            <span className="font-medium">{managerLabel}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">팀 규모</span>
+                            <span className="font-medium">{project.teamSize ?? "-"}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">워크플로 단계</span>
+                            <span className="font-medium">{project.tasks ?? "-"}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">시작일</span>
+                            <span className="font-medium">{project.startDate ?? "-"}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">마감일</span>
+                            <span className="font-medium">{project.endDate ?? "-"}</span>
+                          </div>
+                        </div>
+                        <div>
+                          <div className="flex items-center justify-between text-sm font-medium">
+                            <span>진행률</span>
+                            <span>{progressValue}%</span>
+                          </div>
+                          <div className="relative mt-2 h-2 w-full overflow-hidden rounded-full bg-primary/20">
+                            <div className="h-full w-full bg-primary" style={{ transform: `translateX(-${100 - progressValue}%)` }} />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })
+              : null}
           </div>
         </div>
 
@@ -589,7 +647,7 @@ export function AdminUserDetail() {
                 );
               })}
               {userActivityHistory.length === 0 && (
-                <div className="rounded-lg border border-dashed border-slate-200 bg-white/80 p-4 text-center text-sm text-muted-foreground">
+                <div className="mt-4 rounded-xl border border-dashed border-border bg-muted/30 p-6 text-center text-sm text-muted-foreground">
                   활동 기록이 없습니다.
                 </div>
               )}

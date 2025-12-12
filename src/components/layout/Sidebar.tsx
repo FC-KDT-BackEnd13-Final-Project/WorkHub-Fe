@@ -31,6 +31,16 @@ type StoredSettings = {
   photo?: string;
 };
 
+type StoredUser = {
+  id?: string;
+  loginId?: string;
+  name?: string;
+  email?: string;
+  role?: string;
+  photoUrl?: string;
+  avatarUrl?: string;
+};
+
 export function Sidebar({ isMobileOpen: controlledMobileOpen, onMobileOpenChange }: SidebarProps = {}) {
   const navigate = useNavigate();
   const location = useLocation();
@@ -44,7 +54,7 @@ export function Sidebar({ isMobileOpen: controlledMobileOpen, onMobileOpenChange
   });
 
   // 백오피스 로그인 API가 user 키에만 역할을 저장하는 경우도 있어서 같이 구독한다.
-  const [storedUser] = useLocalStorageValue<{ role?: string } | null>("user", {
+  const [storedUser] = useLocalStorageValue<StoredUser | null>("user", {
     defaultValue: null,
     parser: (value) => JSON.parse(value),
     listen: true,
@@ -96,9 +106,22 @@ export function Sidebar({ isMobileOpen: controlledMobileOpen, onMobileOpenChange
     return storedUserRole ?? "DEVELOPER";
   }, [storedSettings, storedUser]);
 
-  const profileImageUrl = storedSettings?.photo || "/default-profile.png";
-  const profileId = storedSettings?.profile?.id ?? "김지은";
-  const profileEmail = storedSettings?.profile?.email ?? "Work Hub";
+  const profileImageUrl =
+    storedSettings?.photo ||
+    storedUser?.photoUrl ||
+    storedUser?.avatarUrl ||
+    "/default-profile.png";
+  const profileId =
+    storedSettings?.profile?.id ??
+    storedUser?.name ??
+    storedUser?.loginId ??
+    storedUser?.email ??
+    "김지은";
+  const profileEmail =
+    storedSettings?.profile?.email ??
+    storedUser?.email ??
+    storedUser?.loginId ??
+    "Work Hub";
 
 
   const handleLogout = () => {
