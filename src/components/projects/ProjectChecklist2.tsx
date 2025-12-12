@@ -20,6 +20,7 @@ interface ChecklistData {
 
 type StoredProfileSettings = {
   profile?: {
+    id?: string | null;
     role?: string | null;
   } | null;
 };
@@ -29,7 +30,7 @@ export function ProjectChecklist2() {
     register,
     handleSubmit,
     formState: { errors },
-    reset
+    reset,
   } = useForm<ChecklistData>();
 
   const [storedProfileSettings] = useLocalStorageValue<StoredProfileSettings | null>(
@@ -48,6 +49,7 @@ export function ProjectChecklist2() {
   const isClient = userRole === "CLIENT";
   const roleLocksChecklist = userRole === "ADMIN" || userRole === "DEVELOPER";
   const [isLocked, setIsLocked] = useState(false);
+  const authorId = storedProfileSettings?.profile?.id?.trim() || "작성자";
   const onSubmit = (data: ChecklistData) => {
     if (isClient || (roleLocksChecklist && isLocked)) {
       return;
@@ -160,6 +162,7 @@ export function ProjectChecklist2() {
                   unlockSignal={unlockSignal}
                   allowSelectionWhenDisabled={allowClientReview}
                   allowCommentWhenDisabled={allowClientReview}
+                  commentAuthor={authorId}
               />
 
               {!isClient && (
