@@ -115,3 +115,25 @@ export const projectApi = {
       throw new Error(message || '노드 생성에 실패했습니다.');
   },
 };
+
+export const userApi = {
+  /**
+   * 프로필 이미지 업로드/변경
+   * @param file 업로드할 이미지 파일
+   * @returns 업로드된 이미지 URL
+   */
+  updateProfileImage: async (file: File): Promise<string> => {
+    const formData = new FormData();
+    formData.append("file", file);
+
+    const response = await apiClient.patch("/api/v1/users/profile", formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
+
+    const { success, message, data } = response.data;
+    if (success === true && typeof data === "string") {
+      return data;
+    }
+    throw new Error(message || "프로필 이미지 변경에 실패했습니다.");
+  },
+};

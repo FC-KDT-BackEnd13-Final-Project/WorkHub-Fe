@@ -22,6 +22,7 @@ import {
   normalizeUserRole,
 } from "../../constants/profile";
 import { useLocalStorageValue } from "../../hooks/useLocalStorageValue";
+import { userApi } from "../../lib/api";
 
 type ProfileState = {
   id: string;
@@ -66,20 +67,38 @@ export function SettingsPage() {
 
   // 프로필 이미지 변경 상태
   const [photo, setPhoto] = useState("/default-profile.png");
+  const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const handlePhotoChange = (event: ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
+  const handlePhotoChange = async (event: ChangeEvent<HTMLInputElement>) => {
+    const input = event.target;
+    const file = input.files?.[0];
     if (!file) return;
 
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      const result = reader.result;
-      if (typeof result === "string") {
-        setPhoto(result);
-      }
-    };
-    reader.readAsDataURL(file);
+    setIsUploadingPhoto(true);
+    try {
+      const uploadedUrl = await userApi.updateProfileImage(file);
+      setPhoto(uploadedUrl);
+      const payload = {
+        profile,
+        photo: uploadedUrl,
+        twoFactorEnabled,
+        updatedAt: new Date().toISOString(),
+      };
+      setStoredSettings(payload);
+      toast.success("프로필 이미지가 변경되었습니다.");
+    } catch (error: any) {
+      console.error("Profile image upload failed", error);
+      const message =
+        error?.response?.data?.message ||
+        error?.message ||
+        "프로필 이미지 변경에 실패했습니다.";
+      toast.error(message);
+    } finally {
+      setIsUploadingPhoto(false);
+      // input 초기화하여 동일 파일 재업로드 가능하게 처리
+      input.value = "";
+    }
   };
 
   const triggerFileSelect = () => {
@@ -180,7 +199,7 @@ export function SettingsPage() {
                 </Avatar>
 
                 <Button variant="outline" size="sm" onClick={triggerFileSelect}>
-                  사진 변경
+                  {isUploadingPhoto ? "업로드 중..." : "사진 변경"}
                 </Button>
 
                 <input
@@ -199,7 +218,8 @@ export function SettingsPage() {
                   <Input
                       id="id"
                       value={profile.id}
-                      onChange={handleProfileChange("id")}
+                      readOnly
+                      aria-readonly="true"
                   />
                 </div>
                 <div className="space-y-2">
@@ -223,9 +243,7 @@ export function SettingsPage() {
                   <Label htmlFor="role">역할</Label>
                   <Select
                       value={profile.role}
-                      onValueChange={(value) =>
-                          setProfile((prev) => ({ ...prev, role: value }))
-                      }
+                      disabled
                   >
                     <SelectTrigger id="role">
                       <SelectValue placeholder="역할을 선택하세요" />
