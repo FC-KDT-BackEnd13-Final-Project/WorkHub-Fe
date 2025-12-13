@@ -90,33 +90,38 @@ export function LoginScreen({
         setErrors({})
 
         try {
-            const data = await authApi.login(userId, password) // 로그인 API 연결 시 주석 해제
+            const response = await authApi.login(userId, password) // 로그인 API 연결 시 주석 해제
 
-            console.log('Login successful:', data)
-
-            // 토큰 저장 (백엔드 응답 구조에 따라 수정 필요)
-            if (data.token) {
-                localStorage.setItem('authToken', data.token)
+            const { success, data, message } = response ?? {};
+            if (!success || !data) {
+                throw new Error(message || '로그인에 실패했습니다');
             }
 
-            // 유저 정보 저장
-            if (data.user) {
-                localStorage.setItem('user', JSON.stringify(data.user))
-                broadcastStorageChange('user', data.user)
-                syncProfileStorage({
-                    name: data.user.name,
-                    loginId: data.user.loginId,
-                    email: data.user.email,
-                    phone: data.user.phone,
-                    role: data.user.role,
-                    avatarUrl: data.user.avatarUrl,
-                    photoUrl: data.user.photoUrl,
-                })
-            } else {
-                syncProfileStorage({ loginId: userId })
-            }
+            // 세션 기반 로그인: 토큰 대신 서버가 내려주는 사용자 정보만 저장
+            const userPayload = {
+                userId: data.userId,
+                loginId: data.loginId,
+                userName: data.userName,
+                email: data.email,
+                phone: data.phone,
+                profileImg: data.profileImg,
+                role: data.role,
+            };
 
-            onSuccess?.()
+            localStorage.setItem('user', JSON.stringify(userPayload));
+            broadcastStorageChange('user', userPayload);
+
+            syncProfileStorage({
+                name: data.userName,
+                loginId: data.loginId || String(data.userId),
+                email: data.email,
+                phone: data.phone,
+                role: data.role,
+                avatarUrl: data.profileImg,
+                photoUrl: data.profileImg,
+            });
+
+            onSuccess?.();
 
         } catch (error: any) {
             console.error('Login error:', error)
