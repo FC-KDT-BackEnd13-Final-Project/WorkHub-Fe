@@ -4,7 +4,12 @@ import { Label2 } from "./label2";
 import { CheckboxQuestion2 } from "./CheckboxQuestion2";
 import { Textarea2 } from "./textarea2";
 import { Button2 } from "./button2";
-import { CornerDownRight, MessagesSquare, MoreVertical } from "lucide-react";
+import {
+    CornerDownRight,
+    MessagesSquare,
+    MoreVertical,
+    Paperclip,
+} from "lucide-react";
 
 interface EvidenceItem {
     files: File[];
@@ -22,6 +27,13 @@ interface ChecklistReply {
     editDraft: string;
     parentReplyId?: number | null;
     parentAuthor?: string | null;
+    attachments: CommentAttachment[];
+    editAttachmentDraft?: CommentAttachment[];
+}
+
+interface CommentAttachment {
+    id: number;
+    file: File;
 }
 
 type ChecklistHistoryAction = "created" | "edited" | "deleted";
@@ -61,6 +73,9 @@ interface ChecklistComment {
     replyDraft: string;
     replyingToReplyId: number | null;
     replyingToAuthor: string | null;
+    replyAttachmentDraft: CommentAttachment[];
+    attachments: CommentAttachment[];
+    editAttachmentDraft?: CommentAttachment[];
 }
 
 interface ChecklistGroup {
@@ -71,6 +86,7 @@ interface ChecklistGroup {
     evidences: Record<string, EvidenceItem>;
     comments: ChecklistComment[];
     commentDraft: string;
+    commentAttachmentDraft: CommentAttachment[];
     isCommentOpen: boolean;
     status: "pending" | "approved" | "hold";
     locked: boolean;
@@ -96,6 +112,7 @@ const createChecklistGroup = (id: number): ChecklistGroup => ({
     evidences: {},
     comments: [],
     commentDraft: "",
+    commentAttachmentDraft: [],
     isCommentOpen: false,
     status: "pending",
     locked: false,
@@ -128,6 +145,11 @@ export function FormQuestion2({
         id: Date.now() + Math.floor(Math.random() * 1000),
         timestamp: new Date().toISOString(),
         ...payload,
+    });
+
+    const createAttachment = (file: File): CommentAttachment => ({
+        id: Date.now() + Math.floor(Math.random() * 1000),
+        file,
     });
 
     // RESET
@@ -197,7 +219,8 @@ export function FormQuestion2({
             prev.map((g, i) => {
                 if (i !== groupIndex || g.locked) return g;
                 const draft = g.commentDraft.trim();
-                if (!draft) return g;
+                const hasAttachments = g.commentAttachmentDraft.length > 0;
+                if (!draft && !hasAttachments) return g;
 
                 const newComment: ChecklistComment = {
                     id: Date.now(),
@@ -213,6 +236,11 @@ export function FormQuestion2({
                     replyDraft: "",
                     replyingToReplyId: null,
                     replyingToAuthor: null,
+                    replyAttachmentDraft: [],
+                    attachments: g.commentAttachmentDraft.map((attachment) => ({
+                        ...attachment,
+                    })),
+                    editAttachmentDraft: [],
                 };
 
                 const historyEntry = createHistoryEntry({
@@ -228,8 +256,184 @@ export function FormQuestion2({
                     ...g,
                     comments: [...g.comments, newComment],
                     commentDraft: "",
+                    commentAttachmentDraft: [],
                     historyEntries: [...g.historyEntries, historyEntry],
                     historySelectedTargetId: g.historySelectedTargetId ?? newComment.id,
+                };
+            }),
+        );
+    };
+
+    const handleCommentAttachmentSelect = (
+        groupIndex: number,
+        fileList: FileList | null,
+    ) => {
+        if (!canComment || !fileList) return;
+        const newAttachments = Array.from(fileList).map((file) =>
+            createAttachment(file),
+        );
+        setGroups((prev) =>
+            prev.map((g, i) =>
+                i === groupIndex && !g.locked
+                    ? {
+                        ...g,
+                        commentAttachmentDraft: [
+                            ...g.commentAttachmentDraft,
+                            ...newAttachments,
+                        ],
+                    }
+                    : g,
+            ),
+        );
+    };
+
+    const removeCommentAttachmentDraft = (
+        groupIndex: number,
+        attachmentId: number,
+    ) => {
+        if (!canComment) return;
+        setGroups((prev) =>
+            prev.map((g, i) =>
+                i === groupIndex
+                    ? {
+                        ...g,
+                        commentAttachmentDraft: g.commentAttachmentDraft.filter(
+                            (attachment) => attachment.id !== attachmentId,
+                        ),
+                    }
+                    : g,
+            ),
+        );
+    };
+
+    const downloadCommentAttachment = (attachment: CommentAttachment) => {
+        const url = URL.createObjectURL(attachment.file);
+        const anchor = document.createElement("a");
+        anchor.href = url;
+        anchor.download = attachment.file.name;
+        document.body.appendChild(anchor);
+        anchor.click();
+        document.body.removeChild(anchor);
+        URL.revokeObjectURL(url);
+    };
+
+    const handleCommentEditAttachmentSelect = (
+        groupIndex: number,
+        commentId: number,
+        fileList: FileList | null,
+    ) => {
+        if (!canComment || !fileList) return;
+        const newAttachments = Array.from(fileList).map((file) =>
+            createAttachment(file),
+        );
+        updateCommentState(groupIndex, commentId, (comment) => ({
+            ...comment,
+            editAttachmentDraft: [
+                ...(comment.editAttachmentDraft ?? comment.attachments ?? []),
+                ...newAttachments,
+            ],
+        }));
+    };
+
+    const removeCommentEditAttachment = (
+        groupIndex: number,
+        commentId: number,
+        attachmentId: number,
+    ) => {
+        if (!canComment) return;
+        updateCommentState(groupIndex, commentId, (comment) => ({
+            ...comment,
+            editAttachmentDraft: (comment.editAttachmentDraft ?? []).filter(
+                (attachment) => attachment.id !== attachmentId,
+            ),
+        }));
+    };
+
+    const handleReplyAttachmentSelect = (
+        groupIndex: number,
+        commentId: number,
+        fileList: FileList | null,
+    ) => {
+        if (!canComment || !fileList) return;
+        const newAttachments = Array.from(fileList).map((file) =>
+            createAttachment(file),
+        );
+        setGroups((prev) =>
+            prev.map((group, index) => {
+                if (index !== groupIndex || group.locked) return group;
+                return {
+                    ...group,
+                    comments: group.comments.map((comment) =>
+                        comment.id === commentId
+                            ? {
+                                ...comment,
+                                replyAttachmentDraft: [
+                                    ...(comment.replyAttachmentDraft ?? []),
+                                    ...newAttachments,
+                                ],
+                            }
+                            : comment,
+                    ),
+                };
+            }),
+        );
+    };
+
+    const handleReplyEditAttachmentSelect = (
+        groupIndex: number,
+        commentId: number,
+        replyId: number,
+        fileList: FileList | null,
+    ) => {
+        if (!canComment || !fileList) return;
+        const newAttachments = Array.from(fileList).map((file) =>
+            createAttachment(file),
+        );
+        updateReplyState(groupIndex, commentId, replyId, (reply) => ({
+            ...reply,
+            editAttachmentDraft: [
+                ...(reply.editAttachmentDraft ?? reply.attachments ?? []),
+                ...newAttachments,
+            ],
+        }));
+    };
+
+    const removeReplyEditAttachment = (
+        groupIndex: number,
+        commentId: number,
+        replyId: number,
+        attachmentId: number,
+    ) => {
+        if (!canComment) return;
+        updateReplyState(groupIndex, commentId, replyId, (reply) => ({
+            ...reply,
+            editAttachmentDraft: (reply.editAttachmentDraft ?? []).filter(
+                (attachment) => attachment.id !== attachmentId,
+            ),
+        }));
+    };
+
+    const removeReplyAttachmentDraft = (
+        groupIndex: number,
+        commentId: number,
+        attachmentId: number,
+    ) => {
+        if (!canComment) return;
+        setGroups((prev) =>
+            prev.map((group, index) => {
+                if (index !== groupIndex) return group;
+                return {
+                    ...group,
+                    comments: group.comments.map((comment) =>
+                        comment.id === commentId
+                            ? {
+                                ...comment,
+                                replyAttachmentDraft: (comment.replyAttachmentDraft ?? []).filter(
+                                    (attachment) => attachment.id !== attachmentId,
+                                ),
+                            }
+                            : comment,
+                    ),
                 };
             }),
         );
@@ -294,6 +498,9 @@ export function FormQuestion2({
             isEditing: true,
             editDraft: comment.text,
             menuOpen: false,
+            editAttachmentDraft: comment.attachments.map((attachment) => ({
+                ...attachment,
+            })),
         }));
     };
 
@@ -302,6 +509,7 @@ export function FormQuestion2({
             ...comment,
             isEditing: false,
             editDraft: "",
+            editAttachmentDraft: [],
         }));
     };
 
@@ -319,6 +527,8 @@ export function FormQuestion2({
 
                     const newText = comment.editDraft.trim();
                     if (!newText) return comment;
+                    const updatedAttachments =
+                        comment.editAttachmentDraft ?? comment.attachments;
 
                     historyEntry = createHistoryEntry({
                         targetId: comment.id,
@@ -335,6 +545,8 @@ export function FormQuestion2({
                         updatedAt: new Date().toISOString(),
                         isEditing: false,
                         editDraft: "",
+                        attachments: updatedAttachments,
+                        editAttachmentDraft: [],
                     };
                 });
 
@@ -416,6 +628,7 @@ export function FormQuestion2({
                 replies: comment.replies.map((reply) =>
                     reply.menuOpen ? { ...reply, menuOpen: false } : reply,
                 ),
+                replyAttachmentDraft: comment.replyAttachmentDraft ?? [],
             };
 
             if (isSameTarget) {
@@ -425,6 +638,7 @@ export function FormQuestion2({
                     replyDraft: "",
                     replyingToReplyId: null,
                     replyingToAuthor: null,
+                    replyAttachmentDraft: [],
                 };
             }
 
@@ -445,6 +659,7 @@ export function FormQuestion2({
             replyDraft: "",
             replyingToReplyId: null,
             replyingToAuthor: null,
+            replyAttachmentDraft: [],
             replies: comment.replies.map((reply) =>
                 reply.menuOpen ? { ...reply, menuOpen: false } : reply,
             ),
@@ -474,7 +689,8 @@ export function FormQuestion2({
                     if (comment.id !== commentId || group.locked) return comment;
 
                     const draft = (comment.replyDraft ?? "").trim();
-                    if (!draft) return comment;
+                    const attachments = comment.replyAttachmentDraft ?? [];
+                    if (!draft && attachments.length === 0) return comment;
 
                     const newReply: ChecklistReply = {
                         id: Date.now(),
@@ -487,6 +703,10 @@ export function FormQuestion2({
                         editDraft: draft,
                         parentReplyId: comment.replyingToReplyId ?? null,
                         parentAuthor: comment.replyingToAuthor ?? null,
+                        attachments: attachments.map((attachment) => ({
+                            ...attachment,
+                        })),
+                        editAttachmentDraft: [],
                     };
 
                     historyEntry = createHistoryEntry({
@@ -505,6 +725,7 @@ export function FormQuestion2({
                         replyDraft: "",
                         replyingToReplyId: null,
                         replyingToAuthor: null,
+                        replyAttachmentDraft: [],
                     };
                 });
 
@@ -547,6 +768,9 @@ export function FormQuestion2({
             isEditing: true,
             editDraft: reply.text,
             menuOpen: false,
+            editAttachmentDraft: reply.attachments.map((attachment) => ({
+                ...attachment,
+            })),
         }));
     };
 
@@ -559,6 +783,7 @@ export function FormQuestion2({
             ...reply,
             isEditing: false,
             editDraft: "",
+            editAttachmentDraft: [],
         }));
     };
 
@@ -583,6 +808,8 @@ export function FormQuestion2({
 
                         const newText = reply.editDraft.trim();
                         if (!newText) return reply;
+                        const updatedAttachments =
+                            reply.editAttachmentDraft ?? reply.attachments;
 
                         entry = createHistoryEntry({
                             targetId: reply.id,
@@ -593,16 +820,18 @@ export function FormQuestion2({
                             parentCommentId: comment.id,
                         });
 
-                        return {
-                            ...reply,
-                            text: newText,
-                            updatedAt: new Date().toISOString(),
-                            isEditing: false,
-                            editDraft: "",
-                        };
-                    });
+                            return {
+                                ...reply,
+                                text: newText,
+                                updatedAt: new Date().toISOString(),
+                                isEditing: false,
+                                editDraft: "",
+                                attachments: updatedAttachments,
+                                editAttachmentDraft: [],
+                            };
+                        });
 
-                    return { ...comment, replies };
+                        return { ...comment, replies };
                 });
 
                 if (!entry) return group;
@@ -1414,34 +1643,9 @@ export function FormQuestion2({
                                 />
 
                                 {/* 코멘트 / 이력 / 동의·보류 버튼 */}
-                                <div className="mb-2 mt-2 flex w-full items-center justify-between gap-4">
-                                    {/* 말풍선 + 이력 버튼 */}
-                                    <div className="flex items-center gap-2">
-                                        <button
-                                            type="button"
-                                            disabled={!canComment}
-                                            onClick={() =>
-                                                toggleComment(groupIndex)
-                                            }
-                                            className="flex h-8 w-8 items-center justify-center rounded-md border border-border bg-background transition-colors hover:bg-muted disabled:cursor-not-allowed"
-                                        >
-                                            <MessagesSquare className="h-4 w-4 text-muted-foreground" />
-                                        </button>
-
-                                        <button
-                                            type="button"
-                                            disabled={!canComment}
-                                            onClick={() =>
-                                                openHistoryModal(groupIndex)
-                                            }
-                                            className="text-xs text-muted-foreground underline-offset-2 hover:text-primary hover:underline disabled:cursor-not-allowed"
-                                        >
-                                            코멘트 이력 보기
-                                        </button>
-                                    </div>
-
+                                <div className="my-2 mt-2 flex w-full flex-col items-end gap-2">
                                     {/* 동의 / 보류 버튼 */}
-                                    <div className="ml-auto flex items-center gap-1">
+                                    <div className="flex items-center gap-1">
                                         {/* 동의 */}
                                         <button
                                             type="button"
@@ -1521,11 +1725,36 @@ export function FormQuestion2({
                                             보류
                                         </button>
                                     </div>
+
+                                    {/* 말풍선 + 이력 버튼 */}
+                                    <div className="border-t flex w-full items-center justify-between gap-2">
+                                        <button
+                                            type="button"
+                                            disabled={!canComment}
+                                            onClick={() =>
+                                                toggleComment(groupIndex)
+                                            }
+                                            className="mb-2 mt-2 flex h-8 w-8 items-center justify-center rounded-md border border-border bg-background transition-colors hover:bg-muted disabled:cursor-not-allowed"
+                                        >
+                                            <MessagesSquare className="h-4 w-4 text-muted-foreground " />
+                                        </button>
+
+                                        <button
+                                            type="button"
+                                            disabled={!canComment}
+                                            onClick={() =>
+                                                openHistoryModal(groupIndex)
+                                            }
+                                            className="mb-2 mt-2 text-xs text-muted-foreground underline-offset-2 hover:text-primary hover:underline disabled:cursor-not-allowed"
+                                        >
+                                            코멘트 이력 보기
+                                        </button>
+                                    </div>
                                 </div>
 
                                 {/* === 코멘트 영역 === */}
                                 {group.isCommentOpen && (
-                                    <div className="mt-3 space-y-4 pb-6">
+                                    <div className="mt-3 pb-6">
                                         <div className="space-y-2">
                                             {group.comments.map((comment) => {
                                                 const isEditing =
@@ -1654,42 +1883,134 @@ export function FormQuestion2({
                                                                     className="text-xs"
                                                                 />
 
-                                                                <div className="flex justify-end gap-2">
-                                                                    <Button2
-                                                                        type="button"
-                                                                        variant="outline"
-                                                                        size="sm"
-                                                                        onClick={() =>
-                                                                            cancelCommentEdit(
+                                                                <div className="space-y-2">
+                                                                    <input
+                                                                        id={`comment-edit-attachment-input-${group.id}-${comment.id}`}
+                                                                        type="file"
+                                                                        multiple
+                                                                        className="hidden"
+                                                                        disabled={!canComment || group.locked}
+                                                                        onChange={(event) => {
+                                                                            handleCommentEditAttachmentSelect(
                                                                                 groupIndex,
                                                                                 comment.id,
-                                                                            )
-                                                                        }
-                                                                    >
-                                                                        취소
-                                                                    </Button2>
+                                                                                event.target.files,
+                                                                            );
+                                                                            event.target.value = "";
+                                                                        }}
+                                                                    />
 
-                                                                    <Button2
-                                                                        type="button"
-                                                                        size="sm"
-                                                                        onClick={() =>
-                                                                            saveCommentEdit(
-                                                                                groupIndex,
-                                                                                comment.id,
-                                                                            )
-                                                                        }
-                                                                        disabled={
-                                                                            !comment.editDraft.trim()
-                                                                        }
-                                                                    >
-                                                                        저장
-                                                                    </Button2>
+                                                {(comment.editAttachmentDraft?.length ?? 0) > 0 && (
+                                                    <div className="space-y-2 rounded-md border border-dashed border-muted-foreground/40 bg-muted/40 px-3 py-2 text-[11px]">
+                                                        {comment.editAttachmentDraft?.map((attachment) => (
+                                                            <div
+                                                                key={attachment.id}
+                                                                className="flex items-center justify-between gap-2"
+                                                            >
+                                                                <div className="flex items-center gap-2 overflow-hidden text-[11px]">
+                                                                    <Paperclip className="h-4 w-4 text-muted-foreground" />
+                                                                    <span className="truncate !text-[11px]" style={{ fontSize: "11px" }}>
+                                                                        {attachment.file.name}
+                                                                    </span>
+                                                                </div>
+                                                                <Button2
+                                                                    type="button"
+                                                                    size="sm"
+                                                                    variant="ghost"
+                                                                    className="!h-5 px-2 !text-[11px]"
+                                                                    style={{ fontSize: "11px" }}
+                                                                    onClick={() =>
+                                                                        removeCommentEditAttachment(
+                                                                            groupIndex,
+                                                                                                comment.id,
+                                                                                                attachment.id,
+                                                                                            )
+                                                                                        }
+                                                                                    >
+                                                                                        제거
+                                                                                    </Button2>
+                                                                                </div>
+                                                                            ))}
+                                                                        </div>
+                                                                    )}
+
+                                                                    <div className="flex items-center justify-between gap-2">
+                                                                        <Button2
+                                                                            type="button"
+                                                                            variant="outline"
+                                                                            size="sm"
+                                                                            disabled={!canComment || group.locked}
+                                                                            onClick={() =>
+                                                                                document
+                                                                                    .getElementById(
+                                                                                        `comment-edit-attachment-input-${group.id}-${comment.id}`,
+                                                                                    )
+                                                                                    ?.click()
+                                                                            }
+                                                                        >
+                                                                            <Paperclip className="h-4 w-4" />
+                                                                            파일 첨부
+                                                                        </Button2>
+
+                                                                        <div className="flex items-center gap-2">
+                                                                            <Button2
+                                                                                type="button"
+                                                                                variant="outline"
+                                                                                size="sm"
+                                                                                onClick={() =>
+                                                                                    cancelCommentEdit(
+                                                                                        groupIndex,
+                                                                                        comment.id,
+                                                                                    )
+                                                                                }
+                                                                            >
+                                                                                취소
+                                                                            </Button2>
+
+                                                                            <Button2
+                                                                                type="button"
+                                                                                size="sm"
+                                                                                onClick={() =>
+                                                                                    saveCommentEdit(
+                                                                                        groupIndex,
+                                                                                        comment.id,
+                                                                                    )
+                                                                                }
+                                                                                disabled={
+                                                                                    !comment.editDraft.trim()
+                                                                                }
+                                                                            >
+                                                                                저장
+                                                                            </Button2>
+                                                                        </div>
+                                                                    </div>
                                                                 </div>
                                                             </div>
                                                         ) : (
-                                                            <p className="mt-1 break-words whitespace-pre-line text-xs leading-5">
+                                                            <p className="mt-1 break-words whitespace-pre-line text-sm leading-6">
                                                                 {comment.text}
                                                             </p>
+                                                        )}
+
+                                                        {!isEditing &&
+                                                            (comment.attachments?.length ?? 0) > 0 && (
+                                                            <div className="mt-3 space-y-2 text-xs">
+                                                                {comment.attachments?.map((attachment) => (
+                                                                    <button
+                                                                        key={attachment.id}
+                                                                        type="button"
+                                                                        className="mt-2 flex w-full items-center gap-2 overflow-hidden rounded-md border border-border/60 bg-muted/30 px-2 py-1 text-left text-xs text-primary underline-offset-2 hover:underline"
+                                                                        onClick={() =>
+                                                                            downloadCommentAttachment(
+                                                                                attachment,
+                                                                            )
+                                                                        }
+                                                                    >
+                                                                        <Paperclip className="h-4 w-4 text-muted-foreground" />
+                                                                        <span className="truncate">{attachment.file.name}</span>
+                                                                    </button>
+                                                                ))}
+                                                            </div>
                                                         )}
 
                                                         {/* === 대댓글 리스트 === */}
@@ -1820,67 +2141,147 @@ export function FormQuestion2({
                                                                                         {isReplyEditing ? (
                                                                                             <div className="mt-2 space-y-2">
                                                                                                 <Textarea2
-                                                                                                    value={
-                                                                                                        reply.editDraft
-                                                                                                    }
+                                                                                                    value={reply.editDraft}
                                                                                                     onChange={(e) =>
                                                                                                         updateReplyState(
                                                                                                             groupIndex,
                                                                                                             comment.id,
                                                                                                             reply.id,
-                                                                                                            (
-                                                                                                                current,
-                                                                                                            ) => ({
-                                                                                                                ...current,
-                                                                                                                editDraft:
-                                                                                                                e.target
-                                                                                                                    .value,
-                                                                                                            }),
+                                                                                                            (current) => ({ ...current, editDraft: e.target.value }),
                                                                                                         )
                                                                                                     }
                                                                                                     rows={3}
                                                                                                     className="text-xs"
                                                                                                 />
-
-                                                                                                <div className="flex justify-end gap-2">
-                                                                                                    <Button2
-                                                                                                        type="button"
-                                                                                                        variant="outline"
-                                                                                                        size="sm"
-                                                                                                        onClick={() =>
-                                                                                                            cancelReplyEdit(
+                                                                                                <div className="space-y-2">
+                                                                                                    <input
+                                                                                                        id={`reply-edit-attachment-input-${group.id}-${comment.id}-${reply.id}`}
+                                                                                                        type="file"
+                                                                                                        multiple
+                                                                                                        className="hidden"
+                                                                                                        disabled={!canComment || group.locked}
+                                                                                                        onChange={(event) => {
+                                                                                                            handleReplyEditAttachmentSelect(
                                                                                                                 groupIndex,
                                                                                                                 comment.id,
                                                                                                                 reply.id,
-                                                                                                            )
-                                                                                                        }
-                                                                                                    >
-                                                                                                        취소
-                                                                                                    </Button2>
-
-                                                                                                    <Button2
-                                                                                                        type="button"
-                                                                                                        size="sm"
-                                                                                                        onClick={() =>
-                                                                                                            saveReplyEdit(
-                                                                                                                groupIndex,
-                                                                                                                comment.id,
-                                                                                                                reply.id,
-                                                                                                            )
-                                                                                                        }
-                                                                                                        disabled={
-                                                                                                            !reply.editDraft.trim()
-                                                                                                        }
-                                                                                                    >
-                                                                                                        저장
-                                                                                                    </Button2>
+                                                                                                                event.target.files,
+                                                                                                            );
+                                                                                                            event.target.value = "";
+                                                                                                        }}
+                                                                                                    />
+                                            {(reply.editAttachmentDraft?.length ?? 0) > 0 && (
+                                                <div className="space-y-2 rounded-md border border-dashed border-muted-foreground/40 bg-muted/40 px-3 py-2 text-[11px]">
+                                                    {reply.editAttachmentDraft?.map((attachment) => (
+                                                        <div
+                                                            key={attachment.id}
+                                                            className="flex items-center justify-between gap-2"
+                                                        >
+                                                            <div className="flex items-center gap-2 overflow-hidden text-[11px]">
+                                                                <Paperclip className="h-4 w-4 text-muted-foreground" />
+                                                                <span className="truncate !text-[11px]" style={{ fontSize: "11px" }}>
+                                                                    {attachment.file.name}
+                                                                </span>
+                                                            </div>
+                                                            <Button2
+                                                                type="button"
+                                                                size="sm"
+                                                                variant="ghost"
+                                                                className="!h-5 px-2 !text-[11px]"
+                                                                style={{ fontSize: "11px" }}
+                                                                onClick={() =>
+                                                                    removeReplyEditAttachment(
+                                                                        groupIndex,
+                                                                                                                                comment.id,
+                                                                                                                                reply.id,
+                                                                                                                                attachment.id,
+                                                                                                                            )
+                                                                                                                        }
+                                                                                                                    >
+                                                                                                                        제거
+                                                                                                                    </Button2>
+                                                                                                                </div>
+                                                                                                            ))}
+                                                                                                        </div>
+                                                                                                    )}
+                                                                                                    <div className="flex items-center justify-between gap-2">
+                                                                                                        <Button2
+                                                                                                            type="button"
+                                                                                                            variant="outline"
+                                                                                                            size="sm"
+                                                                                                            disabled={!canComment || group.locked}
+                                                                                                            onClick={() =>
+                                                                                                                document
+                                                                                                                    .getElementById(
+                                                                                                                        `reply-edit-attachment-input-${group.id}-${comment.id}-${reply.id}`,
+                                                                                                                    )
+                                                                                                                    ?.click()
+                                                                                                            }
+                                                                                                        >
+                                                                                                            <Paperclip className="h-4 w-4" />
+                                                                                                            파일 첨부
+                                                                                                        </Button2>
+                                                                                                        <div className="flex items-center gap-2">
+                                                                                                            <Button2
+                                                                                                                type="button"
+                                                                                                                variant="outline"
+                                                                                                                size="sm"
+                                                                                                                onClick={() =>
+                                                                                                                    cancelReplyEdit(
+                                                                                                                        groupIndex,
+                                                                                                                        comment.id,
+                                                                                                                        reply.id,
+                                                                                                                    )
+                                                                                                                }
+                                                                                                            >
+                                                                                                                취소
+                                                                                                            </Button2>
+                                                                                                            <Button2
+                                                                                                                type="button"
+                                                                                                                size="sm"
+                                                                                                                onClick={() =>
+                                                                                                                    saveReplyEdit(
+                                                                                                                        groupIndex,
+                                                                                                                        comment.id,
+                                                                                                                        reply.id,
+                                                                                                                    )
+                                                                                                                }
+                                                                                                                disabled={!reply.editDraft.trim()}
+                                                                                                            >
+                                                                                                                저장
+                                                                                                            </Button2>
+                                                                                                        </div>
+                                                                                                    </div>
                                                                                                 </div>
                                                                                             </div>
                                                                                         ) : (
-                                                                                            <div className="mt-1 space-y-1 text-[10px]">
-                                                                                                <p className="break-words whitespace-pre-line text-xs leading-5">
+                                                                                            <div className="mt-1 space-y-1">
+                                                                                                <p className="break-words whitespace-pre-line text-sm leading-6">
                                                                                                     {reply.text}
                                                                                                 </p>
+                                                                                            </div>
+                                                                                        )}
+
+                                                                                        {!isReplyEditing &&
+                                                                                            (reply.attachments?.length ?? 0) > 0 && (
+                                                                                            <div className="mt-2 space-y-1 text-xs">
+                                                                                                {reply.attachments?.map((attachment) => (
+                                                                                                    <button
+                                                                                                        key={attachment.id}
+                                                                                                        type="button"
+                                                                                                        className="flex w-full items-center gap-2 overflow-hidden rounded-md border border-border/60 bg-muted/30 px-2 py-1 text-left text-xs text-primary underline-offset-2 hover:underline"
+                                                                                                        onClick={() =>
+                                                                                                            downloadCommentAttachment(
+                                                                                                                attachment,
+                                                                                                            )
+                                                                                                        }
+                                                                                                    >
+                                                                                                        <Paperclip className="h-4 w-4 text-muted-foreground" />
+                                                                                                        <span className="truncate">
+                                                                                                            {attachment.file.name}
+                                                                                                        </span>
+                                                                                                    </button>
+                                                                                                ))}
                                                                                             </div>
                                                                                         )}
                                                                                     </div>
@@ -1892,57 +2293,129 @@ export function FormQuestion2({
                                                             )}
 
                                                         {/* === 대댓글 작성 폼 === */}
-                                                        {comment.showReplyBox &&
-                                                            canComment &&
-                                                            !group.locked && (
-                                                                <div className="mt-3 space-y-2">
-                                                                    <Textarea2
-                                                                        value={
-                                                                            comment.replyDraft
-                                                                        }
-                                                                        onChange={(e) =>
-                                                                            updateReplyDraft(
-                                                                                groupIndex,
-                                                                                comment.id,
-                                                                                e.target.value,
-                                                                            )
-                                                                        }
-                                                                        rows={3}
-                                                                        className="text-sm"
-                                                                        placeholder="답글을 입력하세요"
-                                                                    />
+                                {comment.showReplyBox &&
+                                    canComment &&
+                                    !group.locked && (
+                                        <div className="mt-2 space-y-2">
+                                            <Textarea2
+                                                value={
+                                                    comment.replyDraft
+                                                }
+                                                onChange={(e) =>
+                                                    updateReplyDraft(
+                                                        groupIndex,
+                                                        comment.id,
+                                                        e.target.value,
+                                                    )
+                                                }
+                                                rows={3}
+                                                className="text-sm"
+                                                placeholder="답글을 입력하세요"
+                                            />
 
-                                                                    <div className="flex justify-end gap-2">
-                                                                        <Button2
-                                                                            type="button"
-                                                                            variant="outline"
-                                                                            size="sm"
-                                                                            onClick={() =>
-                                                                                closeReplyBox(
-                                                                                    groupIndex,
-                                                                                    comment.id,
-                                                                                )
-                                                                            }
-                                                                        >
-                                                                            취소
-                                                                        </Button2>
+                                            <div className="space-y-2">
+                                                <input
+                                                    id={`reply-attachment-input-${group.id}-${comment.id}`}
+                                                    type="file"
+                                                    multiple
+                                                    className="hidden"
+                                                    disabled={!canComment || group.locked}
+                                                    onChange={(event) => {
+                                                        handleReplyAttachmentSelect(
+                                                            groupIndex,
+                                                            comment.id,
+                                                            event.target.files,
+                                                        );
+                                                        event.target.value = "";
+                                                    }}
+                                                />
 
-                                                                        <Button2
-                                                                            type="button"
-                                                                            size="sm"
-                                                                            onClick={() =>
-                                                                                submitReply(
-                                                                                    groupIndex,
-                                                                                    comment.id,
-                                                                                )
-                                                                            }
-                                                                            disabled={
-                                                                                !comment.replyDraft.trim()
-                                                                            }
-                                                                        >
-                                                                            등록
-                                                                        </Button2>
-                                                                    </div>
+                                                {(comment.replyAttachmentDraft?.length ?? 0) > 0 && (
+                                                    <div className="space-y-2 rounded-md border border-dashed border-muted-foreground/40 bg-muted/40 px-3 py-2 text-[11px]">
+                                                        {comment.replyAttachmentDraft?.map((attachment) => (
+                                                            <div
+                                                                key={attachment.id}
+                                                                className="flex items-center justify-between gap-2"
+                                                            >
+                                                                <div className="flex items-center gap-2 overflow-hidden text-[11px]">
+                                                                    <Paperclip className="h-4 w-4 text-muted-foreground" />
+                                                                    <span className="truncate !text-[11px]" style={{ fontSize: "11px" }}>
+                                                                        {attachment.file.name}
+                                                                    </span>
+                                                                </div>
+                                                                <Button2
+                                                                    type="button"
+                                                                    size="sm"
+                                                                    variant="ghost"
+                                                                    className="!h-5 px-2 !text-[11px]"
+                                                                    style={{ fontSize: "11px" }}
+                                                                    onClick={() =>
+                                                                        removeReplyAttachmentDraft(
+                                                                            groupIndex,
+                                                                            comment.id,
+                                                                            attachment.id,
+                                                                        )
+                                                                    }
+                                                                >
+                                                                    제거
+                                                                </Button2>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                )}
+
+                                                <div className="flex items-center justify-between gap-2">
+                                                    <Button2
+                                                        type="button"
+                                                        variant="outline"
+                                                        size="sm"
+                                                        disabled={!canComment || group.locked}
+                                                        onClick={() =>
+                                                            document
+                                                                .getElementById(
+                                                                    `reply-attachment-input-${group.id}-${comment.id}`,
+                                                                )
+                                                                ?.click()
+                                                        }
+                                                    >
+                                                        <Paperclip className="h-4 w-4" />
+                                                        파일 첨부
+                                                    </Button2>
+
+                                                    <div className="flex items-center gap-2">
+                                                        <Button2
+                                                            type="button"
+                                                            variant="outline"
+                                                            size="sm"
+                                                            onClick={() =>
+                                                                closeReplyBox(
+                                                                    groupIndex,
+                                                                    comment.id,
+                                                                )
+                                                            }
+                                                        >
+                                                            취소
+                                                        </Button2>
+
+                                                        <Button2
+                                                            type="button"
+                                                            size="sm"
+                                                            onClick={() =>
+                                                                submitReply(
+                                                                    groupIndex,
+                                                                    comment.id,
+                                                                )
+                                                            }
+                                                            disabled={
+                                                                !comment.replyDraft.trim() &&
+                                                                (comment.replyAttachmentDraft?.length ?? 0) === 0
+                                                            }
+                                                        >
+                                                            등록
+                                                        </Button2>
+                                                    </div>
+                                                </div>
+                                            </div>
                                                                 </div>
                                                             )}
                                                     </div>
@@ -1952,7 +2425,7 @@ export function FormQuestion2({
 
                                         {/* === 신규 코멘트 작성 === */}
                                         {canComment && !group.locked && (
-                                            <div className="space-y-2">
+                                            <div className="mt-2 space-y-2">
                                                 <Textarea2
                                                     value={group.commentDraft}
                                                     disabled={
@@ -1969,19 +2442,84 @@ export function FormQuestion2({
                                                     className="text-sm"
                                                 />
 
-                                                <div className="flex justify-end">
-                                                    <Button2
-                                                        type="button"
-                                                        size="sm"
-                                                        onClick={() =>
-                                                            addComment(groupIndex)
-                                                        }
-                                                        disabled={
-                                                            !group.commentDraft.trim()
-                                                        }
-                                                    >
-                                                        등록
-                                                    </Button2>
+                                                <div className="space-y-2">
+                                                    <input
+                                                        id={`comment-attachment-input-${group.id}`}
+                                                        type="file"
+                                                        multiple
+                                                        className="hidden"
+                                                        disabled={!canComment || group.locked}
+                                                        onChange={(event) => {
+                                                            handleCommentAttachmentSelect(
+                                                                groupIndex,
+                                                                event.target.files,
+                                                            );
+                                                            event.target.value = "";
+                                                        }}
+                                                    />
+                                                    {group.commentAttachmentDraft.length > 0 && (
+                                                        <div className="space-y-2 rounded-md border border-dashed border-muted-foreground/40 bg-muted/40 px-3 py-2 text-[11px]">
+                                                            {group.commentAttachmentDraft.map((attachment) => (
+                                                                <div
+                                                                    key={attachment.id}
+                                                                    className="flex items-center justify-between gap-2"
+                                                                >
+                                                                    <div className="flex items-center gap-2 overflow-hidden">
+                                                                        <Paperclip className="h-4 w-4 text-muted-foreground" />
+                                                                        <span className="truncate !text-[11px]" style={{ fontSize: "11px" }}>
+                                                                            {attachment.file.name}
+                                                                        </span>
+                                                                    </div>
+                                                                    <Button2
+                                                                        type="button"
+                                                                        size="sm"
+                                                                        variant="ghost"
+                                                                        className="!h-5 px-2 !text-[11px]"
+                                                                        style={{ fontSize: "11px" }}
+                                                                        onClick={() =>
+                                                                            removeCommentAttachmentDraft(
+                                                                                groupIndex,
+                                                                                attachment.id,
+                                                                            )
+                                                                        }
+                                                                    >
+                                                                        제거
+                                                                    </Button2>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    )}
+
+                                                    <div className="flex items-center justify-between gap-3">
+                                                        <Button2
+                                                            type="button"
+                                                            variant="outline"
+                                                            size="sm"
+                                                            disabled={!canComment || group.locked}
+                                                            onClick={() =>
+                                                                document
+                                                                    .getElementById(
+                                                                        `comment-attachment-input-${group.id}`,
+                                                                    )
+                                                                    ?.click()
+                                                            }
+                                                        >
+                                                            <Paperclip className="h-4 w-4" />
+                                                            파일 첨부
+                                                        </Button2>
+
+                                                        <Button2
+                                                            type="button"
+                                                            size="sm"
+                                                            onClick={() => addComment(groupIndex)}
+                                                            disabled={
+                                                                !group.commentDraft.trim() &&
+                                                                group.commentAttachmentDraft.length === 0
+                                                            }
+                                                        >
+                                                            등록
+                                                        </Button2>
+                                                    </div>
                                                 </div>
                                             </div>
                                         )}
