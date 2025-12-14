@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Card2, CardContent } from "../../components/ui/card2";
 import { Input2 } from "../../components/ui/input2";
@@ -27,8 +27,6 @@ import { clampPage } from "../../utils/pagination";
 import { PageHeader } from "../../components/common/PageHeader";
 import { FilterToolbar } from "../../components/common/FilterToolbar";
 import { PaginationControls } from "../../components/common/PaginationControls";
-import { CornerDownRight } from "lucide-react";
-import { loadRepliesForPost, type PostReplyItem } from "../../utils/postRepliesStorage";
 import { typeBadgeStyles } from "../../components/projects/PostCard";
 import {
   loadSupportStatusMap,
@@ -66,13 +64,6 @@ type StatusStyle = {
   border: string;
 };
 
-// 답글 배지 색상
-const replyTypeStyle: StatusStyle = {
-  background: "#F1F5F9",
-  text: "#0F172A",
-  border: "#E2E8F0",
-};
-
 const statusStyles: Record<SupportTicketStatus, StatusStyle> = {
   RECEIVED: {
     background: typeBadgeStyles["접수"].backgroundColor,
@@ -91,13 +82,6 @@ const statusStyles: Record<SupportTicketStatus, StatusStyle> = {
   },
 };
 
-const stripHtml = (value: string) =>
-    value
-        .replace(/<[^>]*>/g, " ")
-        .replace(/&nbsp;/gi, " ")
-        .replace(/\s+/g, " ")
-        .trim();
-
 const formatDateOnly = (value: string) => {
   if (!value) return "";
   const parsed = new Date(value);
@@ -109,8 +93,6 @@ const formatDateOnly = (value: string) => {
   }
   return value;
 };
-
-const formatReplyDate = (value: string) => formatDateOnly(value);
 
 // SupportPage 본문
 export function SupportPage() {
@@ -213,12 +195,10 @@ export function SupportPage() {
     isOwner: true,
   });
 
-  const navigateToDetail = (ticket: Ticket, reply?: PostReplyItem) => {
+  const navigateToDetail = (ticket: Ticket) => {
     const postPayload = withStatusLabel(ticket);
     navigate(`/projects/${projectId ?? "project"}/nodes/support/${ticket.id}`, {
-      state: reply
-          ? { post: postPayload, reply, isReplyView: true }
-          : { post: postPayload },
+      state: { post: postPayload },
     });
   };
 
@@ -323,117 +303,55 @@ export function SupportPage() {
                           </TableRow>
                       ) : (
                           effectiveTickets.map((ticket, index) => {
-                            const replies = loadRepliesForPost(ticket.id) ?? [];
                             const statusLabel = supportTicketStatusLabel[ticket.status];
                             const statusStyle = statusStyles[ticket.status];
                             const hasStatus = ticket.status && statusLabel && statusStyle;
 
                             return (
-                                <Fragment key={ticket.id}>
-                                  {/* 원글 */}
-                                  <TableRow
-                                      className="cursor-pointer"
-                                      onClick={() => navigateToDetail(ticket)}
-                                  >
-                                    <TableCell className="px-2 py-2 text-center">
-                                      {currentPage * ITEMS_PER_PAGE + index + 1}
-                                    </TableCell>
+                                <TableRow
+                                    key={ticket.id}
+                                    className="cursor-pointer"
+                                    onClick={() => navigateToDetail(ticket)}
+                                >
+                                  <TableCell className="px-2 py-2 text-center">
+                                    {currentPage * ITEMS_PER_PAGE + index + 1}
+                                  </TableCell>
 
-                                    <TableCell className="px-3 py-2 whitespace-nowrap">
-                                      {ticket.customerName}
-                                    </TableCell>
+                                  <TableCell className="px-3 py-2 whitespace-nowrap">
+                                    {ticket.customerName}
+                                  </TableCell>
 
-                                    <TableCell className="px-3 py-2 whitespace-nowrap">
-                                      {hasStatus && (
-                                        <span
-                                            className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium border"
-                                            style={{
-                                              backgroundColor: statusStyle.background,
-                                              color: statusStyle.text,
-                                              borderColor: statusStyle.border,
-                                            }}
-                                        >
-                                          {statusLabel}
-                                        </span>
-                                      )}
-                                    </TableCell>
-
-                                    <TableCell className="px-3 py-2">
-                                      <div className="w-[200px] truncate">{ticket.title}</div>
-                                    </TableCell>
-
-                                    <TableCell className="px-3 py-2">
-                                      <div className="w-[260px] truncate">{ticket.content}</div>
-                                    </TableCell>
-
-                                    <TableCell className="px-3 py-2 whitespace-nowrap">
-                                      {formatDateOnly(ticket.createdDate)}
-                                    </TableCell>
-
-                                    <TableCell className="px-3 py-2 whitespace-nowrap">
-                                      {formatDateOnly(ticket.updatedDate)}
-                                    </TableCell>
-                                  </TableRow>
-
-                                  {/* 답글 */}
-                                  {replies.length > 0 &&
-                                      replies.map((reply) => {
-                                        const created = formatReplyDate(reply.createdAt);
-                                        const updated = formatReplyDate(reply.updatedAt || reply.createdAt);
-
-                                        return (
-                                            <TableRow
-                                                key={`${ticket.id}-${reply.id}`}
-                                                className="bg-muted/20 cursor-pointer"
-                                                onClick={() => navigateToDetail(ticket, reply)}
-                                            >
-                                              <TableCell />
-                                              <TableCell className="px-3 py-2 whitespace-nowrap">
-                                                <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                                                  <CornerDownRight className="h-4 w-4 text-primary" />
-                                                  {reply.author}
-                                                </div>
-                                              </TableCell>
-
-                                              <TableCell className="px-3 py-2 whitespace-nowrap">
+                                  <TableCell className="px-3 py-2 whitespace-nowrap">
+                                    {hasStatus && (
                                       <span
                                           className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium border"
                                           style={{
-                                            backgroundColor: replyTypeStyle.background,
-                                            color: replyTypeStyle.text,
-                                            borderColor: replyTypeStyle.border,
+                                            backgroundColor: statusStyle.background,
+                                            color: statusStyle.text,
+                                            borderColor: statusStyle.border,
                                           }}
                                       >
-                                        답글
+                                        {statusLabel}
                                       </span>
-                                              </TableCell>
+                                    )}
+                                  </TableCell>
 
-                                              <TableCell className="px-3 py-2">
-                                                <div className="w-[200px] truncate">
-                                                  {reply.title || "무제 답글"}
-                                                </div>
-                                              </TableCell>
+                                  <TableCell className="px-3 py-2">
+                                    <div className="w-[200px] truncate">{ticket.title}</div>
+                                  </TableCell>
 
-                                              <TableCell className="px-3 py-2">
-                                                <div
-                                                    className="w-[260px] truncate"
-                                                    title={stripHtml(reply.content) || "내용 없음"}
-                                                >
-                                                  {stripHtml(reply.content) || "내용 없음"}
-                                                </div>
-                                              </TableCell>
+                                  <TableCell className="px-3 py-2">
+                                    <div className="w-[260px] truncate">{ticket.content}</div>
+                                  </TableCell>
 
-                                              <TableCell className="px-3 py-2 whitespace-nowrap text-sm">
-                                                {created}
-                                              </TableCell>
+                                  <TableCell className="px-3 py-2 whitespace-nowrap">
+                                    {formatDateOnly(ticket.createdDate)}
+                                  </TableCell>
 
-                                              <TableCell className="px-3 py-2 whitespace-nowrap text-sm">
-                                                {updated}
-                                              </TableCell>
-                                            </TableRow>
-                                        );
-                                      })}
-                                </Fragment>
+                                  <TableCell className="px-3 py-2 whitespace-nowrap">
+                                    {formatDateOnly(ticket.updatedDate)}
+                                  </TableCell>
+                                </TableRow>
                             );
                           })
                       )}

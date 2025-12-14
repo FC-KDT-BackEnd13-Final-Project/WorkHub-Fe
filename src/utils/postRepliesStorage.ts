@@ -20,6 +20,7 @@ export interface PostReplyItem {
     attachments: ReplyAttachmentInfo[];
     links: ReplyLinkInfo[];
     updatedAt?: string;
+    parentId?: string | null;
 }
 
 export type ReplyMap = Record<string, PostReplyItem[]>;

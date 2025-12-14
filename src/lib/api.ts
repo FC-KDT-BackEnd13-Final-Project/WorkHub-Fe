@@ -5,7 +5,10 @@ import {CreateNodePayload} from "@/types/projectNode";
 import type {
   CsPostListApiResponse,
   CsPostListParams,
-  CreateCsPostPayload
+  CreateCsPostPayload,
+  CsPostDetailResponse,
+  CsQnaListApiResponse,
+  CsQnaListParams
 } from '@/types/csPost';
 
 // 모든 API 요청이 갈 기본 서버 주소
@@ -188,5 +191,56 @@ export const csPostApi = {
     }
 
     throw new Error(message || 'CS 게시글 생성에 실패했습니다.');
+  },
+
+  /**
+   * CS 게시글 단건 조회
+   * @param projectId - 프로젝트 ID
+   * @param csPostId - CS 게시글 ID
+   * @returns CS 게시글 상세 정보
+   */
+  getDetail: async (
+    projectId: string,
+    csPostId: string
+  ): Promise<CsPostDetailResponse> => {
+    const response = await apiClient.get(
+      `/api/v1/projects/${projectId}/csPosts/${csPostId}`
+    );
+
+    const { success, message, data } = response.data;
+
+    if (success === true) {
+      return data;
+    }
+
+    throw new Error(message || 'CS 게시글 조회에 실패했습니다.');
+  },
+
+  /**
+   * CS 댓글 목록 조회 (계층 구조)
+   * @param projectId - 프로젝트 ID
+   * @param csPostId - CS 게시글 ID
+   * @param params - 페이지네이션 파라미터
+   * @returns CS 댓글 목록 및 페이지네이션 정보
+   */
+  getQnas: async (
+    projectId: string,
+    csPostId: string,
+    params?: CsQnaListParams
+  ): Promise<CsQnaListApiResponse> => {
+    const response = await apiClient.get(
+      `/api/v1/projects/${projectId}/csPosts/${csPostId}/qnas`,
+      {
+        params: params,
+      }
+    );
+
+    const { success, message, data } = response.data;
+
+    if (success === true) {
+      return data;
+    }
+
+    throw new Error(message || 'CS 댓글 목록 조회에 실패했습니다.');
   },
 };
