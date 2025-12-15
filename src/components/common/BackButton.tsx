@@ -14,7 +14,7 @@ interface BackButtonProps {
 
 export function BackButton({
   to = -1,
-  label = "뒤로가기",
+  label = "",
   className,
   onBeforeNavigate,
 }: BackButtonProps) {
@@ -40,7 +40,6 @@ export function BackButton({
       )}
     >
       <ArrowLeft className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
-      <span className="transition-colors hover:text-primary">{label}</span>
     </Button>
   );
 }

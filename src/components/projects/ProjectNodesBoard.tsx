@@ -1,5 +1,4 @@
 import { CSSProperties, KeyboardEvent, MouseEvent, PointerEvent, ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { createPortal } from "react-dom";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import {
   DndContext,
@@ -34,7 +33,6 @@ import { projectApi } from "@/lib/api";
 import { mapApiNodeToUiNode, type Node, type NodeStatus, type ApprovalStatus } from "../../utils/nodeMapper";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
 import { cn } from "../ui/utils";
-import { BackButton } from "../common/BackButton";
 import { ModalShell } from "../common/ModalShell";
 
 // 프로젝트 내 노드(작업 카드)와 워크플로우를 관리하는 보드 화면
@@ -848,86 +846,74 @@ useEffect(() => {
         </p>
       </div>
 
-      {statusModalNode &&
-        typeof document !== "undefined" &&
-        createPortal(
-          <div className="fixed inset-0" style={{ zIndex: 9999 }}>
-            <div
-              className="absolute inset-0 bg-black/30 backdrop-blur-sm"
-              aria-hidden="true"
-              onClick={closeStatusModal}
-            ></div>
-            <div className="relative z-10 min-h-screen flex items-center justify-center p-4">
-              <div className="w-full" style={{ maxWidth: "28rem" }}>
-                <Card className="border border-border shadow-lg" style={{ backgroundColor: "#fff" }}>
-                  <CardHeader className="space-y-2 pb-4">
-                    <h2 className="text-lg font-semibold text-center">상태/승인 변경</h2>
-                    <p className="text-sm text-muted-foreground text-center">
-                      "{statusModalNode.title}" 카드의 상태와 승인 단계를 선택하세요.
-                    </p>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="space-y-2">
-                      <Label>상태</Label>
-                    <Select
-                      value={statusModalStatus || undefined}
-                      onValueChange={(value) => setStatusModalStatus(value as NodeStatus)}
-                    >
-                      <SelectTrigger className="h-10 w-full">
-                        <SelectValue placeholder="상태 선택" />
-                      </SelectTrigger>
-                      <SelectContent style={{ zIndex: 10001 }}>
-                        {statusOptions.map((option) => (
-                          <SelectItem key={option} value={option}>
-                            {option}
-                          </SelectItem>
-                        ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-2">
-                      <Label>승인 상태</Label>
-                    <Select
-                      value={statusModalApproval || undefined}
-                      onValueChange={(value) => setStatusModalApproval(value as ApprovalStatus)}
-                    >
-                      <SelectTrigger className="h-10 w-full">
-                        <SelectValue placeholder="승인 상태 선택" />
-                      </SelectTrigger>
-                      <SelectContent style={{ zIndex: 10001 }}>
-                        {approvalStatusOptions.map((option) => (
-                          <SelectItem key={option} value={option}>
-                            {option}
-                          </SelectItem>
-                        ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="flex gap-2">
-                      <Button
-                        type="button"
-                        variant="secondary"
-                        className="w-1/2"
-                        onClick={closeStatusModal}
-                      >
-                        취소
-                      </Button>
-                      <Button
-                        type="button"
-                        className="w-1/2"
-                        disabled={!statusModalStatus || !statusModalApproval}
-                        onClick={handleApplyStatusChange}
-                      >
-                        적용
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
+      {statusModalNode && (
+        <ModalShell open onClose={closeStatusModal} maxWidth="28rem">
+          <Card variant="modal" className="login-theme border border-border shadow-lg">
+            <CardHeader className="space-y-2 pb-4">
+              <h2 className="text-lg font-semibold text-center">상태/승인 변경</h2>
+              <p className="text-sm text-muted-foreground text-center">
+                "{statusModalNode.title}" 카드의 상태와 승인 단계를 선택하세요.
+              </p>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label>상태</Label>
+                <Select
+                  value={statusModalStatus || undefined}
+                  onValueChange={(value) => setStatusModalStatus(value as NodeStatus)}
+                >
+                  <SelectTrigger className="h-10 w-full">
+                    <SelectValue placeholder="상태 선택" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {statusOptions.map((option) => (
+                      <SelectItem key={option} value={option}>
+                        {option}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
-            </div>
-          </div>,
-          document.body,
-        )}
+              <div className="space-y-2">
+                <Label>승인 상태</Label>
+                <Select
+                  value={statusModalApproval || undefined}
+                  onValueChange={(value) => setStatusModalApproval(value as ApprovalStatus)}
+                >
+                  <SelectTrigger className="h-10 w-full">
+                    <SelectValue placeholder="승인 상태 선택" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {approvalStatusOptions.map((option) => (
+                      <SelectItem key={option} value={option}>
+                        {option}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  className="w-1/2"
+                  onClick={closeStatusModal}
+                >
+                  취소
+                </Button>
+                <Button
+                  type="button"
+                  className="w-1/2"
+                  disabled={!statusModalStatus || !statusModalApproval}
+                  onClick={handleApplyStatusChange}
+                >
+                  적용
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </ModalShell>
+      )}
 
       <div className="flex flex-col gap-4 rounded-2xl bg-white p-4 shadow-sm md:flex-row md:items-center">
         <Input
@@ -1069,9 +1055,6 @@ useEffect(() => {
         </>
       )}
 
-      <div className="flex justify-end">
-        <BackButton />
-      </div>
     </div>
   );
 }

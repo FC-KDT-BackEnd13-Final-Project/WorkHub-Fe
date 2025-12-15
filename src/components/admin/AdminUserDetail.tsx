@@ -12,7 +12,6 @@ import logoImage from "../../../image/logo.png";
 import { companyUsers, activityHistory } from "./userData";
 import { activityTypePalette } from "./activityPalette";
 import { useUserProjects } from "../../hooks/useUserProjects";
-import { BackButton } from "../common/BackButton";
 import { ModalShell } from "../common/ModalShell";
 
 const activityIconMap: Record<string, JSX.Element> = {
@@ -461,9 +460,6 @@ export function AdminUserDetail() {
         </div>
       </div>
 
-      <div className="flex justify-end">
-        <BackButton />
-      </div>
       <div className="grid gap-6 lg:grid-cols-2 min-h-0">
         <div className="rounded-2xl bg-white p-6 shadow-sm">
           <div className="border-b pb-4">
