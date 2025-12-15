@@ -286,18 +286,19 @@ export function SettingsPage() {
       </div>
 
       {showResetPassword && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-end">
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center px-4">
           <div
-              className="absolute inset-0"
-              onClick={() => setShowResetPassword(false)}
-              aria-hidden
+            className="absolute inset-0"
+            onClick={() => setShowResetPassword(false)}
+            aria-hidden
           />
-          <div className="relative z-10 h-full max-w-lg w-full overflow-y-auto bg-white shadow-2xl border-l">
+          <div className="relative z-10 w-full max-w-lg overflow-y-auto bg-white shadow-2xl rounded-2xl border border-border">
             <LoginScreen
-                initialResetStage="request"
-                defaultResetId={profile.id}
-                defaultResetEmail={profile.email}
-                onSuccess={() => setShowResetPassword(false)}
+              initialResetStage="request"
+              defaultResetId={profile.id}
+              defaultResetEmail={profile.email}
+              variant="modal"
+              onSuccess={() => setShowResetPassword(false)}
             />
           </div>
         </div>

@@ -14,8 +14,12 @@ function CardContent({ className, ...props }: React.ComponentProps<typeof BaseCa
   return <BaseCardContent className={cn("[&:last-child]:pb-0", className)} {...props} />;
 }
 
+const Card2 = ({ variant = "surface", ...props }: React.ComponentProps<typeof BaseCard>) => (
+  <BaseCard variant={variant} {...props} />
+);
+
 export {
-  BaseCard as Card2,
+  Card2,
   CardHeader,
   CardFooter,
   CardTitle,

@@ -1,7 +1,7 @@
 import axios from 'axios';
 import type { ProjectApiResponse, ProjectListParams } from '@/types/project';
 import type { NodeListApiResponse } from '@/types/projectNodeList';
-import {CreateNodePayload} from "@/types/projectNode";
+import {CreateNodePayload} from "@/types/proj,,ectNode";
 import type {
   CsPostListApiResponse,
   CsPostListParams,

@@ -1155,7 +1155,7 @@ export function FormQuestion2({
                 />
 
                 <div className="relative z-10 flex h-full items-center justify-center p-4">
-                    <Card2 className="flex h-full max-h-[80vh] w-full max-w-4xl flex-col overflow-hidden">
+                    <Card2 variant="modal" className="flex h-full max-h-[80vh] w-full max-w-4xl flex-col overflow-hidden">
                         <CardHeader className="relative border-b text-center">
                             <h3 className="text-lg font-semibold">
                                 코멘트 이력
@@ -1448,7 +1448,7 @@ export function FormQuestion2({
             <div className="space-y-6">
                 {groups.map((group, groupIndex) => (
                     <div key={group.id} className="relative">
-                        <Card2 className="border border-border/60 bg-muted/40 shadow-none">
+                        <Card2 variant="modal" className="border border-border/60 bg-muted/40 shadow-none">
                             <CardContent className="pt-4">
                                 <CheckboxQuestion2
                                     titleValue={group.title}

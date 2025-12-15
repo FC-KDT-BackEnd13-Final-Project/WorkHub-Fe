@@ -815,6 +815,10 @@
     border-radius: calc(var(--radius)  + 4px);
   }
 
+  .rounded-2xl {
+    border-radius: calc(var(--radius)  + 0.375rem);
+  }
+
   .border {
     border-style: var(--tw-border-style);
     border-width: 1px;

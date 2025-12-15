@@ -35,6 +35,7 @@ import { projectApi } from "../../lib/api";
 import { mapApiProjectToUiProject, type Project } from "../../utils/projectMapper";
 import type { ProjectListParams, SortOrder } from "../../types/project";
 import { cn } from "../ui/utils";
+import { ModalShell } from "../common/ModalShell";
 
 // 상태 옵션
 const statusOptions = [
@@ -768,89 +769,53 @@ export function ProjectsIndex() {
   return (
       <div className="space-y-6">
         {statusModalProject &&
-            typeof document !== "undefined" &&
-            createPortal(
-                <div className="fixed inset-0" style={{ zIndex: 9999 }}>
-                  <div
-                      className="absolute inset-0 bg-black/30 backdrop-blur-sm"
-                      aria-hidden="true"
-                      onClick={closeStatusModal}
-                  ></div>
-                  <div className="relative z-10 min-h-screen flex items-center justify-center p-4">
-                    <div className="w-full" style={{ maxWidth: "28rem" }}>
-                      <Card className="border border-border shadow-lg" style={{ backgroundColor: "#fff" }}>
-                        <CardHeader className="space-y-2 pb-4">
-                          <h2 className="text-lg font-semibold text-center">프로젝트 상태 변경</h2>
-                          <p className="text-sm text-muted-foreground text-center">
-                            "{statusModalProject.name}"의 상태를 선택하세요.
-                          </p>
-                        </CardHeader>
-                        <CardContent className="space-y-4">
-                          <Select
-                              value={statusModalValue || undefined}
-                              onValueChange={(value) => setStatusModalValue(value as ProjectStatus)}
-                          >
-                            <SelectTrigger className="h-10 w-full">
-                              <SelectValue placeholder="상태 선택" />
-                            </SelectTrigger>
-                            <SelectContent style={{ zIndex: 10001 }}>
-                              {projectStatusOptions.map((option) => (
-                                  <SelectItem key={option} value={option}>
-                                    {option}
-                                  </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                          <div className="flex gap-2">
-                            <Button
-                                type="button"
-                                variant="secondary"
-                                className="w-1/2"
-                                onClick={closeStatusModal}
-                            >
-                              취소
-                            </Button>
-                            <Button
-                                type="button"
-                                className="w-1/2"
-                                disabled={!statusModalValue}
-                                onClick={handleApplyStatusChange}
-                            >
-                              상태 변경
-                            </Button>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    </div>
+          typeof document !== "undefined" &&
+          createPortal(
+            <ModalShell open onClose={closeStatusModal} maxWidth="28rem">
+              <Card variant="modal" className="login-theme border border-border shadow-lg">
+                <CardHeader className="space-y-2 pb-4">
+                  <h2 className="text-lg font-semibold text-center">프로젝트 상태 변경</h2>
+                  <p className="text-sm text-muted-foreground text-center">"{statusModalProject.name}"의 상태를 선택하세요.</p>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <Select value={statusModalValue || undefined} onValueChange={(value) => setStatusModalValue(value as ProjectStatus)}>
+                    <SelectTrigger className="h-10 w-full">
+                      <SelectValue placeholder="상태 선택" />
+                    </SelectTrigger>
+                    <SelectContent style={{ zIndex: 10001 }}>
+                      {projectStatusOptions.map((option) => (
+                        <SelectItem key={option} value={option}>
+                          {option}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <div className="flex gap-2">
+                    <Button type="button" variant="secondary" className="w-1/2" onClick={closeStatusModal}>
+                      취소
+                    </Button>
+                    <Button type="button" className="w-1/2" disabled={!statusModalValue} onClick={handleApplyStatusChange}>
+                      상태 변경
+                    </Button>
                   </div>
-                </div>,
-                document.body,
-            )}
-        {/* 프로젝트 생성 모달 */}
+                </CardContent>
+              </Card>
+            </ModalShell>,
+            document.body,
+          )}
+
         {isProjectModalOpen && (
-            <div className="fixed inset-0 z-50" ref={projectModalRef}>
-              <div
-                  className="absolute inset-0 bg-black/30 backdrop-blur-sm"
-                  aria-hidden="true"
-                  onClick={closeProjectModal}
-              ></div>
-              <div className="relative z-10 min-h-screen flex items-center justify-center p-4">
-                <div
-                    className="w-full"
-                    style={{ maxWidth: "var(--login-card-max-width, 42rem)" }}
-                >
-                  <Card className="login-theme border border-border shadow-lg">
-                    <CardHeader className="space-y-2 pb-6">
-                      <h2 className="text-xl text-center">
-                        {isEditingProjectForm ? "프로젝트 수정" : "새 프로젝트 만들기"}
-                      </h2>
-                      <p className="text-sm text-muted-foreground text-center">
-                        {isEditingProjectForm
-                            ? "선택한 프로젝트 정보를 업데이트하세요."
-                            : "워크스페이스에 프로젝트를 추가하려면 아래 정보를 입력하세요."}
-                      </p>
-                    </CardHeader>
-                    <CardContent>
+          <ModalShell open onClose={closeProjectModal} maxWidth="var(--login-card-max-width, 42rem)">
+            <Card variant="modal" className="login-theme border border-border shadow-lg" ref={projectModalRef}>
+              <CardHeader className="space-y-2 pb-6">
+                <h2 className="text-xl text-center">{isEditingProjectForm ? "프로젝트 수정" : "새 프로젝트 만들기"}</h2>
+                <p className="text-sm text-muted-foreground text-center">
+                  {isEditingProjectForm
+                    ? "선택한 프로젝트 정보를 업데이트하세요."
+                    : "워크스페이스에 프로젝트를 추가하려면 아래 정보를 입력하세요."}
+                </p>
+              </CardHeader>
+              <CardContent>
                       <div className="space-y-6">
                         {/* 프로젝트 이름 */}
                         <div className="space-y-2">
@@ -1317,10 +1282,8 @@ export function ProjectsIndex() {
                       </div>
                     </CardContent>
                   </Card>
-                </div>
-              </div>
-            </div>
-        )}
+                </ModalShell>
+              )}
 
         {/* 헤더 */}
         <div className="rounded-2xl bg-white p-6 shadow-sm">

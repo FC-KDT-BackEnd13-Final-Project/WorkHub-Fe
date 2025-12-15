@@ -3,12 +3,12 @@ import { format } from "date-fns";
 import { useNavigate, useParams } from "react-router-dom";
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
 import { Badge } from "../ui/badge";
-import { Button } from "../ui/button";
 import { companyUsers, activityHistory } from "./userData";
 import { calculateTotalPages, paginate } from "../../utils/pagination";
 import { activityTypePalette } from "./activityPalette";
 import logoImage from "../../../image/logo.png";
 import { PaginationControls } from "../common/PaginationControls";
+import { BackButton } from "../common/BackButton";
 
 const shouldUseLogo = (name?: string) => {
   if (!name) return true;
@@ -191,9 +191,7 @@ export function AdminUserHistory() {
             />
           )}
         <div className="mt-4 flex justify-end">
-          <Button variant="outline" onClick={() => navigate(-1)}>
-            뒤로 가기
-          </Button>
+          <BackButton label="뒤로 가기" />
         </div>
       </div>
     </div>
