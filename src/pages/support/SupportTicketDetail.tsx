@@ -8,6 +8,7 @@ import type { CsPostDetailResponse, CsQnaApiItem } from "../../types/csPost";
 import { saveRepliesForPost, type PostReplyItem } from "../../utils/postRepliesStorage";
 import { toast } from "sonner";
 import type { RichTextDraft } from "../../components/RichTextDemo";
+import { getErrorMessage } from "@/utils/errorMessages";
 
 // API 응답을 UI 형식으로 변환
 interface TicketDetail {
@@ -112,11 +113,7 @@ export function SupportTicketDetail() {
         }, 300);
       } catch (err) {
         console.error("❌ API 에러:", err);
-        if (err instanceof Error) {
-          setError(err.message);
-        } else {
-          setError("CS 게시글을 불러오는 중 오류가 발생했습니다.");
-        }
+        setError(getErrorMessage(err, "CS 게시글을 불러오는 중 오류가 발생했습니다."));
         setTicket(null);
         setIsLoading(false);
       }
@@ -189,7 +186,7 @@ export function SupportTicketDetail() {
       const refreshed = await csPostApi.getDetail(projectId, ticketId);
       setTicket(convertApiDetailToTicket(refreshed));
     } catch (err) {
-      const message = err instanceof Error ? err.message : "CS 문의 수정에 실패했습니다.";
+      const message = getErrorMessage(err, "CS 문의 수정에 실패했습니다.");
       toast.error(message);
       throw err instanceof Error ? err : new Error(message);
     }
@@ -211,7 +208,7 @@ export function SupportTicketDetail() {
       const targetPath = backPath ?? `/projects/${projectId}/nodes/support`;
       navigate(targetPath, { replace: true });
     } catch (err) {
-      const message = err instanceof Error ? err.message : "CS 문의 삭제에 실패했습니다.";
+      const message = getErrorMessage(err, "CS 문의 삭제에 실패했습니다.");
       toast.error(message);
     } finally {
       setIsDeleting(false);

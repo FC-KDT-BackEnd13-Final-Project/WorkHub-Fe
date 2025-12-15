@@ -35,6 +35,9 @@ import { mapApiProjectToUiProject, type Project } from "../../utils/projectMappe
 import type { ProjectListParams, SortOrder } from "../../types/project";
 import { cn } from "../ui/utils";
 import { ModalShell } from "../common/ModalShell";
+import { PROFILE_STORAGE_KEY, type UserRole, normalizeUserRole } from "../../constants/profile";
+import { useLocalStorageValue } from "../../hooks/useLocalStorageValue";
+import { localizeErrorMessage } from "@/utils/errorMessages";
 
 // 상태 옵션
 const statusOptions = [
@@ -160,6 +163,16 @@ const createProjectFormState = () => ({
 
 type ProjectFormState = ReturnType<typeof createProjectFormState>;
 
+type StoredSettings = {
+  profile?: {
+    role?: string;
+  };
+};
+
+type StoredUser = {
+  role?: string;
+};
+
 // 날짜 유틸 함수들
 const getNextDayISO = (dateString: string) => {
   const date = new Date(dateString);
@@ -198,6 +211,25 @@ export function ProjectsIndex() {
   );
   const [editingProject, setEditingProject] = useState<Project | null>(null);
   const [isProjectEditMode, setIsProjectEditMode] = useState(false);
+  const [storedSettings] = useLocalStorageValue<StoredSettings | null>(PROFILE_STORAGE_KEY, {
+    defaultValue: null,
+    parser: (value) => JSON.parse(value),
+    listen: true,
+  });
+  const [storedUser] = useLocalStorageValue<StoredUser | null>("user", {
+    defaultValue: null,
+    parser: (value) => JSON.parse(value),
+    listen: true,
+  });
+  const userRole = useMemo<UserRole>(() => {
+    const profileRole = normalizeUserRole(storedSettings?.profile?.role);
+    if (profileRole) {
+      return profileRole;
+    }
+    const storedUserRole = normalizeUserRole(storedUser?.role);
+    return storedUserRole ?? "DEVELOPER";
+  }, [storedSettings, storedUser]);
+  const isClient = userRole === "CLIENT";
   const [statusModalProject, setStatusModalProject] = useState<Project | null>(null);
   const [statusModalValue, setStatusModalValue] = useState<ProjectStatus | "">("");
 
@@ -334,7 +366,7 @@ export function ProjectsIndex() {
         errorMessage = axiosError.response?.data?.message || errorMessage;
       }
 
-      setError(errorMessage);
+      setError(localizeErrorMessage(errorMessage) ?? errorMessage);
     } finally {
       setIsLoading(false);
     }
@@ -1383,21 +1415,23 @@ export function ProjectsIndex() {
           </Select>
 
           {/* 새 프로젝트 + 편집 모드 버튼 */}
-          <div className="flex items-center gap-2">
-            <Button
-                className="h-9 px-4 text-sm md:w-auto"
-                onClick={handleOpenCreateModal}
-            >
-              + 새 프로젝트
-            </Button>
-            <Button
-                variant={isProjectEditMode ? "default" : "outline"}
-                className="h-9 px-4 text-sm"
-                onClick={() => setIsProjectEditMode((prev) => !prev)}
-            >
-              {isProjectEditMode ? "편집 완료" : "편집"}
-            </Button>
-          </div>
+          {!isClient && (
+              <div className="flex items-center gap-2">
+                <Button
+                    className="h-9 px-4 text-sm md:w-auto"
+                    onClick={handleOpenCreateModal}
+                >
+                  + 새 프로젝트
+                </Button>
+                <Button
+                    variant={isProjectEditMode ? "default" : "outline"}
+                    className="h-9 px-4 text-sm"
+                    onClick={() => setIsProjectEditMode((prev) => !prev)}
+                >
+                  {isProjectEditMode ? "편집 완료" : "편집"}
+                </Button>
+              </div>
+          )}
         </div>
 
         {/* 로딩 상태 */}

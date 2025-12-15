@@ -613,8 +613,8 @@ function ContactSection() {
 
     await new Promise((resolve) => setTimeout(resolve, 1000));
 
-    toast.success("Message sent successfully!", {
-      description: "I'll get back to you as soon as possible.",
+    toast.success("메시지가 전송되었습니다!", {
+      description: "최대한 빨리 다시 연락드릴게요.",
     });
 
     setFormData({ name: "", email: "", message: "" });
