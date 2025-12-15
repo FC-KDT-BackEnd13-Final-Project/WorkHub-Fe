@@ -1,11 +1,12 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { ProjectPostDetail } from "../../components/projects/ProjectPostDetail";
+import { ProjectPostDetail, type ReplyDraftPayload } from "../../components/projects/ProjectPostDetail";
 import { supportTicketStatusLabel, type SupportTicketStatus } from "../../data/supportTickets";
 import { loadSupportStatus } from "../../utils/supportTicketStatusStorage";
 import { csPostApi } from "../../lib/api";
-import type { CsPostDetailResponse, CsQnaApiItem } from "../../types/csPost";
+import type { CsPostDetailResponse } from "../../types/csPost";
 import { saveRepliesForPost, type PostReplyItem } from "../../utils/postRepliesStorage";
+import { convertQnaResponseToReply, convertQnaToReply } from "../../utils/supportQnaMapper";
 import { toast } from "sonner";
 import type { RichTextDraft } from "../../components/RichTextDemo";
 import { getErrorMessage } from "@/utils/errorMessages";
@@ -45,28 +46,6 @@ const convertApiDetailToTicket = (data: CsPostDetailResponse): TicketDetail => {
   };
 };
 
-// API 댓글을 PostReplyItem으로 변환 (계층 구조를 평탄화하되 parentId 보존)
-const convertQnaToReply = (qna: CsQnaApiItem): PostReplyItem[] => {
-  const mainReply: PostReplyItem = {
-    id: String(qna.csQnaId),
-    title: "",
-    content: qna.qnaContent || "", // qnaContent 필드 사용
-    createdAt: qna.createdAt,
-    updatedAt: qna.updatedAt,
-    author: `사용자${qna.userId}`, // userId를 author로 변환
-    attachments: [],
-    links: [],
-    parentId: qna.parentQnaId ? String(qna.parentQnaId) : null, // API의 parentQnaId 사용
-  };
-
-  // 자식 댓글도 재귀적으로 변환
-  const childReplies: PostReplyItem[] = qna.children
-    ? qna.children.flatMap(convertQnaToReply)
-    : [];
-
-  return [mainReply, ...childReplies];
-};
-
 // 단일 문의 상세를 보여주며 목록 경로로 복귀 링크를 제공
 export function SupportTicketDetail() {
   const navigate = useNavigate();
@@ -77,6 +56,8 @@ export function SupportTicketDetail() {
   const [commentsLoaded, setCommentsLoaded] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isStatusUpdating, setIsStatusUpdating] = useState(false);
+  const [isReplySubmitting, setIsReplySubmitting] = useState(false);
+  const [isInlineCommentSubmitting, setIsInlineCommentSubmitting] = useState(false);
   const backPath = projectId ? `/projects/${projectId}/nodes/support` : undefined;
 
   useEffect(() => {
@@ -216,6 +197,59 @@ export function SupportTicketDetail() {
     }
   };
 
+  const handleCreateReply = async (draft: ReplyDraftPayload) => {
+    if (!projectId || !ticketId) {
+      toast.error("프로젝트 정보가 없습니다.");
+      throw new Error("Missing project information");
+    }
+
+    setIsReplySubmitting(true);
+    try {
+      const response = await csPostApi.createQna(projectId, ticketId, {
+        qnaContent: draft.content,
+      });
+      toast.success("댓글이 등록되었습니다.");
+      return convertQnaResponseToReply(response);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "CS 댓글 등록에 실패했습니다.";
+      toast.error(message);
+      throw err instanceof Error ? err : new Error(message);
+    } finally {
+      setIsReplySubmitting(false);
+    }
+  };
+
+  const handleCreateInlineComment = async ({
+    content,
+    parentId,
+  }: {
+    content: string;
+    parentId?: string | null;
+  }) => {
+    if (!projectId || !ticketId) {
+      toast.error("프로젝트 정보가 없습니다.");
+      throw new Error("Missing project information");
+    }
+
+    const parsedParentId = parentId ? Number(parentId) : undefined;
+    const parentQnaId = parentId && Number.isNaN(parsedParentId) ? undefined : parsedParentId;
+
+    setIsInlineCommentSubmitting(true);
+    try {
+      const response = await csPostApi.createQna(projectId, ticketId, {
+        qnaContent: content,
+        parentQnaId,
+      });
+      return convertQnaResponseToReply(response);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "CS 댓글 등록에 실패했습니다.";
+      toast.error(message);
+      throw err instanceof Error ? err : new Error(message);
+    } finally {
+      setIsInlineCommentSubmitting(false);
+    }
+  };
+
   const handleDeleteTicket = async () => {
     if (isDeleting) return;
     if (!projectId || !ticketId) {
@@ -248,10 +282,14 @@ export function SupportTicketDetail() {
       startInEditMode={false}
       onSubmitPostEdit={handleUpdateTicket}
       onChangeTicketStatus={handleStatusChange}
+      onSubmitReplyDraft={handleCreateReply}
+      onSubmitInlineComment={handleCreateInlineComment}
       onDeletePost={handleDeleteTicket}
       isDeletingPost={isDeleting}
       showPostTypeSelector={false}
       isStatusUpdating={isStatusUpdating}
+      isReplySubmitting={isReplySubmitting}
+      isInlineCommentSubmitting={isInlineCommentSubmitting}
       showStatusControls={true}
     />
   );
