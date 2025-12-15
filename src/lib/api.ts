@@ -11,6 +11,8 @@ import type {
   CsQnaListParams,
   CsPostUpdateRequest,
   CsPostStatus,
+  CsQnaRequest,
+  CsQnaResponse,
 } from '@/types/csPost';
 
 // 모든 API 요청이 갈 기본 서버 주소
@@ -275,6 +277,28 @@ export const csPostApi = {
     }
 
     throw new Error(message || 'CS 댓글 목록 조회에 실패했습니다.');
+  },
+
+  /**
+   * CS 댓글 생성
+   */
+  createQna: async (
+    projectId: string,
+    csPostId: string,
+    payload: CsQnaRequest,
+  ): Promise<CsQnaResponse> => {
+    const response = await apiClient.post(
+      `/api/v1/projects/${projectId}/csPosts/${csPostId}/qnas`,
+      payload,
+    );
+
+    const { success, message, data } = response.data;
+
+    if (success === true) {
+      return data;
+    }
+
+    throw new Error(message || 'CS 댓글 생성에 실패했습니다.');
   },
 
   /**

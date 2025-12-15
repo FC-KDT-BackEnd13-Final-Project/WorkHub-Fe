@@ -123,6 +123,21 @@ export interface CsQnaListParams {
   sort?: string[]; // 예: ["createdAt,DESC"]
 }
 
+export interface CsQnaRequest {
+  qnaContent: string;
+  parentQnaId?: number | null;
+}
+
+export interface CsQnaResponse {
+  csQnaId: number;
+  csPostId: number;
+  userId: number;
+  qnaContent: string;
+  parentQnaId?: number | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface CsPostFileUpdateRequest {
   fileId?: number;
   fileName?: string;

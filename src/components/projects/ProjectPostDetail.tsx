@@ -22,6 +22,13 @@ import {
 import { removeSupportStatus, saveSupportStatus } from "../../utils/supportTicketStatusStorage";
 import { ModalShell } from "../common/ModalShell";
 
+export interface ReplyDraftPayload {
+    title: string;
+    content: string;
+    attachments: AttachmentDraft[];
+    links: { url: string; description: string }[];
+}
+
 const COMMENTS_PER_PAGE = 5;
 const SUPPORT_STATUS_OPTIONS: SupportTicketStatus[] = [
     "RECEIVED",
@@ -82,6 +89,10 @@ interface ProjectPostDetailProps {
     showStatusControls?: boolean;
     onChangeTicketStatus?: (status: SupportTicketStatus) => Promise<void> | void;
     isStatusUpdating?: boolean;
+    onSubmitReplyDraft?: (draft: ReplyDraftPayload) => Promise<PostReplyItem> | void;
+    isReplySubmitting?: boolean;
+    onSubmitInlineComment?: (payload: { content: string; parentId?: string | null }) => Promise<PostReplyItem> | void;
+    isInlineCommentSubmitting?: boolean;
 }
 
 export function ProjectPostDetail({
@@ -96,6 +107,10 @@ export function ProjectPostDetail({
                                       showStatusControls = false,
                                       onChangeTicketStatus,
                                       isStatusUpdating = false,
+                                      onSubmitReplyDraft,
+                                      isReplySubmitting = false,
+                                      onSubmitInlineComment,
+                                      isInlineCommentSubmitting = false,
                                   }: ProjectPostDetailProps = {}) {
     const navigate = useNavigate();
     const { projectId, nodeId, postId } = useParams<{
@@ -445,7 +460,7 @@ export function ProjectPostDetail({
             .replace(/\s+/g, " ")
             .trim();
 
-    const handleSubmitReplyDraft = () => {
+    const handleSubmitReplyDraft = async () => {
         const hasBody = normalizeHtml(replyDraft.content).length > 0;
         const replyTitle = replyDraft.title.trim();
         if (!hasBody && !replyTitle) {
@@ -479,6 +494,24 @@ export function ProjectPostDetail({
             setFocusedReply(updatedReply);
             exitReplyEditor();
             return;
+        }
+
+        if (onSubmitReplyDraft) {
+            try {
+                const createdReply = await onSubmitReplyDraft(normalized);
+                if (createdReply) {
+                    setPostReplies((prev) => {
+                        const updated = [createdReply, ...prev];
+                        saveRepliesForPost(postStorageKey, updated);
+                        return updated;
+                    });
+                    setFocusedReply(createdReply);
+                    exitReplyEditor();
+                    return;
+                }
+            } catch (error) {
+                return;
+            }
         }
 
         const now = new Date();
@@ -737,7 +770,12 @@ export function ProjectPostDetail({
                             >
                                 취소
                             </Button2>
-                            <Button2 onClick={handleSubmitReplyDraft} disabled={!canSubmitReply}>
+                            <Button2
+                                onClick={() => {
+                                    void handleSubmitReplyDraft();
+                                }}
+                                disabled={!canSubmitReply || isReplySubmitting}
+                            >
                                 {isEditingReply ? "수정 완료" : "등록"}
                             </Button2>
                         </div>
@@ -749,14 +787,32 @@ export function ProjectPostDetail({
 
     // ───────────── 댓글 CRUD 핸들러 ─────────────
 
-    const handleAddComment = () => {
-        if (!newComment.trim()) return;
+    const handleAddComment = async () => {
+        if (!newComment.trim() || isInlineCommentSubmitting) return;
 
+        const trimmed = newComment.trim();
         const nextTopLevelCount = topLevelComments.length + 1;
         const nextPage = calculateTotalPages(nextTopLevelCount, COMMENTS_PER_PAGE);
 
+        if (onSubmitInlineComment) {
+            try {
+                const created = await onSubmitInlineComment({ content: trimmed });
+                if (created) {
+                    setPostReplies((prev) => {
+                        const updated = [...prev, created];
+                        saveRepliesForPost(postStorageKey, updated);
+                        return updated;
+                    });
+                    setNewComment("");
+                    setCommentPage(nextPage);
+                    return;
+                }
+            } catch {
+                return;
+            }
+        }
+
         const createdAt = new Date().toLocaleString("ko-KR");
-        const trimmed = newComment.trim();
         const now = Date.now();
         const newCommentId = `c-${now}`;
         const initialHistory: CommentHistoryEntry = {
@@ -877,18 +933,42 @@ export function ProjectPostDetail({
     };
 
     // target(댓글/대댓글)에 대한 답글 등록
-    const handleSubmitReply = (targetId: string) => {
+    const handleSubmitReply = async (targetId: string) => {
+        if (isInlineCommentSubmitting) return;
+        const target = comments.find((c) => c.id === targetId);
+        if (!target) return;
+
+        const text = target.replyContent?.trim();
+        if (!text) return;
+
+        const rootId = (target.parentId ?? null) === null ? target.id : (target.parentId as string);
+
+        if (onSubmitInlineComment) {
+            setComments((prev) =>
+                prev.map((c) =>
+                    c.id === targetId ? { ...c, showReply: false, replyContent: "" } : c,
+                ),
+            );
+            try {
+                const created = await onSubmitInlineComment({ content: text, parentId: rootId });
+                if (created) {
+                    setPostReplies((postPrev) => {
+                        const updated = [...postPrev, created];
+                        saveRepliesForPost(postStorageKey, updated);
+                        return updated;
+                    });
+                }
+            } catch {
+                setComments((prev) =>
+                    prev.map((c) =>
+                        c.id === targetId ? { ...c, showReply: true, replyContent: text } : c,
+                    ),
+                );
+            }
+            return;
+        }
+
         setComments((prev) => {
-            const target = prev.find((c) => c.id === targetId);
-            if (!target) return prev;
-
-            const text = target.replyContent?.trim();
-            if (!text) return prev;
-
-            // 최상위 댓글이면 자기 id, 대댓글이면 parentId로 묶기
-            const rootId =
-                (target.parentId ?? null) === null ? target.id : (target.parentId as string);
-
             const updated = prev.map((c) =>
                 c.id === targetId ? { ...c, showReply: false, replyContent: "" } : c,
             );
@@ -1054,7 +1134,13 @@ export function ProjectPostDetail({
                                     >
                                         취소
                                     </Button2>
-                                    <Button2 size="sm" onClick={() => handleSubmitReply(comment.id)}>
+                                    <Button2
+                                        size="sm"
+                                        onClick={() => {
+                                            void handleSubmitReply(comment.id);
+                                        }}
+                                        disabled={isInlineCommentSubmitting}
+                                    >
                                         답글 등록
                                     </Button2>
                                 </div>
@@ -1185,7 +1271,13 @@ export function ProjectPostDetail({
                                             >
                                                 취소
                                             </Button2>
-                                            <Button2 size="sm" onClick={() => handleSubmitReply(reply.id)}>
+                                            <Button2
+                                                size="sm"
+                                                onClick={() => {
+                                                    void handleSubmitReply(reply.id);
+                                                }}
+                                                disabled={isInlineCommentSubmitting}
+                                            >
                                                 답글 등록
                                             </Button2>
                                         </div>
@@ -1500,7 +1592,13 @@ export function ProjectPostDetail({
                             onChange={(e) => setNewComment(e.target.value)}
                         />
                         <div className="flex justify-end">
-                            <Button2 className="ml-auto" onClick={handleAddComment}>
+                            <Button2
+                                className="ml-auto"
+                                onClick={() => {
+                                    void handleAddComment();
+                                }}
+                                disabled={isInlineCommentSubmitting}
+                            >
                                 댓글 등록
                             </Button2>
                         </div>
