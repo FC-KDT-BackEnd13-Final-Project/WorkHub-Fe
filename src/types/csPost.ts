@@ -138,6 +138,10 @@ export interface CsQnaResponse {
   updatedAt: string;
 }
 
+export interface CsQnaUpdateRequest {
+  qnaContent: string;
+}
+
 export interface CsPostFileUpdateRequest {
   fileId?: number;
   fileName?: string;

@@ -250,6 +250,47 @@ export function SupportTicketDetail() {
     }
   };
 
+  const handleUpdateInlineComment = async ({
+    content,
+    commentId,
+  }: {
+    content: string;
+    commentId: string;
+  }) => {
+    if (!projectId || !ticketId) {
+      toast.error("프로젝트 정보가 없습니다.");
+      throw new Error("Missing project information");
+    }
+
+    try {
+      const response = await csPostApi.updateQna(projectId, ticketId, commentId, {
+        qnaContent: content,
+      });
+      toast.success("댓글이 수정되었습니다.");
+      return convertQnaResponseToReply(response);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "CS 댓글 수정에 실패했습니다.";
+      toast.error(message);
+      throw err instanceof Error ? err : new Error(message);
+    }
+  };
+
+  const handleDeleteInlineComment = async (commentId: string) => {
+    if (!projectId || !ticketId) {
+      toast.error("프로젝트 정보가 없습니다.");
+      throw new Error("Missing project information");
+    }
+
+    try {
+      await csPostApi.deleteQna(projectId, ticketId, commentId);
+      toast.success("댓글이 삭제되었습니다.");
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "CS 댓글 삭제에 실패했습니다.";
+      toast.error(message);
+      throw err instanceof Error ? err : new Error(message);
+    }
+  };
+
   const handleDeleteTicket = async () => {
     if (isDeleting) return;
     if (!projectId || !ticketId) {
@@ -284,6 +325,8 @@ export function SupportTicketDetail() {
       onChangeTicketStatus={handleStatusChange}
       onSubmitReplyDraft={handleCreateReply}
       onSubmitInlineComment={handleCreateInlineComment}
+      onUpdateInlineComment={handleUpdateInlineComment}
+      onDeleteInlineComment={handleDeleteInlineComment}
       onDeletePost={handleDeleteTicket}
       isDeletingPost={isDeleting}
       showPostTypeSelector={false}

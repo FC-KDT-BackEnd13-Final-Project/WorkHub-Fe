@@ -13,6 +13,7 @@ import type {
   CsPostStatus,
   CsQnaRequest,
   CsQnaResponse,
+  CsQnaUpdateRequest,
 } from '@/types/csPost';
 
 // 모든 API 요청이 갈 기본 서버 주소
@@ -299,6 +300,50 @@ export const csPostApi = {
     }
 
     throw new Error(message || 'CS 댓글 생성에 실패했습니다.');
+  },
+
+  /**
+   * CS 댓글 수정
+   */
+  updateQna: async (
+    projectId: string,
+    csPostId: string,
+    csQnaId: string,
+    payload: CsQnaUpdateRequest,
+  ): Promise<CsQnaResponse> => {
+    const response = await apiClient.patch(
+      `/api/v1/projects/${projectId}/csPosts/${csPostId}/qnas/${csQnaId}`,
+      payload,
+    );
+
+    const { success, message, data } = response.data;
+
+    if (success === true) {
+      return data;
+    }
+
+    throw new Error(message || 'CS 댓글 수정에 실패했습니다.');
+  },
+
+  /**
+   * CS 댓글 삭제
+   */
+  deleteQna: async (
+    projectId: string,
+    csPostId: string,
+    csQnaId: string,
+  ): Promise<void> => {
+    const response = await apiClient.delete(
+      `/api/v1/projects/${projectId}/csPosts/${csPostId}/qnas/${csQnaId}`,
+    );
+
+    const { success, message } = response.data;
+
+    if (success === true) {
+      return;
+    }
+
+    throw new Error(message || 'CS 댓글 삭제에 실패했습니다.');
   },
 
   /**
