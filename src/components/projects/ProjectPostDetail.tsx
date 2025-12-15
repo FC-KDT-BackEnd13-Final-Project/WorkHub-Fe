@@ -75,6 +75,8 @@ interface ProjectPostDetailProps {
     backPath?: string;
     showBackButton?: boolean;
     startInEditMode?: boolean;
+    onDeletePost?: () => Promise<void> | void;
+    isDeletingPost?: boolean;
 }
 
 export function ProjectPostDetail({
@@ -82,6 +84,8 @@ export function ProjectPostDetail({
                                       backPath,
                                       showBackButton = true,
                                       startInEditMode = false,
+                                      onDeletePost,
+                                      isDeletingPost = false,
                                   }: ProjectPostDetailProps = {}) {
     const navigate = useNavigate();
     const { projectId, nodeId, postId } = useParams<{
@@ -210,8 +214,6 @@ export function ProjectPostDetail({
 
     useEffect(() => {
         const replies = loadRepliesForPost(postStorageKey);
-        console.log("🔄 ProjectPostDetail useEffect - postStorageKey:", postStorageKey);
-        console.log("🔄 ProjectPostDetail useEffect - 로드된 댓글:", replies);
         setPostReplies(replies);
     }, [postStorageKey]);
 
@@ -245,12 +247,7 @@ export function ProjectPostDetail({
 
     // postReplies가 변경되면 comments도 업데이트
     useEffect(() => {
-        console.log("🔄 postReplies 변경 감지, length:", postReplies.length);
-        console.log("🔄 postReplies 내용:", postReplies);
-
         const convertedComments = postReplies.map(convertReplyToComment);
-        console.log("✅ 변환된 comments:", convertedComments);
-
         setComments(convertedComments);
     }, [postReplies]);
     const [newComment, setNewComment] = useState("");
@@ -259,14 +256,8 @@ export function ProjectPostDetail({
     const deletedComments = comments.filter((comment) => comment.status === "deleted");
     const topLevelComments = activeComments.filter((c) => (c.parentId ?? null) === null);
 
-    console.log("📊 comments:", comments);
-    console.log("📊 activeComments:", activeComments);
-    console.log("📊 topLevelComments:", topLevelComments);
-
     const totalCommentPages = calculateTotalPages(topLevelComments.length, COMMENTS_PER_PAGE);
     const paginatedTopLevel = paginate(topLevelComments, commentPage, COMMENTS_PER_PAGE);
-
-    console.log("📊 paginatedTopLevel:", paginatedTopLevel);
 
     useEffect(() => {
         setCommentPage((prev) => clampPage(prev, totalCommentPages));
@@ -517,6 +508,14 @@ export function ProjectPostDetail({
         return () => window.removeEventListener("keydown", handleKeyDown);
     }, [isHistoryOpen]);
 
+    const handleDeletePost = async () => {
+        if (onDeletePost) {
+            await onDeletePost();
+        } else {
+            navigate(-1);
+        }
+    };
+
     const postActionMenu = !isPostEditing ? (
         <div className="relative">
             <button
@@ -582,11 +581,14 @@ export function ProjectPostDetail({
                             className="flex w-full items-center px-4 py-2 text-destructive hover:bg-muted"
                             onClick={() => {
                                 setPostMenuOpen(false);
-                                navigate(-1);
+                                void handleDeletePost();
                             }}
+                            disabled={isDeletingPost}
                         >
                             <Trash2 className="w-4 h-4" />
-                            <span className="whitespace-nowrap pl-2">삭제하기</span>
+                            <span className="whitespace-nowrap pl-2">
+                                {isDeletingPost ? "삭제 중..." : "삭제하기"}
+                            </span>
                         </button>
                     )}
                 </div>

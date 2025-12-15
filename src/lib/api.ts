@@ -274,4 +274,23 @@ export const csPostApi = {
 
     throw new Error(message || 'CS 댓글 목록 조회에 실패했습니다.');
   },
+
+  /**
+   * CS 게시글 삭제
+   * @param projectId - 프로젝트 ID
+   * @param csPostId - CS 게시글 ID
+   */
+  delete: async (projectId: string, csPostId: string): Promise<number | undefined> => {
+    const response = await apiClient.delete(
+      `/api/v1/projects/${projectId}/csPosts/${csPostId}`
+    );
+
+    const { success, message, data } = response.data;
+
+    if (success === true) {
+      return data;
+    }
+
+    throw new Error(message || 'CS 게시글 삭제에 실패했습니다.');
+  },
 };
