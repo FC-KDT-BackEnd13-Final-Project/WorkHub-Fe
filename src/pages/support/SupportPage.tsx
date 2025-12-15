@@ -18,7 +18,7 @@ import {
   TableHeader,
   TableRow,
 } from "../../components/ui/table2";
-import { RichTextDemo } from "../../components/RichTextDemo";
+import { RichTextDemo, type RichTextDraft } from "../../components/RichTextDemo";
 import {
   supportTicketStatusLabel,
   type SupportTicketStatus,
@@ -34,6 +34,8 @@ import {
 } from "../../utils/supportTicketStatusStorage";
 import { csPostApi } from "../../lib/api";
 import type { CsPostApiItem, CsPostStatus } from "../../types/csPost";
+import { BackButton } from "../../components/common/BackButton";
+import { toast } from "sonner";
 
 // API 응답을 UI 형식으로 변환
 interface Ticket {
@@ -63,6 +65,21 @@ type StatusStyle = {
   text: string;
   border: string;
 };
+
+const normalizeHtml = (value: string) =>
+  value
+    .replace(/<[^>]*>/g, " ")
+    .replace(/&nbsp;/gi, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+const createEmptyDraft = (): RichTextDraft => ({
+  title: "",
+  content: "",
+  attachments: [],
+  links: [],
+  type: "질문",
+});
 
 const statusStyles: Record<SupportTicketStatus, StatusStyle> = {
   RECEIVED: {
@@ -104,6 +121,10 @@ export function SupportPage() {
   const [isWriting, setIsWriting] = useState(false);
   const [currentPage, setCurrentPage] = useState(0); // 0-based for API
   const [statusOverrides, setStatusOverrides] = useState<Record<string, SupportTicketStatus>>({});
+  const [, setWriteDraft] = useState<RichTextDraft>(createEmptyDraft);
+  const [writeEditorKey, setWriteEditorKey] = useState(0);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [writeError, setWriteError] = useState<string | null>(null);
 
   // API 상태
   const [tickets, setTickets] = useState<Ticket[]>([]);
@@ -202,6 +223,68 @@ export function SupportPage() {
     });
   };
 
+  const resetWriteDraft = () => {
+    setWriteDraft(createEmptyDraft());
+    setWriteEditorKey((prev) => prev + 1);
+  };
+
+  const handleStartWriting = () => {
+    setWriteError(null);
+    resetWriteDraft();
+    setIsWriting(true);
+  };
+
+  const handleCancelWriting = (clear?: () => void) => {
+    clear?.();
+    resetWriteDraft();
+    setIsWriting(false);
+    setWriteError(null);
+  };
+
+  const canSubmitDraft = (draft: RichTextDraft) => {
+    const hasBody = normalizeHtml(draft.content).length > 0;
+    return Boolean(draft.title.trim() || hasBody);
+  };
+
+  const handleSubmitDraft = async (draft: RichTextDraft, clear: () => void) => {
+    if (isSubmitting) return;
+    if (!projectId) {
+      toast.error("프로젝트 정보가 없습니다.");
+      return;
+    }
+    if (!canSubmitDraft(draft)) {
+      setWriteError("제목 또는 내용을 입력해 주세요.");
+      return;
+    }
+
+    setIsSubmitting(true);
+    setWriteError(null);
+    const payload = {
+      title: draft.title.trim() || "무제",
+      content: draft.content,
+    };
+
+    try {
+      await csPostApi.create(projectId, payload);
+      toast.success("CS 문의가 등록되었습니다.");
+      clear();
+      resetWriteDraft();
+      setIsWriting(false);
+      const isFirstPage = currentPage === 0;
+      if (isFirstPage) {
+        await fetchCsPosts();
+      } else {
+        setCurrentPage(0);
+      }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "CS 문의 등록에 실패했습니다.";
+      setWriteError(message);
+      toast.error(message);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   return (
       <div className="space-y-6">
         <PageHeader title="CS 문의" description="프로젝트 관련 문의를 확인하세요." />
@@ -243,7 +326,7 @@ export function SupportPage() {
                 </SelectContent>
               </Select>
 
-              <Button2 className="h-9 px-4 text-sm md:w-auto" onClick={() => setIsWriting(true)}>
+              <Button2 className="h-9 px-4 text-sm md:w-auto" onClick={handleStartWriting}>
                 문의 작성
               </Button2>
             </FilterToolbar>
@@ -252,14 +335,38 @@ export function SupportPage() {
         {/* 작성 화면 */}
         {isWriting ? (
             <div className="w-full max-w-[1800px] mx-auto p-6 space-y-6">
+              {writeError && (
+                <div className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                  {writeError}
+                </div>
+              )}
               <RichTextDemo
+                  key={writeEditorKey}
+                  onChange={(draft) => {
+                    setWriteDraft(draft);
+                    if (writeError) {
+                      setWriteError(null);
+                    }
+                  }}
+                  allowLinks={false}
                   actionButtons={
-                    <div className="flex items-center gap-2">
-                      <Button2 variant="outline" onClick={() => setIsWriting(false)}>
-                        취소
-                      </Button2>
-                      <Button2 onClick={() => setIsWriting(false)}>등록</Button2>
-                    </div>
+                    ({ clear, draft }) => (
+                      <div className="flex items-center gap-2">
+                        <Button2
+                          variant="outline"
+                          onClick={() => handleCancelWriting(clear)}
+                          disabled={isSubmitting}
+                        >
+                          취소
+                        </Button2>
+                        <Button2
+                          onClick={() => handleSubmitDraft(draft, clear)}
+                          disabled={!canSubmitDraft(draft) || isSubmitting}
+                        >
+                          {isSubmitting ? "등록 중..." : "등록"}
+                        </Button2>
+                      </div>
+                    )
                   }
               />
             </div>
