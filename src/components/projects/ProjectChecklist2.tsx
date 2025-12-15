@@ -49,6 +49,7 @@ export function ProjectChecklist2() {
   const isClient = userRole === "CLIENT";
   const roleLocksChecklist = userRole === "ADMIN" || userRole === "DEVELOPER";
   const [isLocked, setIsLocked] = useState(false);
+  const [checklistSaveSignal, setChecklistSaveSignal] = useState(0);
   const authorId = storedProfileSettings?.profile?.id?.trim() || "작성자";
   const onSubmit = (data: ChecklistData) => {
     if (isClient || (roleLocksChecklist && isLocked)) {
@@ -56,6 +57,7 @@ export function ProjectChecklist2() {
     }
     console.log("Customer Data:", data);
     alert("저장 완료!");
+    setChecklistSaveSignal((prev) => prev + 1);
     if (roleLocksChecklist) {
       setIsLocked(true);
     }
@@ -163,6 +165,7 @@ export function ProjectChecklist2() {
                   allowSelectionWhenDisabled={allowClientReview}
                   allowCommentWhenDisabled={allowClientReview}
                   commentAuthor={authorId}
+                  saveSignal={checklistSaveSignal}
               />
 
               {!isClient && (
