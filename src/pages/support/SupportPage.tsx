@@ -41,7 +41,7 @@ import { toast } from "sonner";
 interface Ticket {
   id: string;
   customerName: string;
-  status: SupportTicketStatus;
+  status?: SupportTicketStatus;
   title: string;
   content: string;
   createdDate: string;
@@ -52,7 +52,7 @@ interface Ticket {
 const convertApiItemToTicket = (item: CsPostApiItem): Ticket => ({
   id: String(item.csPostId),
   customerName: item.customerName,
-  status: item.csPostStatus,
+  status: item.csPostStatus ?? undefined,
   title: item.title,
   content: item.content,
   createdDate: item.createdAt,
@@ -209,12 +209,15 @@ export function SupportPage() {
 
   const goToPage = (page: number) => setCurrentPage(clampPage(page - 1, totalPages - 1)); // UI는 1-based, API는 0-based
 
-  const withStatusLabel = (ticket: Ticket) => ({
-    ...ticket,
-    type: supportTicketStatusLabel[ticket.status],
-    ticketStatus: ticket.status,
-    isOwner: true,
-  });
+  const withStatusLabel = (ticket: Ticket) => {
+    const statusLabel = ticket.status ? supportTicketStatusLabel[ticket.status] : "일반";
+    return {
+      ...ticket,
+      type: statusLabel,
+      ticketStatus: ticket.status,
+      isOwner: true,
+    };
+  };
 
   const navigateToDetail = (ticket: Ticket) => {
     const postPayload = withStatusLabel(ticket);
@@ -410,9 +413,13 @@ export function SupportPage() {
                           </TableRow>
                       ) : (
                           effectiveTickets.map((ticket, index) => {
-                            const statusLabel = supportTicketStatusLabel[ticket.status];
-                            const statusStyle = statusStyles[ticket.status];
-                            const hasStatus = ticket.status && statusLabel && statusStyle;
+                            const statusLabel = ticket.status
+                              ? supportTicketStatusLabel[ticket.status]
+                              : undefined;
+                            const statusStyle = ticket.status
+                              ? statusStyles[ticket.status]
+                              : undefined;
+                            const hasStatus = Boolean(ticket.status && statusLabel && statusStyle);
 
                             return (
                                 <TableRow

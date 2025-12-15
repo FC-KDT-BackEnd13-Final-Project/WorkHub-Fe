@@ -10,6 +10,7 @@ import type {
   CsQnaListApiResponse,
   CsQnaListParams,
   CsPostUpdateRequest,
+  CsPostStatus,
 } from '@/types/csPost';
 
 // 모든 API 요청이 갈 기본 서버 주소
@@ -293,6 +294,34 @@ export const csPostApi = {
     }
 
     throw new Error(message || 'CS 게시글 삭제에 실패했습니다.');
+  },
+
+  /**
+   * CS 게시글 상태 변경
+   * @param projectId - 프로젝트 ID
+   * @param csPostId - CS 게시글 ID
+   * @param status - 변경할 상태
+   */
+  changeStatus: async (
+    projectId: string,
+    csPostId: string,
+    status: CsPostStatus,
+  ): Promise<CsPostDetailResponse> => {
+    const response = await apiClient.patch(
+      `/api/v1/projects/${projectId}/csPosts/${csPostId}/status`,
+      null,
+      {
+        params: { status },
+      },
+    );
+
+    const { success, message, data } = response.data;
+
+    if (success === true) {
+      return data;
+    }
+
+    throw new Error(message || 'CS 게시글 상태 변경에 실패했습니다.');
   },
 
   /**

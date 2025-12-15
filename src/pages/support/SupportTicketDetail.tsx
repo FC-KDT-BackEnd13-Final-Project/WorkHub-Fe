@@ -13,29 +13,32 @@ import type { RichTextDraft } from "../../components/RichTextDemo";
 interface TicketDetail {
   id: string;
   customerName: string;
-  status: SupportTicketStatus;
+  status?: SupportTicketStatus;
   title: string;
   content: string;
   createdDate: string;
   updatedDate: string;
   type: string;
-  ticketStatus: SupportTicketStatus;
+  ticketStatus?: SupportTicketStatus;
   isOwner: boolean;
   hashtag?: string;
 }
 
 const convertApiDetailToTicket = (data: CsPostDetailResponse): TicketDetail => {
-  const statusLabel = supportTicketStatusLabel[data.csPostStatus] || "접수";
+  const normalizedStatus = data.csPostStatus ?? undefined;
+  const statusLabel = normalizedStatus
+    ? supportTicketStatusLabel[normalizedStatus]
+    : undefined;
   return {
     id: String(data.csPostId),
     customerName: data.customerName,
-    status: data.csPostStatus,
+    status: normalizedStatus,
     title: data.title,
     content: data.content,
     createdDate: data.createdAt,
     updatedDate: data.updatedAt,
-    type: statusLabel,
-    ticketStatus: data.csPostStatus,
+    type: statusLabel ?? "일반",
+    ticketStatus: normalizedStatus,
     isOwner: true,
     hashtag: "",
   };
@@ -72,6 +75,7 @@ export function SupportTicketDetail() {
   const [error, setError] = useState<string | null>(null);
   const [commentsLoaded, setCommentsLoaded] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isStatusUpdating, setIsStatusUpdating] = useState(false);
   const backPath = projectId ? `/projects/${projectId}/nodes/support` : undefined;
 
   useEffect(() => {
@@ -165,7 +169,7 @@ export function SupportTicketDetail() {
   const ticketWithStatusLabel = {
     ...ticket,
     status: effectiveStatus,
-    type: supportTicketStatusLabel[effectiveStatus] || ticket.type,
+    type: effectiveStatus ? supportTicketStatusLabel[effectiveStatus] : ticket.type,
     ticketStatus: effectiveStatus,
     isOwner: true,
     hashtag: ticket.hashtag || "",
@@ -192,6 +196,26 @@ export function SupportTicketDetail() {
       const message = err instanceof Error ? err.message : "CS 문의 수정에 실패했습니다.";
       toast.error(message);
       throw err instanceof Error ? err : new Error(message);
+    }
+  };
+
+  const handleStatusChange = async (nextStatus: SupportTicketStatus) => {
+    if (!projectId || !ticketId) {
+      toast.error("프로젝트 정보가 없습니다.");
+      throw new Error("Missing project information");
+    }
+
+    setIsStatusUpdating(true);
+    try {
+      const updated = await csPostApi.changeStatus(projectId, ticketId, nextStatus);
+      setTicket(convertApiDetailToTicket(updated));
+      toast.success("CS 문의 상태가 변경되었습니다.");
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "CS 문의 상태 변경에 실패했습니다.";
+      toast.error(message);
+      throw err instanceof Error ? err : new Error(message);
+    } finally {
+      setIsStatusUpdating(false);
     }
   };
 
@@ -226,8 +250,12 @@ export function SupportTicketDetail() {
       showBackButton={true}
       startInEditMode={false}
       onSubmitPostEdit={handleUpdateTicket}
+      onChangeTicketStatus={handleStatusChange}
       onDeletePost={handleDeleteTicket}
       isDeletingPost={isDeleting}
+      showPostTypeSelector={false}
+      isStatusUpdating={isStatusUpdating}
+      showStatusControls={true}
     />
   );
 }

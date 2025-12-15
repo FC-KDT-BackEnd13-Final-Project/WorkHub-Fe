@@ -46,3 +46,11 @@ export const saveSupportStatus = (ticketId: string, status: SupportTicketStatus)
   map[ticketId] = status;
   writeStatusMap(map);
 };
+
+export const removeSupportStatus = (ticketId: string) => {
+  const map = readStatusMap();
+  if (map[ticketId]) {
+    delete map[ticketId];
+    writeStatusMap(map);
+  }
+};

@@ -19,7 +19,7 @@ import {
     supportTicketStatusLabel,
     type SupportTicketStatus,
 } from "../../data/supportTickets";
-import { saveSupportStatus } from "../../utils/supportTicketStatusStorage";
+import { removeSupportStatus, saveSupportStatus } from "../../utils/supportTicketStatusStorage";
 import { ModalShell } from "../common/ModalShell";
 
 const COMMENTS_PER_PAGE = 5;
@@ -78,6 +78,10 @@ interface ProjectPostDetailProps {
     onDeletePost?: () => Promise<void> | void;
     isDeletingPost?: boolean;
     onSubmitPostEdit?: (draft: RichTextDraft) => Promise<void> | void;
+    showPostTypeSelector?: boolean;
+    showStatusControls?: boolean;
+    onChangeTicketStatus?: (status: SupportTicketStatus) => Promise<void> | void;
+    isStatusUpdating?: boolean;
 }
 
 export function ProjectPostDetail({
@@ -88,6 +92,10 @@ export function ProjectPostDetail({
                                       onDeletePost,
                                       isDeletingPost = false,
                                       onSubmitPostEdit,
+                                      showPostTypeSelector = true,
+                                      showStatusControls = false,
+                                      onChangeTicketStatus,
+                                      isStatusUpdating = false,
                                   }: ProjectPostDetailProps = {}) {
     const navigate = useNavigate();
     const { projectId, nodeId, postId } = useParams<{
@@ -311,14 +319,40 @@ export function ProjectPostDetail({
         }
     };
 
-    const handleTicketStatusChange = (nextStatus: SupportTicketStatus) => {
-        if (!post.id) return;
+    const handleTicketStatusChange = async (nextStatus: SupportTicketStatus) => {
+        if (!post.id || isStatusUpdating) return;
+        const previousStatus = ticketStatus;
+        const previousType = postTypeState;
+
         setTicketStatus(nextStatus);
         const mappedLabel = supportTicketStatusLabel[nextStatus];
         setPostTypeState(mappedLabel as PostPayload["type"]);
         post.type = mappedLabel as PostPayload["type"];
         post.ticketStatus = nextStatus;
-        saveSupportStatus(post.id, nextStatus);
+
+        const revertToPrevious = () => {
+            setTicketStatus(previousStatus);
+            const revertLabel = previousStatus
+                ? supportTicketStatusLabel[previousStatus]
+                : previousType;
+            setPostTypeState(revertLabel as PostPayload["type"]);
+            post.type = revertLabel as PostPayload["type"];
+            post.ticketStatus = previousStatus;
+        };
+
+        try {
+            if (onChangeTicketStatus) {
+                await onChangeTicketStatus(nextStatus);
+            }
+            saveSupportStatus(post.id, nextStatus);
+        } catch (error) {
+            revertToPrevious();
+            if (previousStatus) {
+                saveSupportStatus(post.id, previousStatus);
+            } else {
+                removeSupportStatus(post.id);
+            }
+        }
     };
 
     const closeCommentHistory = () => {
@@ -533,6 +567,8 @@ export function ProjectPostDetail({
         }
     };
 
+    const shouldShowStatusControls = showStatusControls || typeof ticketStatus !== "undefined";
+
     const postActionMenu = !isPostEditing ? (
         <div className="relative">
             <button
@@ -546,7 +582,7 @@ export function ProjectPostDetail({
 
             {postMenuOpen && (
                 <div className="absolute right-0 mt-2 w-52 rounded-md border bg-background shadow-lg text-sm overflow-hidden z-20">
-                    {ticketStatus && (
+                    {shouldShowStatusControls && (
                         <div className="border-b px-4 py-4 space-y-2">
                             <p className="text-xs font-medium text-muted-foreground">상태 변경</p>
                             <div className="flex flex-wrap gap-2">
@@ -562,7 +598,10 @@ export function ProjectPostDetail({
                                                     ? "bg-primary text-primary-foreground border-primary"
                                                     : "bg-muted text-muted-foreground hover:bg-accent"
                                             }`}
-                                            onClick={() => handleTicketStatusChange(status)}
+                                            onClick={() => {
+                                                void handleTicketStatusChange(status);
+                                            }}
+                                            disabled={isStatusUpdating}
                                         >
                                             {label}
                                         </button>
@@ -644,7 +683,7 @@ export function ProjectPostDetail({
                     onChange={(draft) => {
                         handlePostDraftChange(draft);
                     }}
-                    showTypeSelector={!post.ticketStatus}
+                    showTypeSelector={showPostTypeSelector && !post.ticketStatus}
                     actionButtons={({ clear }) => (
                         <div className="flex items-center gap-2">
                             <Button2
