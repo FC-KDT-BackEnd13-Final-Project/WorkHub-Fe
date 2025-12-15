@@ -93,6 +93,8 @@ interface ProjectPostDetailProps {
     isReplySubmitting?: boolean;
     onSubmitInlineComment?: (payload: { content: string; parentId?: string | null }) => Promise<PostReplyItem> | void;
     isInlineCommentSubmitting?: boolean;
+    onUpdateInlineComment?: (payload: { content: string; commentId: string }) => Promise<PostReplyItem> | void;
+    onDeleteInlineComment?: (commentId: string) => Promise<void> | void;
 }
 
 export function ProjectPostDetail({
@@ -111,6 +113,8 @@ export function ProjectPostDetail({
                                       isReplySubmitting = false,
                                       onSubmitInlineComment,
                                       isInlineCommentSubmitting = false,
+                                      onUpdateInlineComment,
+                                      onDeleteInlineComment,
                                   }: ProjectPostDetailProps = {}) {
     const navigate = useNavigate();
     const { projectId, nodeId, postId } = useParams<{
@@ -255,7 +259,7 @@ export function ProjectPostDetail({
             content: reply.content,
             createdAt: reply.createdAt,
             updatedAt: reply.updatedAt,
-            isOwner: false,
+            isOwner: reply.isOwner ?? true,
             parentId: reply.parentId ?? null,
             history: [
                 {
@@ -839,54 +843,39 @@ export function ProjectPostDetail({
         setCommentPage(nextPage);
     };
 
-    const handleDeleteComment = (id: string) => {
-        setComments((prev) => {
-            const target = prev.find((comment) => comment.id === id);
-            if (!target) {
-                return prev;
-            }
+    const handleDeleteComment = async (id: string) => {
+        if (!onDeleteInlineComment) {
+            setComments((prev) => prev.filter((comment) => comment.id !== id));
+            return;
+        }
 
-            const deletedAt = new Date().toLocaleString("ko-KR");
-            const relatedIds =
-                (target.parentId ?? null) === null
-                    ? [
-                        target.id,
-                        ...prev.filter((comment) => comment.parentId === target.id).map((comment) => comment.id),
-                    ]
-                    : [target.id];
-
-            return prev.map((comment) => {
-                if (!relatedIds.includes(comment.id)) {
-                    return comment;
-                }
-
-                if (comment.status === "deleted") {
-                    return comment;
-                }
-
-                return {
-                    ...comment,
-                    status: "deleted",
-                    deletedAt,
-                    deletedBy: comment.author,
-                    menuOpen: false,
-                    showReply: false,
-                    replyContent: "",
-                    history: [
-                        ...(comment.history ?? []),
-                        {
-                            id: `hist-${comment.id}-${Date.now()}`,
-                            content: comment.content,
-                            timestamp: deletedAt,
-                            action: "deleted",
-                        },
-                    ],
-                };
+        try {
+            await onDeleteInlineComment(id);
+            setPostReplies((prev) => {
+                const updated = prev.filter((reply) => reply.id !== id && reply.parentId !== id);
+                saveRepliesForPost(postStorageKey, updated);
+                return updated;
             });
-        });
+        } catch {
+            // swallow
+        }
     };
 
     const handleToggleEdit = (id: string, editing: boolean) => {
+        if (!editing && onUpdateInlineComment) {
+            // when cancelling edit after API, revert to stored content
+            const target = postReplies.find((reply) => reply.id === id);
+            if (target) {
+                setComments((prev) =>
+                    prev.map((comment) =>
+                        comment.id === id
+                            ? { ...comment, content: target.content, isEditing: false, menuOpen: false }
+                            : comment,
+                    ),
+                );
+                return;
+            }
+        }
         setComments((prev) =>
             prev.map((comment) =>
                 comment.id === id ? { ...comment, isEditing: editing, menuOpen: false } : comment,
@@ -894,30 +883,52 @@ export function ProjectPostDetail({
         );
     };
 
-    const handleUpdateComment = (id: string, content: string) => {
-        const updatedAt = new Date().toLocaleString("ko-KR");
-        setComments((prev) =>
-            prev.map((comment) =>
-                comment.id === id
-                    ? {
-                        ...comment,
-                        content,
-                        updatedAt,
-                        history: [
-                            ...(comment.history ?? []),
-                            {
-                                id: `hist-${Date.now()}`,
-                                content: comment.content,
-                                timestamp: updatedAt,
-                                action: "edited",
-                            },
-                        ],
-                        isEditing: false,
-                        menuOpen: false,
-                    }
-                    : comment,
-            ),
-        );
+    const handleUpdateComment = async (id: string, content: string) => {
+        if (!onUpdateInlineComment) {
+            const updatedAt = new Date().toLocaleString("ko-KR");
+            setComments((prev) =>
+                prev.map((comment) =>
+                    comment.id === id
+                        ? {
+                            ...comment,
+                            content,
+                            updatedAt,
+                            isEditing: false,
+                            menuOpen: false,
+                        }
+                        : comment,
+                ),
+            );
+            return;
+        }
+
+        const previous = comments.find((comment) => comment.id === id)?.content;
+
+        try {
+            const updated = await onUpdateInlineComment({ commentId: id, content });
+            if (updated) {
+                setPostReplies((prev) => {
+                    const next = prev.map((reply) =>
+                        reply.id === id ? updated : reply,
+                    );
+                    saveRepliesForPost(postStorageKey, next);
+                    return next;
+                });
+            }
+        } catch {
+            setComments((prev) =>
+                prev.map((comment) =>
+                    comment.id === id
+                        ? {
+                            ...comment,
+                            content: previous ?? comment.content,
+                            isEditing: false,
+                            menuOpen: false,
+                        }
+                        : comment,
+                ),
+            );
+        }
     };
 
     const toggleReplyBox = (id: string) => {
@@ -1064,10 +1075,13 @@ export function ProjectPostDetail({
                                                 <button
                                                     type="button"
                                                     className="w-full px-3 py-2 text-center whitespace-nowrap text-destructive hover:bg-muted"
-                                                    onClick={() => handleDeleteComment(comment.id)}
+                                                    onClick={() => {
+                                                        void handleDeleteComment(comment.id);
+                                                    }}
+                                                    disabled={isInlineCommentSubmitting}
                                                 >
-                                                    삭제
-                                                </button>
+                                                삭제
+                                            </button>
                                             </>
                                         )}
                                     </div>
@@ -1100,6 +1114,7 @@ export function ProjectPostDetail({
                                     <Button2
                                         size="sm"
                                         onClick={() => handleUpdateComment(comment.id, comment.content)}
+                                        disabled={isInlineCommentSubmitting}
                                     >
                                         저장
                                     </Button2>
@@ -1198,10 +1213,13 @@ export function ProjectPostDetail({
                                                         >
                                                             수정
                                                         </button>
-                                                        <button
-                                                            type="button"
-                                                            className="w-full px-3 py-2 text-center whitespace-nowrap text-destructive hover:bg-muted"
-                                                            onClick={() => handleDeleteComment(reply.id)}
+                                                       <button
+                                                           type="button"
+                                                           className="w-full px-3 py-2 text-center whitespace-nowrap text-destructive hover:bg-muted"
+                                                            onClick={() => {
+                                                                void handleDeleteComment(reply.id);
+                                                            }}
+                                                            disabled={isInlineCommentSubmitting}
                                                         >
                                                             삭제
                                                         </button>
@@ -1237,6 +1255,7 @@ export function ProjectPostDetail({
                                             <Button2
                                                 size="sm"
                                                 onClick={() => handleUpdateComment(reply.id, reply.content)}
+                                                disabled={isInlineCommentSubmitting}
                                             >
                                                 저장
                                             </Button2>
