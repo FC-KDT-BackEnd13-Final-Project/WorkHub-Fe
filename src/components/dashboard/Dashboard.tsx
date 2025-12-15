@@ -221,7 +221,13 @@ export function Dashboard() {
                     return (
                       <g key={`h-${idx}`}>
                         <line x1={chartLeft} x2={chartRight} y1={y} y2={y} className="stroke-slate-100" strokeWidth="1" strokeDasharray="4 4" />
-                        <text x={chartLeft - 14} y={y + 4} className="text-xs text-muted-foreground" textAnchor="end">
+                        <text
+                          x={chartLeft - 14}
+                          y={y + 4}
+                          className="text-xs text-muted-foreground dark:text-white"
+                          textAnchor="end"
+                          fill="currentColor"
+                        >
                           {label.toLocaleString()}
                         </text>
                       </g>
@@ -266,8 +272,9 @@ export function Dashboard() {
                       key={month}
                       x={chartLeft + (idx / Math.max(trendMonths.length - 1, 1)) * (chartRight - chartLeft)}
                       y="190"
-                      className="text-xs fill-slate-500"
+                      className="text-xs text-slate-500 dark:text-white"
                       textAnchor="middle"
+                      fill="currentColor"
                     >
                       {month}
                     </text>
