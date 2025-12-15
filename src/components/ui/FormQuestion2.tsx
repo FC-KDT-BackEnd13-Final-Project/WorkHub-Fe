@@ -182,15 +182,6 @@ export function FormQuestion2({
         [checklistHistoryLogs],
     );
 
-    const selectedChecklistHistoryEntry = useMemo(
-        () =>
-            selectedChecklistHistoryId !== null
-                ? sortedChecklistHistoryEntries.find(
-                      (entry) => entry.id === selectedChecklistHistoryId,
-                  ) ?? null
-                : null,
-        [selectedChecklistHistoryId, sortedChecklistHistoryEntries],
-    );
 
     const createAttachment = (file: File): CommentAttachment => ({
         id: Date.now() + Math.floor(Math.random() * 1000),
@@ -210,14 +201,6 @@ export function FormQuestion2({
         if (action === "edited")
             return "bg-amber-50 text-amber-800 border border-amber-200";
         return "bg-rose-50 text-rose-700 border border-rose-200";
-    };
-
-    const getHistoryTargetLabel = (
-        type: "comment" | "reply" | "checklist",
-    ) => {
-        if (type === "comment") return "댓글";
-        if (type === "reply") return "답글";
-        return "체크리스트";
     };
 
     const describeChecklistGroup = (group: ChecklistGroup, index: number) => {
@@ -277,6 +260,26 @@ export function FormQuestion2({
         ));
     };
 
+    const openChecklistHistoryModal = () => {
+        setChecklistHistoryOpen(true);
+        setSelectedChecklistHistoryId(null);
+    };
+
+    const closeChecklistHistoryModal = () => {
+        setChecklistHistoryOpen(false);
+        setSelectedChecklistHistoryId(null);
+    };
+
+    const selectedChecklistHistoryEntry = useMemo(
+        () =>
+            selectedChecklistHistoryId !== null
+                ? sortedChecklistHistoryEntries.find(
+                      (entry) => entry.id === selectedChecklistHistoryId,
+                  ) ?? null
+                : null,
+        [selectedChecklistHistoryId, sortedChecklistHistoryEntries],
+    );
+
     const getCurrentGroupInfo = (
         entry: ChecklistHistoryLogEntry | null,
     ) => {
@@ -295,16 +298,6 @@ export function FormQuestion2({
             summary: describeChecklistGroup(group, groupIndex),
             stateLabel: "현재 상태",
         };
-    };
-
-    const openChecklistHistoryModal = () => {
-        setChecklistHistoryOpen(true);
-        setSelectedChecklistHistoryId(null);
-    };
-
-    const closeChecklistHistoryModal = () => {
-        setChecklistHistoryOpen(false);
-        setSelectedChecklistHistoryId(null);
     };
 
     useEffect(() => {
@@ -410,7 +403,6 @@ export function FormQuestion2({
     };
 
     const toggleComment = (groupIndex: number) => {
-        if (!canComment) return;
         setGroups((prev) =>
             prev.map((g, i) =>
                 i === groupIndex ? { ...g, isCommentOpen: !g.isCommentOpen } : g,
@@ -1390,7 +1382,7 @@ export function FormQuestion2({
                                 {/* 왼쪽: 현재 + 삭제된 댓글 리스트 */}
                                 <div className="flex min-h-0 flex-col gap-4 overflow-y-auto pr-1">
                                     {/* 현재 댓글 */}
-                                    <div className="space-y-2">
+                                    <div className="space-y-2 pb-6">
                                         <div className="flex items-center justify-between text-sm text-muted-foreground">
                                             <p className="font-medium text-foreground">
                                                 현재 댓글
@@ -1956,22 +1948,20 @@ export function FormQuestion2({
                                     <div className="pt-4 border-t flex w-full items-center justify-between gap-2">
                                         <button
                                             type="button"
-                                            disabled={!canComment}
                                             onClick={() =>
                                                 toggleComment(groupIndex)
                                             }
-                                            className="mb-4 flex h-8 w-8 items-center justify-center rounded-md border border-border bg-background transition-colors hover:bg-muted disabled:cursor-not-allowed"
+                                            className="mb-4 flex h-8 w-8 items-center justify-center rounded-md border border-border bg-background transition-colors hover:bg-muted"
                                         >
                                             <MessagesSquare className="h-4 w-4 text-muted-foreground " />
                                         </button>
 
                                         <button
                                             type="button"
-                                            disabled={!canComment}
                                             onClick={() =>
                                                 openHistoryModal(groupIndex)
                                             }
-                                            className="mb-4 text-xs text-muted-foreground underline-offset-2 hover:text-primary hover:underline disabled:cursor-not-allowed"
+                                            className="mb-4 text-xs text-muted-foreground underline-offset-2 hover:text-primary hover:underline"
                                         >
                                             코멘트 이력 보기
                                         </button>
@@ -1981,7 +1971,7 @@ export function FormQuestion2({
                                 {/* === 코멘트 영역 === */}
                                 {group.isCommentOpen && (
                                     <div className="mt-3">
-                                        <div className="space-y-2">
+                                        <div className="space-y-2 pb-6">
                                             {group.comments.map((comment) => {
                                                 const isEditing =
                                                     comment.isEditing;
@@ -2089,7 +2079,7 @@ export function FormQuestion2({
 
                                                         {/* === 부모 댓글 본문 or 수정모드 === */}
                                                         {isEditing ? (
-                                                            <div className="mt-2 space-y-2">
+                                                            <div className="space-y-2">
                                                                 <Textarea2
                                                                     value={
                                                                         comment.editDraft
@@ -2784,103 +2774,72 @@ export function FormQuestion2({
                         </div>
 
                         <div className="flex flex-1 flex-col gap-6 px-6 pb-6 min-h-0 overflow-y-auto">
-                            {selectedChecklistHistoryEntry
-                                ? (() => {
-                                      const currentInfo = getCurrentGroupInfo(
-                                          selectedChecklistHistoryEntry,
-                                      );
-                                      return (
-                                          <>
-                                              <div className="flex flex-col gap-3 text-sm sm:flex-row sm:items-center">
-                                                  <Button2
-                                                      variant="ghost"
-                                                      size="sm"
-                                                      onClick={() =>
-                                                          setSelectedChecklistHistoryId(null)
-                                                      }
-                                                  >
-                                                      이력 목록으로 돌아가기
-                                                  </Button2>
-                                              </div>
+                            {selectedChecklistHistoryEntry && (
+                                <Button2
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => setSelectedChecklistHistoryId(null)}
+                                    className="self-start"
+                                >
+                                    이전 목록으로 돌아가기
+                                </Button2>
+                            )}
+                            {selectedChecklistHistoryEntry ? (
+                                (() => {
+                                    const currentInfo = getCurrentGroupInfo(selectedChecklistHistoryEntry);
+                                    return (
+                                        <div className="space-y-4 text-sm">
+                                            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                                                <div className="rounded-lg border bg-background px-4 py-4 flex h-full flex-col">
+                                                    <div className="flex items-center justify-between">
+                                                        <div>
+                                                            <p className="text-xs text-muted-foreground">
+                                                                현재 체크리스트
+                                                            </p>
+                                                            <p className="text-base font-semibold text-foreground">
+                                                                {currentInfo?.title ?? selectedChecklistHistoryEntry.groupTitle}
+                                                            </p>
+                                                        </div>
+                                                        <span className="text-xs text-muted-foreground text-right">
+                                                            {formatHistoryTimestamp(selectedChecklistHistoryEntry.timestamp)}
+                                                        </span>
+                                                    </div>
+                                                    <div className="mt-4 space-y-2 flex-1">
+                                                        {renderChecklistSummaryBlocks(
+                                                            currentInfo?.summary ?? "현재 이 체크리스트 정보를 불러올 수 없습니다.",
+                                                        )}
+                                                    </div>
+                                                </div>
 
-                                              <div className="space-y-4 rounded-lg border bg-muted/30 px-4 py-4 text-sm">
-                                                  <div className="flex items-start justify-between gap-4">
-                                                      <div>
-                                                          <p className="text-sm font-semibold text-foreground">
-                                                              {selectedChecklistHistoryEntry.groupTitle}
-                                                          </p>
-                                                          <p className="text-xs text-muted-foreground">
-                                                              {getHistoryTargetLabel(selectedChecklistHistoryEntry.type)} ·{" "}
-                                                              {selectedChecklistHistoryEntry.author || "익명"}
-                                                          </p>
-                                                      </div>
-                                                      <span className="text-xs text-muted-foreground">
-                                                          {formatHistoryTimestamp(
-                                                              selectedChecklistHistoryEntry.timestamp,
-                                                          )}
-                                                      </span>
-                                                  </div>
-
-                                                  <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                                                      <div className="rounded-lg border bg-background px-4 py-4 flex h-full flex-col">
-                                                          <div className="flex items-center justify-between">
-                                                              <p className="text-sm font-semibold text-foreground">
-                                                                  현재 체크리스트
-                                                              </p>
-                                                              <span className="text-xs text-muted-foreground">
-                                                                  {currentInfo?.stateLabel ?? "확인 불가"}
-                                                              </span>
-                                                          </div>
-                                                          <p className="mt-1 text-xs text-muted-foreground">
-                                                              {currentInfo?.title ?? selectedChecklistHistoryEntry.groupTitle}
-                                                          </p>
-                                                          <div className="mt-3 rounded-md border border-dashed border-border/60 bg-muted/40 px-3 py-2 space-y-2 flex-1">
-                                                              {renderChecklistSummaryBlocks(
-                                                                  currentInfo?.summary ?? "현재 이 체크리스트 정보를 불러올 수 없습니다.",
-                                                              )}
-                                                          </div>
-                                                      </div>
-
-                                                      <div className="rounded-lg border bg-background px-4 py-4 flex h-full flex-col">
-                                                          <div className="flex items-center justify-between">
-                                                              <p className="text-sm font-semibold text-foreground">
-                                                                  저장 당시
-                                                              </p>
-                                                              <span className="text-xs text-muted-foreground">
-                                                                  {formatHistoryTimestamp(
-                                                                      selectedChecklistHistoryEntry.timestamp,
-                                                                  )}
-                                                              </span>
-                                                          </div>
-                                                          <p className="mt-1 text-xs text-muted-foreground">
-                                                              {selectedChecklistHistoryEntry.groupTitle}
-                                                          </p>
-                                                          <div className="mt-3 rounded-md border border-dashed border-border/60 bg-muted/40 px-3 py-2 space-y-2 flex-1">
-                                                              {renderChecklistSummaryBlocks(
-                                                                  selectedChecklistHistoryEntry.content,
-                                                              )}
-                                                          </div>
-                                                      </div>
-                                                  </div>
-
-                                                  <div className="flex justify-end">
-                                                      <span
-                                                          className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-medium ${getHistoryActionBadgeClass(selectedChecklistHistoryEntry.action)}`}
-                                                      >
-                                                          {getHistoryActionLabel(selectedChecklistHistoryEntry.action)}
-                                                      </span>
-                                                  </div>
-                                              </div>
-                                          </>
-                                      );
-                                  })()
-                                : sortedChecklistHistoryEntries.length ? (
+                                                <div className="rounded-lg border bg-background px-4 py-4 flex h-full flex-col">
+                                                    <div className="flex items-center justify-between">
+                                                        <div>
+                                                            <p className="text-xs text-muted-foreground">
+                                                                수정 전 체크리스트
+                                                            </p>
+                                                            <p className="text-base font-semibold text-foreground">
+                                                                {selectedChecklistHistoryEntry.groupTitle}
+                                                            </p>
+                                                        </div>
+                                                        <span className="text-xs text-muted-foreground">
+                                                            {formatHistoryTimestamp(selectedChecklistHistoryEntry.timestamp)}
+                                                        </span>
+                                                    </div>
+                                                    <div className="mt-4 space-y-2 flex-1">
+                                                        {renderChecklistSummaryBlocks(selectedChecklistHistoryEntry.content)}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    );
+                                })()
+                            ) : sortedChecklistHistoryEntries.length ? (
                                 <div className="flex-1 space-y-4 overflow-y-auto pr-1">
                                     {sortedChecklistHistoryEntries.map((entry) => (
                                         <button
                                             key={entry.id}
                                             type="button"
-                                            className="flex w-full flex-col rounded-lg border bg-muted/30 px-4 py-4 text-left hover:bg-muted h-full"
+                                            className="flex w-full flex-col rounded-lg border bg-muted/30 px-4 py-4 text-left hover:bg-muted gap-3"
                                             onClick={() => setSelectedChecklistHistoryId(entry.id)}
                                         >
                                             <div className="flex items-center justify-between gap-2">
@@ -2888,18 +2847,15 @@ export function FormQuestion2({
                                                     <span className="text-sm font-semibold text-foreground">
                                                         {entry.groupTitle}
                                                     </span>
-                                                    <span className="text-xs text-muted-foreground">
-                                                        {getHistoryTargetLabel(entry.type)}
-                                                    </span>
                                                 </div>
                                                 <span className="text-xs text-muted-foreground">
                                                     {formatHistoryTimestamp(entry.timestamp)}
                                                 </span>
                                             </div>
-                                            <div className="mt-2 text-sm text-muted-foreground space-y-1 flex-1">
+                                            <div className="mt-2 text-sm text-muted-foreground space-y-1">
                                                 {renderChecklistSummaryBlocks(entry.content)}
                                             </div>
-                                            <div className="mt-auto flex items-center justify-end text-xs pt-3">
+                                            <div className="flex items-center justify-start text-xs">
                                                 <span
                                                     className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium ${getHistoryActionBadgeClass(entry.action)}`}
                                                 >
