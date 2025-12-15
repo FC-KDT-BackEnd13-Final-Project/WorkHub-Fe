@@ -168,9 +168,11 @@ export function ProjectPostDetail({
     const [replyEditorKey, setReplyEditorKey] = useState(0);
 
     const postStorageKey = post.id || "default-post";
-    const [postReplies, setPostReplies] = useState<PostReplyItem[]>(() =>
-        loadRepliesForPost(postStorageKey),
-    );
+
+    const [postReplies, setPostReplies] = useState<PostReplyItem[]>(() => {
+        const replies = loadRepliesForPost(postStorageKey);
+        return replies;
+    });
 
     const replyFromState = stateData?.reply;
     const [focusedReply, setFocusedReply] = useState<PostReplyItem | null>(
@@ -206,39 +208,64 @@ export function ProjectPostDetail({
     }, [startInEditMode]);
 
     useEffect(() => {
-        setPostReplies(loadRepliesForPost(postStorageKey));
+        const replies = loadRepliesForPost(postStorageKey);
+        console.log("🔄 ProjectPostDetail useEffect - postStorageKey:", postStorageKey);
+        console.log("🔄 ProjectPostDetail useEffect - 로드된 댓글:", replies);
+        setPostReplies(replies);
     }, [postStorageKey]);
 
     useEffect(() => {
         setFocusedReply(replyFromState ?? null);
     }, [replyFromState?.id]);
 
-    const [comments, setComments] = useState<CommentItem[]>([
-        {
-            id: "c1",
-            author: "운영팀",
-            content: "요청 사항 확인했습니다. 추가 자료 부탁드립니다.",
-            createdAt: "2025-11-22 10:32",
+    // PostReplyItem을 CommentItem으로 변환 (함수를 먼저 정의)
+    const convertReplyToComment = (reply: PostReplyItem): CommentItem => {
+        return {
+            id: reply.id,
+            author: reply.author,
+            content: reply.content,
+            createdAt: reply.createdAt,
+            updatedAt: reply.updatedAt,
             isOwner: false,
-            parentId: null,
+            parentId: reply.parentId ?? null,
             history: [
                 {
-                    id: "hist-c1-initial",
-                    content: "요청 사항 확인했습니다. 추가 자료 부탁드립니다.",
-                    timestamp: "2025-11-22 10:32",
+                    id: `hist-${reply.id}-initial`,
+                    content: reply.content,
+                    timestamp: reply.createdAt,
                     action: "created",
                 },
             ],
             status: "active",
-        },
-    ]);
+        };
+    };
+
+    const [comments, setComments] = useState<CommentItem[]>([]);
+
+    // postReplies가 변경되면 comments도 업데이트
+    useEffect(() => {
+        console.log("🔄 postReplies 변경 감지, length:", postReplies.length);
+        console.log("🔄 postReplies 내용:", postReplies);
+
+        const convertedComments = postReplies.map(convertReplyToComment);
+        console.log("✅ 변환된 comments:", convertedComments);
+
+        setComments(convertedComments);
+    }, [postReplies]);
     const [newComment, setNewComment] = useState("");
 
     const activeComments = comments.filter((comment) => comment.status !== "deleted");
     const deletedComments = comments.filter((comment) => comment.status === "deleted");
     const topLevelComments = activeComments.filter((c) => (c.parentId ?? null) === null);
+
+    console.log("📊 comments:", comments);
+    console.log("📊 activeComments:", activeComments);
+    console.log("📊 topLevelComments:", topLevelComments);
+
     const totalCommentPages = calculateTotalPages(topLevelComments.length, COMMENTS_PER_PAGE);
     const paginatedTopLevel = paginate(topLevelComments, commentPage, COMMENTS_PER_PAGE);
+
+    console.log("📊 paginatedTopLevel:", paginatedTopLevel);
 
     useEffect(() => {
         setCommentPage((prev) => clampPage(prev, totalCommentPages));
