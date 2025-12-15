@@ -34,6 +34,8 @@ import { projectApi } from "@/lib/api";
 import { mapApiNodeToUiNode, type Node, type NodeStatus, type ApprovalStatus } from "../../utils/nodeMapper";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
 import { cn } from "../ui/utils";
+import { BackButton } from "../common/BackButton";
+import { ModalShell } from "../common/ModalShell";
 
 // 프로젝트 내 노드(작업 카드)와 워크플로우를 관리하는 보드 화면
 
@@ -573,21 +575,13 @@ useEffect(() => {
   return (
     <div className="space-y-6 pb-12">
       {isWorkflowModalOpen && (
-        <div className="fixed inset-0 z-50">
+        <ModalShell open onClose={closeWorkflowModal} maxWidth="var(--login-card-max-width, 42rem)">
           <div
-            className="absolute inset-0 bg-black/30 backdrop-blur-sm"
-            aria-hidden="true"
-            onClick={closeWorkflowModal}
-            onWheel={(event) => event.preventDefault()}
-            onTouchMove={(event) => event.preventDefault()}
-          ></div>
-          <div className="relative z-10 min-h-screen p-4 flex items-center justify-center">
-            <div
-              className="w-full max-h-[90vh]"
-              style={{ maxWidth: "var(--login-card-max-width, 42rem)" }}
-            >
-              <div className="max-h-[90vh] overflow-y-auto rounded-2xl bg-white shadow-2xl">
-                <Card className="login-theme border border-border shadow-lg">
+            className="w-full max-h-[90vh]"
+            style={{ maxWidth: "var(--login-card-max-width, 42rem)" }}
+          >
+            <div className="max-h-[90vh] overflow-y-auto rounded-2xl bg-white shadow-2xl">
+              <Card variant="modal" className="login-theme border border-border shadow-lg">
                   <CardHeader className="space-y-2 pb-6">
                     <h2 className="text-xl text-center">
                       {isEditingWorkflow ? "워크플로 수정" : "새 워크플로 만들기"}
@@ -842,9 +836,9 @@ useEffect(() => {
                 </Card>
               </div>
             </div>
-          </div>
-        </div>
+        </ModalShell>
       )}
+
       <div className="rounded-2xl bg-white p-6 shadow-sm">
         <h1 className="text-3xl font-semibold tracking-tight">
           {projectNameFromState ?? "Project Nodes"}
@@ -1076,9 +1070,7 @@ useEffect(() => {
       )}
 
       <div className="flex justify-end">
-        <Button variant="outline" onClick={() => navigate(-1)}>
-          ← 뒤로가기
-        </Button>
+        <BackButton />
       </div>
     </div>
   );

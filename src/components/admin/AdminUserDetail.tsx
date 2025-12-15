@@ -12,6 +12,8 @@ import logoImage from "../../../image/logo.png";
 import { companyUsers, activityHistory } from "./userData";
 import { activityTypePalette } from "./activityPalette";
 import { useUserProjects } from "../../hooks/useUserProjects";
+import { BackButton } from "../common/BackButton";
+import { ModalShell } from "../common/ModalShell";
 
 const activityIconMap: Record<string, JSX.Element> = {
   comment: <MessageSquare className="h-4 w-4 text-slate-500" />,
@@ -202,7 +204,7 @@ export function AdminUserDetail() {
   if (!user) {
     return (
       <div className="h-full flex items-center justify-center">
-        <Card className="login-theme shadow-lg w-full" style={{ maxWidth: "var(--login-card-max-width, 42rem)" }}>
+        <Card variant="modal" className="login-theme shadow-lg w-full" style={{ maxWidth: "var(--login-card-max-width, 42rem)" }}>
           <CardHeader className="space-y-2 pb-6 text-center">
             <AlertCircle className="mx-auto h-12 w-12 text-destructive" />
             <h2 className="text-xl font-semibold">사용자를 찾을 수 없습니다.</h2>
@@ -220,86 +222,77 @@ export function AdminUserDetail() {
     );
   }
 
-  const changeRoleModal = location.pathname === changeRoleModalPath ? (
-    <div className="fixed inset-0 z-50">
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="w-full" style={{ maxWidth: "var(--login-card-max-width, 42rem)" }}>
-          <Card className="login-theme border border-border shadow-lg">
-            <CardHeader className="space-y-2 pb-6">
-              <h2 className="text-xl text-center">권한/상태 변경</h2>
-              <p className="text-sm text-muted-foreground text-center">
-                {user.name}의 워크스페이스 권한과 계정 상태를 업데이트하세요.
-              </p>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="new-role" className="text-gray-700">권한</Label>
-                      <Select value={selectedRole} onValueChange={setSelectedRole}>
-                        <SelectTrigger
-                          id="new-role"
-                      className="h-9 rounded-md border border-border bg-input-background px-3 py-1 focus:bg-white focus:border-primary transition-colors"
-                    >
-                      <SelectValue placeholder="권한을 선택하세요" />
-                    </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="Client">Client</SelectItem>
-                          <SelectItem value="Developer">Developer</SelectItem>
-                          <SelectItem value="Admin">Admin</SelectItem>
-                        </SelectContent>
-                      </Select>
-                </div>
+  const changeRoleModal = (
+    <ModalShell open={location.pathname === changeRoleModalPath} onClose={closeModal}>
+      <Card variant="modal" className="login-theme border border-border shadow-lg">
+        <CardHeader className="space-y-2 pb-6">
+          <h2 className="text-xl text-center">권한/상태 변경</h2>
+          <p className="text-sm text-muted-foreground text-center">
+            {user.name}의 워크스페이스 권한과 계정 상태를 업데이트하세요.
+          </p>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="new-role" className="text-gray-700">
+                권한
+              </Label>
+              <Select value={selectedRole} onValueChange={setSelectedRole}>
+                <SelectTrigger
+                  id="new-role"
+                  className="h-9 rounded-md border border-border bg-input-background px-3 py-1 focus:bg-white focus:border-primary transition-colors"
+                >
+                  <SelectValue placeholder="권한을 선택하세요" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Client">Client</SelectItem>
+                  <SelectItem value="Developer">Developer</SelectItem>
+                  <SelectItem value="Admin">Admin</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="new-status" className="text-gray-700">
+                계정 상태
+              </Label>
+              <Select
+                value={selectedStatus}
+                onValueChange={(value) => setSelectedStatus(value as keyof typeof statusStyles)}
+              >
+                <SelectTrigger
+                  id="new-status"
+                  className="h-9 rounded-md border border-border bg-input-background px-3 py-1 focus:bg-white focus:border-primary transition-colors"
+                >
+                  <SelectValue placeholder="상태를 선택하세요" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ACTIVE">활성</SelectItem>
+                  <SelectItem value="INACTIVE">비활성</SelectItem>
+                  <SelectItem value="SUSPENDED">정지</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <div className="mt-6 pt-6 flex justify-between gap-2">
+            <Button variant="secondary" className="w-1/2" onClick={closeModal}>
+              취소
+            </Button>
+            <Button className="w-1/2" onClick={handleChangeRole}>
+              저장하기
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    </ModalShell>
+  );
 
-                {/* 👇 새로 추가: 계정 상태 */}
-                <div className="space-y-2">
-                  <Label htmlFor="new-status" className="text-gray-700">
-                    계정 상태
-                  </Label>
-                  <Select
-                      value={selectedStatus}
-                      onValueChange={(value) =>
-                          setSelectedStatus(value as keyof typeof statusStyles)
-                      }
-                  >
-                    <SelectTrigger
-                        id="new-status"
-                        className="h-9 rounded-md border border-border bg-input-background px-3 py-1 focus:bg-white focus:border-primary transition-colors"
-                    >
-                      <SelectValue placeholder="상태를 선택하세요" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="ACTIVE">활성</SelectItem>
-                      <SelectItem value="INACTIVE">비활성</SelectItem>
-                      <SelectItem value="SUSPENDED">정지</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              <div className="mt-6 pt-6 flex justify-between gap-2">
-                <Button variant="secondary" className="w-1/2" onClick={closeModal}>
-                  취소
-                </Button>
-                <Button className="w-1/2" onClick={handleChangeRole}>
-                  저장하기
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
-    </div>
-  ) : null;
-
-  const initPasswordModal = location.pathname === initPasswordModalPath ? (
-    <div className="fixed inset-0 z-50">
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="w-full" style={{ maxWidth: "var(--login-card-max-width, 42rem)" }}>
-          <Card className="login-theme border border-border shadow-lg">
-            <CardHeader className="space-y-2 pb-6">
-              {passwordResetStep === 1 && (
-                <>
-                  <h2 className="text-xl text-center">비밀번호 초기화</h2>
+  const initPasswordModal = (
+    <ModalShell open={location.pathname === initPasswordModalPath} onClose={closeModal}>
+      <Card variant="modal" className="login-theme border border-border shadow-lg">
+        <CardHeader className="space-y-2 pb-6">
+            {passwordResetStep === 1 && (
+              <>
+                <h2 className="text-xl text-center">비밀번호 초기화</h2>
                   <p className="text-sm text-muted-foreground text-center">
                     {user.email}로 비밀번호 재설정 링크를 전송합니다.
                   </p>
@@ -395,41 +388,37 @@ export function AdminUserDetail() {
                 </>
               )}
             </CardContent>
-          </Card>
-        </div>
-      </div>
-    </div>
-  ) : null;
+      </Card>
+    </ModalShell>
+  );
 
-  const removeUserModal = location.pathname === removeUserModalPath ? (
-    <div className="fixed inset-0 z-50">
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="w-full" style={{ maxWidth: "var(--login-card-max-width, 42rem)" }}>
-          <Card className="login-theme border border-border shadow-lg">
-            <CardHeader className="space-y-2 pb-6">
-              <h2 className="text-xl text-center">회원 삭제</h2>
-              <p className="text-sm text-muted-foreground text-center">
-                {user.name}의 WorkHub 접근 권한이 회수됩니다.
-              </p>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-muted-foreground text-center mb-4">
-                이 구성원을 영구적으로 삭제하기 전에 필요한 데이터를 모두 내보냈는지 확인하세요.
-                <br />
-                <span className="font-semibold">이 작업은 되돌릴 수 없습니다.</span>
-              </p>
-              <div className="mt-6 pt-6 flex justify-between gap-2">
-                <Button variant="secondary" className="w-1/2" onClick={closeModal}>
-                  취소
-                </Button>
-                <Button variant="destructive" className="w-1/2 text-white" onClick={handleRemoveUser}>회원 삭제</Button>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
-    </div>
-  ) : null;
+  const removeUserModal = (
+    <ModalShell open={location.pathname === removeUserModalPath} onClose={closeModal}>
+      <Card variant="modal" className="login-theme border border-border shadow-lg">
+        <CardHeader className="space-y-2 pb-6">
+          <h2 className="text-xl text-center">회원 삭제</h2>
+          <p className="text-sm text-muted-foreground text-center">
+            {user.name}의 WorkHub 접근 권한이 회수됩니다.
+          </p>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-muted-foreground text-center mb-4">
+            이 구성원을 영구적으로 삭제하기 전에 필요한 데이터를 모두 내보냈는지 확인하세요.
+            <br />
+            <span className="font-semibold">이 작업은 되돌릴 수 없습니다.</span>
+          </p>
+          <div className="mt-6 pt-6 flex justify-between gap-2">
+            <Button variant="secondary" className="w-1/2" onClick={closeModal}>
+              취소
+            </Button>
+            <Button variant="destructive" className="w-1/2 text-white" onClick={handleRemoveUser}>
+              회원 삭제
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    </ModalShell>
+  );
   return (
     <>
       <div className="space-y-6 pb-12 pt-6 min-h-0">
@@ -473,9 +462,7 @@ export function AdminUserDetail() {
       </div>
 
       <div className="flex justify-end">
-        <Button variant="outline" onClick={() => navigate(-1)}>
-          ← 뒤로가기
-        </Button>
+        <BackButton />
       </div>
       <div className="grid gap-6 lg:grid-cols-2 min-h-0">
         <div className="rounded-2xl bg-white p-6 shadow-sm">

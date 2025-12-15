@@ -24,6 +24,7 @@ interface LoginScreenProps {
     initialResetStage?: 'login' | 'request' | 'verify' | 'newPassword';
     defaultResetId?: string;
     defaultResetEmail?: string;
+    variant?: "page" | "modal";
 }
 
 export function LoginScreen({
@@ -31,6 +32,7 @@ export function LoginScreen({
     initialResetStage = 'login',
     defaultResetId = '',
     defaultResetEmail = '',
+    variant = "page",
 }: LoginScreenProps) {
     const [userId, setUserId] = useState('')
     const [password, setPassword] = useState('')
@@ -231,14 +233,20 @@ export function LoginScreen({
         }
     }
 
+    const isModalVariant = variant === "modal";
+
     return (
-        <div className="min-h-screen bg-white flex items-center justify-center p-4">
+        <div
+            className={`flex items-center justify-center p-4 ${
+                isModalVariant ? "" : "min-h-screen bg-white"
+            }`}
+        >
             <div
                 className="w-full"
                 style={{ maxWidth: "var(--login-card-max-width, 42rem)" }}
             >
                 {/* Login Card */}
-                <Card className="border-0 shadow-lg">
+                <Card variant="modal" className="login-theme border-0 shadow-lg">
                     <CardHeader className="space-y-2 pb-6">
                         <h2 className="text-xl text-center">
                             {resetStage !== 'login' ? (
