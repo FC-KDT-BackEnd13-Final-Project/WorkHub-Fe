@@ -8,7 +8,6 @@ import { calculateTotalPages, paginate } from "../../utils/pagination";
 import { activityTypePalette } from "./activityPalette";
 import logoImage from "../../../image/logo.png";
 import { PaginationControls } from "../common/PaginationControls";
-import { BackButton } from "../common/BackButton";
 
 const shouldUseLogo = (name?: string) => {
   if (!name) return true;
@@ -190,9 +189,6 @@ export function AdminUserHistory() {
               onPageChange={setCurrentPage}
             />
           )}
-        <div className="mt-4 flex justify-end">
-          <BackButton label="뒤로 가기" />
-        </div>
       </div>
     </div>
   );
