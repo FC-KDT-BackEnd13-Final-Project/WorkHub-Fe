@@ -36,6 +36,7 @@ import { csPostApi } from "../../lib/api";
 import type { CsPostApiItem, CsPostStatus } from "../../types/csPost";
 import { BackButton } from "../../components/common/BackButton";
 import { toast } from "sonner";
+import { getErrorMessage } from "@/utils/errorMessages";
 
 // API 응답을 UI 형식으로 변환
 interface Ticket {
@@ -154,11 +155,7 @@ export function SupportPage() {
       setTickets(convertedTickets);
       setTotalPages(response.totalPages);
     } catch (err) {
-      if (err instanceof Error) {
-        setError(err.message);
-      } else {
-        setError("CS 게시글을 불러오는 중 오류가 발생했습니다.");
-      }
+      setError(getErrorMessage(err, "CS 게시글을 불러오는 중 오류가 발생했습니다."));
       setTickets([]);
       setTotalPages(0);
     } finally {
@@ -280,7 +277,7 @@ export function SupportPage() {
         setCurrentPage(0);
       }
     } catch (err) {
-      const message = err instanceof Error ? err.message : "CS 문의 등록에 실패했습니다.";
+      const message = getErrorMessage(err, "CS 문의 등록에 실패했습니다.");
       setWriteError(message);
       toast.error(message);
     } finally {
@@ -307,7 +304,7 @@ export function SupportPage() {
                       setCurrentPage(0);
                     }
                   }}
-                  placeholder="검색어를 입력하세요 (Enter로 검색)"
+                  placeholder="검색어를 입력하세요"
                   className="md:flex-1"
               />
 

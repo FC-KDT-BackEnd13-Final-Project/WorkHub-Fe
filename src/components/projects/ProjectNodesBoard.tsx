@@ -34,6 +34,9 @@ import { mapApiNodeToUiNode, type Node, type NodeStatus, type ApprovalStatus } f
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
 import { cn } from "../ui/utils";
 import { ModalShell } from "../common/ModalShell";
+import { PROFILE_STORAGE_KEY, type UserRole, normalizeUserRole } from "../../constants/profile";
+import { useLocalStorageValue } from "../../hooks/useLocalStorageValue";
+import { getErrorMessage, localizeErrorMessage } from "@/utils/errorMessages";
 
 // 프로젝트 내 노드(작업 카드)와 워크플로우를 관리하는 보드 화면
 
@@ -114,6 +117,16 @@ const createWorkflowFormState = () => ({
   approvalStatus: "PENDING" as ApprovalStatus,
 });
 
+type StoredSettings = {
+  profile?: {
+    role?: string;
+  };
+};
+
+type StoredUser = {
+  role?: string;
+};
+
 const statusOptions: NodeStatus[] = ["NOT_STARTED", "IN_PROGRESS", "PENDING_REVIEW", "ON_HOLD"];
 const approvalStatusOptions: ApprovalStatus[] = ["PENDING", "APPROVED", "REJECTED"];
 const approvalFilterOptions = ["전체", ...approvalStatusOptions] as const;
@@ -147,6 +160,13 @@ const statusBadgeStyles: Record<NodeStatus, StatusBadgeStyles> = {
   },
 };
 
+const nodeStatusLabels: Record<NodeStatus, string> = {
+  NOT_STARTED: "시작 전",
+  IN_PROGRESS: "진행 중",
+  PENDING_REVIEW: "검토 대기",
+  ON_HOLD: "보류",
+};
+
 const formatWorkflowDeveloperLabel = (developer: { id: string; name: string }) => {
   if (!developer.id || developer.id === developer.name) {
     return developer.name;
@@ -172,6 +192,12 @@ const approvalBadgeStyles: Record<ApprovalStatus, StatusBadgeStyles> = {
     text: "#DC2626",
     border: "#FECACA",
   },
+};
+
+const approvalStatusLabels: Record<ApprovalStatus, string> = {
+  PENDING: "승인 대기",
+  APPROVED: "승인 완료",
+  REJECTED: "반려",
 };
 
 export function ProjectNodesBoard() {
@@ -201,6 +227,25 @@ export function ProjectNodesBoard() {
   const [statusModalApproval, setStatusModalApproval] = useState<ApprovalStatus | undefined>(undefined);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [storedSettings] = useLocalStorageValue<StoredSettings | null>(PROFILE_STORAGE_KEY, {
+    defaultValue: null,
+    parser: (value) => JSON.parse(value),
+    listen: true,
+  });
+  const [storedUser] = useLocalStorageValue<StoredUser | null>("user", {
+    defaultValue: null,
+    parser: (value) => JSON.parse(value),
+    listen: true,
+  });
+  const userRole = useMemo<UserRole>(() => {
+    const profileRole = normalizeUserRole(storedSettings?.profile?.role);
+    if (profileRole) {
+      return profileRole;
+    }
+    const storedUserRole = normalizeUserRole(storedUser?.role);
+    return storedUserRole ?? "DEVELOPER";
+  }, [storedSettings, storedUser]);
+  const isClient = userRole === "CLIENT";
   const nextProjectNodeId = useRef(1);
   const developerFilterOptions = useMemo(() => {
     const labels = developerOptions
@@ -346,7 +391,7 @@ export function ProjectNodesBoard() {
         errorMessage = axiosError.response?.data?.message || errorMessage;
       }
 
-      setError(errorMessage);
+      setError(localizeErrorMessage(errorMessage) ?? errorMessage);
     } finally {
       setIsLoading(false);
     }
@@ -437,7 +482,7 @@ useEffect(() => {
       setNewWorkflow(createWorkflowFormState());
       closeWorkflowModal();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "노드 생성에 실패했습니다.");
+      setError(getErrorMessage(err, "노드 생성에 실패했습니다."));
     } finally {
       setIsLoading(false);
     }
@@ -839,7 +884,7 @@ useEffect(() => {
 
       <div className="rounded-2xl bg-white p-6 shadow-sm">
         <h1 className="text-3xl font-semibold tracking-tight">
-          {projectNameFromState ?? "Project Nodes"}
+          {projectNameFromState ?? "노드 전체 상태"}
         </h1>
         <p className="mt-2 text-muted-foreground">
           각 워크플로 단계의 진행 상황을 확인하고 필요한 세부 정보를 확인하세요.
@@ -865,14 +910,14 @@ useEffect(() => {
                   <SelectTrigger className="h-10 w-full">
                     <SelectValue placeholder="상태 선택" />
                   </SelectTrigger>
-                  <SelectContent>
-                    {statusOptions.map((option) => (
-                      <SelectItem key={option} value={option}>
-                        {option}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                    <SelectContent>
+                      {statusOptions.map((option) => (
+                        <SelectItem key={option} value={option}>
+                        {nodeStatusLabels[option]}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
               </div>
               <div className="space-y-2">
                 <Label>승인 상태</Label>
@@ -883,14 +928,14 @@ useEffect(() => {
                   <SelectTrigger className="h-10 w-full">
                     <SelectValue placeholder="승인 상태 선택" />
                   </SelectTrigger>
-                  <SelectContent>
-                    {approvalStatusOptions.map((option) => (
-                      <SelectItem key={option} value={option}>
-                        {option}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                    <SelectContent>
+                      {approvalStatusOptions.map((option) => (
+                        <SelectItem key={option} value={option}>
+                        {approvalStatusLabels[option]}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
               </div>
               <div className="flex gap-2">
                 <Button
@@ -930,7 +975,7 @@ useEffect(() => {
             <SelectItem value="전체">전체 상태</SelectItem>
             {statusOptions.map((option) => (
               <SelectItem key={option} value={option}>
-                {option}
+                {nodeStatusLabels[option]}
               </SelectItem>
             ))}
           </SelectContent>
@@ -942,7 +987,7 @@ useEffect(() => {
           <SelectContent>
             {approvalFilterOptions.map((option) => (
               <SelectItem key={option} value={option}>
-                {option === "전체" ? "전체 승인" : option}
+                {option === "전체" ? "전체 승인" : approvalStatusLabels[option]}
               </SelectItem>
             ))}
           </SelectContent>
@@ -960,9 +1005,11 @@ useEffect(() => {
           </SelectContent>
         </Select>
         <div className="flex items-center gap-2">
-          <Button className="h-9 px-4 text-sm" onClick={openWorkflowModal}>
-            + 새 워크플로
-          </Button>
+          {!isClient && (
+            <Button className="h-9 px-4 text-sm" onClick={openWorkflowModal}>
+              + 새 워크플로
+            </Button>
+          )}
           <Button
             variant="outline"
             className="h-9 px-4 text-sm"
@@ -970,13 +1017,15 @@ useEffect(() => {
           >
             CS 문의
           </Button>
-          <Button
-            variant={isReorderMode ? "default" : "outline"}
-            className="h-9 px-4 text-sm"
-            onClick={() => setIsReorderMode((prev) => !prev)}
-          >
-            {isReorderMode ? "편집 완료" : "편집"}
-          </Button>
+          {!isClient && (
+            <Button
+              variant={isReorderMode ? "default" : "outline"}
+              className="h-9 px-4 text-sm"
+              onClick={() => setIsReorderMode((prev) => !prev)}
+            >
+              {isReorderMode ? "편집 완료" : "편집"}
+            </Button>
+          )}
         </div>
       </div>
 
@@ -1122,7 +1171,7 @@ function NodeCardBase({
                   borderColor: statusBadgeStyles[node.status].border,
                 }}
               >
-                {node.status}
+                {nodeStatusLabels[node.status]}
               </Badge>
               {node.approvalStatus && (
                 <Badge
@@ -1133,7 +1182,7 @@ function NodeCardBase({
                     borderColor: approvalBadgeStyles[node.approvalStatus].border,
                   }}
                 >
-                  {node.approvalStatus}
+                  {approvalStatusLabels[node.approvalStatus]}
                 </Badge>
               )}
             </div>
