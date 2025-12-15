@@ -1025,7 +1025,11 @@ useEffect(() => {
                   node={node}
                   formatDate={formatDate}
                   formatUpdatedAt={formatUpdatedAt}
-                  onNavigate={(id) => navigate(`/projects/${projectId ?? "project"}/nodes/${id}`)}
+                  onNavigate={(selectedNode) =>
+                    navigate(`/projects/${projectId ?? "project"}/nodes/${selectedNode.id}`, {
+                      state: { nodeTitle: selectedNode.title },
+                    })
+                  }
                   rightActions={
                     <NodeActionMenu
                       node={node}
@@ -1047,7 +1051,11 @@ useEffect(() => {
               node={node}
               formatDate={formatDate}
               formatUpdatedAt={formatUpdatedAt}
-              onNavigate={(id) => navigate(`/projects/${projectId ?? "project"}/nodes/${id}`)}
+              onNavigate={(selectedNode) =>
+                navigate(`/projects/${projectId ?? "project"}/nodes/${selectedNode.id}`, {
+                  state: { nodeTitle: selectedNode.title },
+                })
+              }
             />
           ))}
         </div>
@@ -1063,7 +1071,7 @@ interface NodeCardBaseProps {
   node: Node;
   formatDate: (value: string) => string;
   formatUpdatedAt: (value: string) => string;
-  onNavigate: (nodeId: string) => void;
+  onNavigate: (node: Node) => void;
   rightActions?: ReactNode;
   cardRef?: (element: HTMLDivElement | null) => void;
   style?: CSSProperties;
@@ -1085,7 +1093,7 @@ function NodeCardBase({
         return;
       }
     }
-    onNavigate(node.id);
+    onNavigate(node);
   };
 
   return (
@@ -1249,7 +1257,6 @@ function SortableNodeCard({
   node,
   formatDate,
   formatUpdatedAt,
-  onNavigate,
   rightActions,
 }: SortableNodeCardProps) {
   const {
@@ -1275,7 +1282,7 @@ function SortableNodeCard({
         node={node}
         formatDate={formatDate}
         formatUpdatedAt={formatUpdatedAt}
-        onNavigate={() => {}}
+        onNavigate={(_node) => {}}
         rightActions={rightActions}
       />
     </div>
