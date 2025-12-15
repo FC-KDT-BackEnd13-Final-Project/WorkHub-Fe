@@ -11,7 +11,7 @@ import {
   SelectValue,
 } from "../../components/ui/select";
 import logoImage from "../../../image/logo.png";
-import { historyEvents, historyPalette, HistoryEvent } from "../../data/historyData";
+import { historyEvents, historyPalette, type HistoryEvent } from "../../data/historyData";
 import { Users, FileText, LayoutDashboard, CheckSquare } from "lucide-react";
 import { PaginationControls } from "../../components/common/PaginationControls";
 import { PageHeader } from "../../components/common/PageHeader";
@@ -22,6 +22,13 @@ type CategoryFilter = "user" | "post" | "project" | "checklist" | "all";
 type PostFilter = "all" | "post" | "postComment" | "csPost" | "csQna";
 type ProjectFilter = "all" | "projectAgency" | "projectClient" | "project" | "projectPhase";
 type ChecklistFilter = "all" | "checklist" | "checklistComment";
+const historyTypeLabels: Record<HistoryEvent["type"], string> = {
+  create: "생성",
+  update: "수정",
+  delete: "삭제",
+  move: "이동",
+  hide: "숨김",
+};
 
 export function UserHistoryPage() {
   const [activeTab, setActiveTab] = useState<"user" | "post" | "project" | "checklist">("user");
@@ -206,7 +213,7 @@ export function UserHistoryPage() {
 
   return (
     <div className="space-y-6 pb-12">
-      <PageHeader title="히스토리" description="사용자 활동 로그를 한눈에 확인하세요." />
+      <PageHeader title="History" description="사용자 활동 로그를 한눈에 확인하세요." />
 
       <FilterToolbar
         align="start"
@@ -308,7 +315,7 @@ export function UserHistoryPage() {
                           className="inline-flex items-center justify-center rounded-md border px-2 py-0.5 text-xs font-medium w-fit whitespace-nowrap shrink-0"
                           style={{ backgroundColor: palette.iconBg, color: palette.iconColor, borderColor: palette.iconBg }}
                         >
-                          {event.type.toUpperCase()}
+                          {historyTypeLabels[event.type]}
                         </span>
                       </td>
                       <td className="p-2 align-middle whitespace-nowrap text-center text-sm text-muted-foreground">

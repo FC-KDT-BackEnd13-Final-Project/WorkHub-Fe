@@ -42,8 +42,7 @@ export function Navigation({ onOpenSidebar, mobileMenuContent }: NavigationProps
   ];
 
   return (
-    <>
-      <nav className="fixed inset-x-0 top-0 z-[200] w-full border-b border-border bg-background/80 shadow-sm backdrop-blur-md supports-[backdrop-filter]:bg-background/60">
+      <nav className="sticky top-0 z-[200] w-full border-b border-border bg-white shadow-sm">
         <div className="flex w-full items-center justify-between px-4 py-4 sm:px-6 lg:px-8">
           <div className="flex items-center gap-4">
             {onOpenSidebar && (
@@ -115,7 +114,5 @@ export function Navigation({ onOpenSidebar, mobileMenuContent }: NavigationProps
           </div>
         )}
       </nav>
-      <div className="h-[88px]" aria-hidden />
-    </>
   );
 }

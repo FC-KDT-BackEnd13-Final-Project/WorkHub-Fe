@@ -245,13 +245,13 @@ export function SettingsPage() {
             <div className="pb-6 flex flex-col gap-6 md:flex-row">
               {/* 왼쪽: 사진 + Change Photo 버튼 */}
               <div className="flex flex-col items-center gap-3 md:w-1/4">
-                <Avatar className="size-32 rounded-full">
+                <Avatar className="rounded-full h-32 w-32">
                   <AvatarImage
                     src={photo}
                     alt="Profile"
                     width={128}
                     height={128}
-                    className="h-full w-full object-cover"
+                    className="aspect-square size-full object-cover"
                   />
                   <AvatarFallback className="text-2xl font-semibold">
                     {profile.id.slice(0, 2).toUpperCase()}

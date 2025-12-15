@@ -47,7 +47,7 @@ export function Main({ onLoginSuccess }: MainProps) {
       <ExperienceSection />
       <ContactSection />
       {isLoginOpen && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-end px-0">
+        <div className="fixed inset-0 z-[500] bg-black/60 backdrop-blur-sm flex items-center justify-end px-0">
           <div
             className="absolute inset-0"
             onClick={() => setIsLoginOpen(false)}
