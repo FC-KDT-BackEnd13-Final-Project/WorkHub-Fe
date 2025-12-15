@@ -10,6 +10,7 @@ import {
     MoreVertical,
     Paperclip,
 } from "lucide-react";
+import { ModalShell } from "../common/ModalShell";
 
 interface EvidenceItem {
     files: File[];
@@ -1353,272 +1354,173 @@ export function FormQuestion2({
         };
 
         return (
-            <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm">
-                <div
-                    className="absolute inset-0"
-                    onClick={() => closeHistoryModal(groupIndex)}
-                    aria-hidden
-                />
+            <ModalShell
+                open={group.isHistoryOpen}
+                onClose={() => closeHistoryModal(groupIndex)}
+                maxWidth="64rem"
+                className="h-full"
+            >
+                <Card2 variant="modal" className="flex h-full max-h-[80vh] w-full max-w-4xl flex-col overflow-hidden">
+                    <CardHeader className="relative border-b text-center">
+                        <h3 className="text-lg font-semibold">코멘트 이력</h3>
+                        <button
+                            type="button"
+                            aria-label="댓글 이력 닫기"
+                            className="absolute right-4 top-3 rounded-md p-1 hover:bg-muted"
+                            onClick={() => closeHistoryModal(groupIndex)}
+                        />
+                    </CardHeader>
+                    <CardContent className="flex min-h-0 flex-1 flex-col gap-6 overflow-hidden px-6 py-6">
+                        <div className="grid min-h-0 flex-1 gap-4 overflow-hidden md:grid-cols-2">
+                            <div className="flex min-h-0 flex-col gap-4 overflow-y-auto pr-1">
+                                <div className="space-y-2 pb-6">
+                                    <div className="flex items-center justify-between text-sm text-muted-foreground">
+                                        <p className="font-medium text-foreground">현재 댓글</p>
+                                        <span>총 {activeCount}건</span>
+                                    </div>
+                                    <div className="space-y-2">
+                                        {activeComments.length === 0 ? (
+                                            <p className="text-sm text-muted-foreground">아직 등록된 댓글이 없습니다.</p>
+                                        ) : (
+                                            activeComments.map((comment) => (
+                                                <div key={`history-active-${comment.id}`} className="space-y-2">
+                                                    {renderHistoryButton({
+                                                        id: comment.id,
+                                                        type: "comment",
+                                                        parentCommentId: null,
+                                                        author: comment.author,
+                                                        latestContent: comment.text,
+                                                        latestTimestamp: comment.updatedAt ?? comment.createdAt,
+                                                        isDeleted: false,
+                                                    })}
 
-                <div className="relative z-10 flex h-full items-center justify-center p-4">
-                    <Card2 variant="modal" className="flex h-full max-h-[80vh] w-full max-w-4xl flex-col overflow-hidden">
-                        <CardHeader className="relative border-b text-center">
-                            <h3 className="text-lg font-semibold">
-                                코멘트 이력
-                            </h3>
+                                                    {comment.replies.map((reply) => (
+                                                        <div key={`history-active-reply-${reply.id}`} className="pl-5">
+                                                            {renderHistoryButton({
+                                                                id: reply.id,
+                                                                type: "reply",
+                                                                parentCommentId: comment.id,
+                                                                author: reply.author,
+                                                                latestContent: reply.text,
+                                                                latestTimestamp: reply.updatedAt ?? reply.createdAt,
+                                                                isDeleted: false,
+                                                            })}
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            ))
+                                        )}
+                                    </div>
+                                </div>
 
-                            <button
-                                type="button"
-                                aria-label="댓글 이력 닫기"
-                                className="absolute right-4 top-3 rounded-md p-1 hover:bg-muted"
-                                onClick={() =>
-                                    closeHistoryModal(groupIndex)
-                                }
-                            />
-                        </CardHeader>
-
-                        <CardContent className="flex min-h-0 flex-1 flex-col gap-6 overflow-hidden px-6 py-6">
-                            <div className="grid min-h-0 flex-1 gap-4 overflow-hidden md:grid-cols-2">
-                                {/* 왼쪽: 현재 + 삭제된 댓글 리스트 */}
-                                <div className="flex min-h-0 flex-col gap-4 overflow-y-auto pr-1">
-                                    {/* 현재 댓글 */}
-                                    <div className="space-y-2 pb-6">
-                                        <div className="flex items-center justify-between text-sm text-muted-foreground">
-                                            <p className="font-medium text-foreground">
-                                                현재 댓글
-                                            </p>
-                                            <span>총 {activeCount}건</span>
-                                        </div>
-
-                                        <div className="space-y-2">
-                                            {activeComments.length === 0 ? (
-                                                <p className="text-sm text-muted-foreground">
-                                                    아직 등록된 댓글이 없습니다.
-                                                </p>
-                                            ) : (
-                                                activeComments.map((comment) => (
-                                                    <div
-                                                        key={`history-active-${comment.id}`}
-                                                        className="space-y-2"
-                                                    >
-                                                        {renderHistoryButton({
-                                                            id: comment.id,
-                                                            type: "comment",
-                                                            parentCommentId: null,
-                                                            author: comment.author,
-                                                            latestContent:
-                                                            comment.text,
-                                                            latestTimestamp:
-                                                                comment.updatedAt ??
-                                                                comment.createdAt,
-                                                            isDeleted: false,
-                                                        })}
-
-                                                        {comment.replies.map((reply) => (
-                                                            <div
-                                                                key={`history-active-reply-${reply.id}`}
-                                                                className="pl-5"
-                                                            >
-                                                                {renderHistoryButton({
-                                                                    id: reply.id,
-                                                                    type: "reply",
-                                                                    parentCommentId:
-                                                                    comment.id,
-                                                                    author:
-                                                                    reply.author,
-                                                                    latestContent:
-                                                                    reply.text,
-                                                                    latestTimestamp:
-                                                                        reply.updatedAt ??
-                                                                        reply.createdAt,
-                                                                    isDeleted:
-                                                                        false,
-                                                                })}
+                                <div className="space-y-2">
+                                    <div className="flex items-center justify-between text-sm text-muted-foreground">
+                                        <p className="font-medium text-muted-foreground">삭제된 댓글</p>
+                                        <span>총 {deletedCount}건</span>
+                                    </div>
+                                    <div className="space-y-2">
+                                        {deletedCount === 0 ? (
+                                            <p className="text-sm text-muted-foreground">삭제된 댓글이 없습니다.</p>
+                                        ) : (
+                                            <div className="space-y-2">
+                                                {deletedComments.map((meta) => (
+                                                    <div key={`history-del-${meta.id}`} className="space-y-1">
+                                                        {renderHistoryButton(meta)}
+                                                        {(deletedRepliesByParent.get(meta.id) ?? []).map((reply) => (
+                                                            <div key={`history-del-reply-${reply.id}`} className="pl-5">
+                                                                {renderHistoryButton(reply)}
                                                             </div>
                                                         ))}
                                                     </div>
-                                                ))
-                                            )}
-                                        </div>
-                                    </div>
-
-                                    {/* 삭제된 댓글 */}
-                                    <div className="space-y-2">
-                                        <div className="flex items-center justify-between text-sm text-muted-foreground">
-                                            <p className="font-medium text-muted-foreground">
-                                                삭제된 댓글
-                                            </p>
-                                            <span>총 {deletedCount}건</span>
-                                        </div>
-
-                                        <div className="space-y-2">
-                                            {deletedCount === 0 ? (
-                                                <p className="text-sm text-muted-foreground">
-                                                    삭제된 댓글이 없습니다.
-                                                </p>
-                                            ) : (
-                                                <div className="space-y-2">
-                                                    {deletedComments.map((meta) => (
-                                                        <div
-                                                            key={`history-del-${meta.id}`}
-                                                            className="space-y-1"
-                                                        >
-                                                            {renderHistoryButton(meta)}
-
-                                                            {(deletedRepliesByParent.get(
-                                                                    meta.id,
-                                                                ) ?? []
-                                                            ).map((reply) => (
-                                                                <div
-                                                                    key={`history-del-reply-${reply.id}`}
-                                                                    className="pl-5"
-                                                                >
-                                                                    {renderHistoryButton(reply)}
-                                                                </div>
-                                                            ))}
-                                                        </div>
-                                                    ))}
-
-                                                    {orphanDeletedReplies.map(
-                                                        (reply) => (
-                                                            <div
-                                                                key={`history-orphan-${reply.id}`}
-                                                            >
-                                                                {renderHistoryButton(reply)}
-                                                            </div>
-                                                        ),
-                                                    )}
-                                                </div>
-                                            )}
-                                        </div>
-                                    </div>
-                                </div>
-                                {/* 오른쪽: 선택한 댓글의 타임라인 */}
-                                <div className="flex h-full min-h-0 flex-col space-y-2 overflow-hidden">
-                                    <div className="flex items-center justify-between text-sm text-muted-foreground">
-                                        <p className="font-medium">
-                                            선택한 댓글의 히스토리
-                                        </p>
-                                        {selectedTarget && (
-                                            <span>총 {timelineEntries.length}건</span>
+                                                ))}
+                                                {orphanDeletedReplies.map((reply) => (
+                                                    <div key={`history-orphan-${reply.id}`}>{renderHistoryButton(reply)}</div>
+                                                ))}
+                                            </div>
                                         )}
-                                    </div>
-
-                                    <div className="flex-1 overflow-y-auto rounded-lg border bg-muted/30 p-3">
-                                        <div className="space-y-3">
-                                            {!selectedTarget && (
-                                                <p className="text-sm text-muted-foreground">
-                                                    왼쪽 목록에서 댓글을 선택해 주세요.
-                                                </p>
-                                            )}
-
-                                            {selectedTarget && (
-                                                <>
-                                                    {/* 선택한 대상이 대댓글일 때 → 원댓글 표시 */}
-                                                    {selectedTarget.parentCommentId && (
-                                                        <div className="space-y-1 rounded-md border bg-background p-3">
-                                                        <span className="text-xs text-muted-foreground">
-                                                            원 댓글
-                                                        </span>
-
-                                                            <p className="text-xs text-muted-foreground">
-                                                                {targetMap.get(
-                                                                        selectedTarget.parentCommentId,
-                                                                    )?.author ||
-                                                                    group.comments.find(
-                                                                        (c) =>
-                                                                            c.id ===
-                                                                            selectedTarget.parentCommentId,
-                                                                    )?.author ||
-                                                                    "익명"}
-                                                            </p>
-
-                                                            <p className="text-sm whitespace-pre-wrap text-foreground">
-                                                                {targetMap.get(
-                                                                        selectedTarget.parentCommentId,
-                                                                    )?.latestContent ||
-                                                                    group.comments.find(
-                                                                        (c) =>
-                                                                            c.id ===
-                                                                            selectedTarget.parentCommentId,
-                                                                    )?.text ||
-                                                                    "내용이 없습니다."}
-                                                            </p>
-                                                        </div>
-                                                    )}
-
-                                                    {/* 타임라인 */}
-                                                    {timelineEntries.length === 0 ? (
-                                                        <p className="text-sm text-muted-foreground">
-                                                            수정/삭제 이력이 없습니다.
-                                                        </p>
-                                                    ) : (
-                                                        timelineEntries.map((entry) => {
-                                                            const isDeleted =
-                                                                entry.action === "deleted";
-                                                            return (
-                                                                <div
-                                                                    key={`timeline-${entry.id}`}
-                                                                    className={`rounded-md border px-3 py-2 text-sm ${
-                                                                        isDeleted
-                                                                            ? "border-destructive/40 bg-destructive/5"
-                                                                            : "bg-background"
-                                                                    }`}
-                                                                >
-                                                                    <div className="flex items-center justify-between text-xs text-muted-foreground">
-                                                                    <span
-                                                                        className={`flex items-center gap-1 ${
-                                                                            isDeleted
-                                                                                ? "text-destructive"
-                                                                                : ""
-                                                                        }`}
-                                                                    >
-                                                                        {getHistoryActionLabel(
-                                                                            entry.action,
-                                                                        )}
-                                                                    </span>
-
-                                                                        <span
-                                                                            className={
-                                                                                isDeleted
-                                                                                    ? "text-destructive"
-                                                                                    : undefined
-                                                                            }
-                                                                        >
-                                                                        {new Date(
-                                                                            entry.timestamp,
-                                                                        ).toLocaleString()}
-                                                                    </span>
-                                                                    </div>
-
-                                                                    <p className="mt-1 whitespace-pre-line text-sm text-foreground">
-                                                                        {entry.content ||
-                                                                            "내용이 없습니다."}
-                                                                    </p>
-                                                                </div>
-                                                            );
-                                                        })
-                                                    )}
-                                                </>
-                                            )}
-                                        </div>
                                     </div>
                                 </div>
                             </div>
-                        </CardContent>
 
-                        <div className="-mx-6 flex justify-end border-t border-border px-6 pt-6 pb-6">
-                            <Button2
-                                type="button"
-                                className="w-full bg-primary text-primary-foreground hover:bg-primary/90"
-                                onClick={() => closeHistoryModal(groupIndex)}
-                            >
-                                닫기
-                            </Button2>
+                            <div className="flex h-full min-h-0 flex-col space-y-2 overflow-hidden">
+                                <div className="flex items-center justify-between text-sm text-muted-foreground">
+                                    <p className="font-medium">선택한 댓글의 히스토리</p>
+                                    {selectedTarget && <span>총 {timelineEntries.length}건</span>}
+                                </div>
+                                <div className="flex-1 overflow-y-auto rounded-lg border bg-muted/30 p-3">
+                                    <div className="space-y-3">
+                                        {!selectedTarget && (
+                                            <p className="text-sm text-muted-foreground">왼쪽 목록에서 댓글을 선택해 주세요.</p>
+                                        )}
+                                        {selectedTarget && (
+                                            <>
+                                                {selectedTarget.parentCommentId && (
+                                                    <div className="space-y-1 rounded-md border bg-background p-3">
+                                                        <span className="text-xs text-muted-foreground">원 댓글</span>
+                                                        <p className="text-xs text-muted-foreground">
+                                                            {targetMap.get(selectedTarget.parentCommentId)?.author ||
+                                                                group.comments.find((c) => c.id === selectedTarget.parentCommentId)?.author ||
+                                                                "익명"}
+                                                        </p>
+                                                        <p className="text-sm whitespace-pre-wrap text-foreground">
+                                                            {targetMap.get(selectedTarget.parentCommentId)?.latestContent ||
+                                                                group.comments.find((c) => c.id === selectedTarget.parentCommentId)?.text ||
+                                                                "내용이 없습니다."}
+                                                        </p>
+                                                    </div>
+                                                )}
+
+                                                {timelineEntries.length === 0 ? (
+                                                    <p className="text-sm text-muted-foreground">수정/삭제 이력이 없습니다.</p>
+                                                ) : (
+                                                    timelineEntries.map((entry) => {
+                                                        const isDeleted = entry.action === "deleted";
+                                                        return (
+                                                            <div
+                                                                key={`timeline-${entry.id}`}
+                                                                className={`rounded-md border px-3 py-2 text-sm ${
+                                                                    isDeleted
+                                                                        ? "border-destructive/40 bg-destructive/5"
+                                                                        : "bg-background"
+                                                                }`}
+                                                            >
+                                                                <div className="flex items-center justify-between text-xs text-muted-foreground">
+                                                                    <span
+                                                                        className={`flex items-center gap-1 ${
+                                                                            isDeleted ? "text-destructive" : ""
+                                                                        }`}
+                                                                    >
+                                                                        {getHistoryActionLabel(entry.action)}
+                                                                    </span>
+                                                                    <span className={isDeleted ? "text-destructive" : undefined}>
+                                                                        {new Date(entry.timestamp).toLocaleString()}
+                                                                    </span>
+                                                                </div>
+                                                                <p className="mt-1 whitespace-pre-line text-sm text-foreground">
+                                                                    {entry.content || "내용이 없습니다."}
+                                                                </p>
+                                                            </div>
+                                                        );
+                                                    })
+                                                )}
+                                            </>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
                         </div>
-                    </Card2>
-                </div>
-            </div>
+                    </CardContent>
+                    <div className="-mx-6 flex justify-end border-t border-border px-6 pt-6 pb-6">
+                        <Button2
+                            type="button"
+                            className="w-full bg-primary text-primary-foreground hover:bg-primary/90"
+                            onClick={() => closeHistoryModal(groupIndex)}
+                        >
+                            닫기
+                        </Button2>
+                    </div>
+                </Card2>
+            </ModalShell>
         );
     };
     return (
@@ -2753,138 +2655,126 @@ export function FormQuestion2({
         </div>
 
         {isChecklistHistoryOpen && (
-            <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm">
-                <div
-                    className="absolute inset-0"
-                    aria-hidden
-                    onClick={closeChecklistHistoryModal}
-                />
-                <div className="relative z-10 flex h-full items-center justify-center p-4">
-                    <div className="login-theme bg-card text-card-foreground flex h-full max-h-[90vh] w-full max-w-4xl flex-col gap-6 overflow-hidden rounded-xl border border-border shadow-2xl min-h-0">
-                        <div className="flex flex-col gap-2 border-b px-6 pt-6 pb-6 text-center sm:flex-row sm:items-center sm:text-left">
-                            <div className="flex-1">
-                                <h2 className="text-xl font-semibold">체크리스트 이력</h2>
-                                <p className="text-sm text-muted-foreground">
-                                    저장된 체크리스트 내용을 이력으로 확인할 수 있습니다.
-                                </p>
-                            </div>
-                            <span className="text-sm font-semibold text-sky-600">
-                                총 {sortedChecklistHistoryEntries.length}건
-                            </span>
+            <ModalShell
+                open={isChecklistHistoryOpen}
+                onClose={closeChecklistHistoryModal}
+                maxWidth="64rem"
+                className="h-full"
+            >
+                <Card2 variant="modal" className="login-theme flex h-full max-h-[90vh] w-full max-w-4xl flex-col gap-6 overflow-hidden rounded-xl border border-border shadow-2xl min-h-0">
+                    <div className="flex flex-col gap-2 border-b px-6 pt-6 pb-6 text-center sm:flex-row sm:items-center sm:text-left">
+                        <div className="flex-1">
+                            <h2 className="text-xl font-semibold">체크리스트 이력</h2>
+                            <p className="text-sm text-muted-foreground">저장된 체크리스트 내용을 이력으로 확인할 수 있습니다.</p>
                         </div>
+                        <span className="text-sm font-semibold text-sky-600">총 {sortedChecklistHistoryEntries.length}건</span>
+                    </div>
 
-                        <div className="flex flex-1 flex-col gap-6 px-6 pb-6 min-h-0 overflow-y-auto">
-                            {selectedChecklistHistoryEntry && (
-                                <Button2
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => setSelectedChecklistHistoryId(null)}
-                                    className="self-start"
-                                >
-                                    이전 목록으로 돌아가기
-                                </Button2>
-                            )}
-                            {selectedChecklistHistoryEntry ? (
-                                (() => {
-                                    const currentInfo = getCurrentGroupInfo(selectedChecklistHistoryEntry);
-                                    return (
-                                        <div className="space-y-4 text-sm">
-                                            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                                                <div className="rounded-lg border bg-background px-4 py-4 flex h-full flex-col">
-                                                    <div className="flex items-center justify-between">
-                                                        <div>
-                                                            <p className="text-xs text-muted-foreground">
-                                                                현재 체크리스트
-                                                            </p>
-                                                            <p className="text-base font-semibold text-foreground">
-                                                                {currentInfo?.title ?? selectedChecklistHistoryEntry.groupTitle}
-                                                            </p>
-                                                        </div>
-                                                        <span className="text-xs text-muted-foreground text-right">
-                                                            {formatHistoryTimestamp(selectedChecklistHistoryEntry.timestamp)}
-                                                        </span>
+                    <div className="flex flex-1 flex-col gap-6 px-6 pb-6 min-h-0 overflow-y-auto">
+                        {selectedChecklistHistoryEntry && (
+                            <Button2
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => setSelectedChecklistHistoryId(null)}
+                                className="self-start"
+                            >
+                                이전 목록으로 돌아가기
+                            </Button2>
+                        )}
+                        {selectedChecklistHistoryEntry ? (
+                            (() => {
+                                const currentInfo = getCurrentGroupInfo(selectedChecklistHistoryEntry);
+                                return (
+                                    <div className="space-y-4 text-sm">
+                                        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                                            <div className="rounded-lg border bg-background px-4 py-4 flex h-full flex-col">
+                                                <div className="flex items-center justify-between">
+                                                    <div>
+                                                        <p className="text-xs text-muted-foreground">현재 체크리스트</p>
+                                                        <p className="text-base font-semibold text-foreground">
+                                                            {currentInfo?.title ?? selectedChecklistHistoryEntry.groupTitle}
+                                                        </p>
                                                     </div>
-                                                    <div className="mt-4 space-y-2 flex-1">
-                                                        {renderChecklistSummaryBlocks(
-                                                            currentInfo?.summary ?? "현재 이 체크리스트 정보를 불러올 수 없습니다.",
-                                                        )}
-                                                    </div>
+                                                    <span className="text-xs text-muted-foreground text-right">
+                                                        {formatHistoryTimestamp(selectedChecklistHistoryEntry.timestamp)}
+                                                    </span>
                                                 </div>
+                                                <div className="mt-4 space-y-2 flex-1">
+                                                    {renderChecklistSummaryBlocks(
+                                                        currentInfo?.summary ?? "현재 이 체크리스트 정보를 불러올 수 없습니다.",
+                                                    )}
+                                                </div>
+                                            </div>
 
-                                                <div className="rounded-lg border bg-background px-4 py-4 flex h-full flex-col">
-                                                    <div className="flex items-center justify-between">
-                                                        <div>
-                                                            <p className="text-xs text-muted-foreground">
-                                                                수정 전 체크리스트
-                                                            </p>
-                                                            <p className="text-base font-semibold text-foreground">
-                                                                {selectedChecklistHistoryEntry.groupTitle}
-                                                            </p>
-                                                        </div>
-                                                        <span className="text-xs text-muted-foreground">
-                                                            {formatHistoryTimestamp(selectedChecklistHistoryEntry.timestamp)}
-                                                        </span>
+                                            <div className="rounded-lg border bg-background px-4 py-4 flex h-full flex-col">
+                                                <div className="flex items-center justify-between">
+                                                    <div>
+                                                        <p className="text-xs text-muted-foreground">수정 전 체크리스트</p>
+                                                        <p className="text-base font-semibold text-foreground">
+                                                            {selectedChecklistHistoryEntry.groupTitle}
+                                                        </p>
                                                     </div>
-                                                    <div className="mt-4 space-y-2 flex-1">
-                                                        {renderChecklistSummaryBlocks(selectedChecklistHistoryEntry.content)}
-                                                    </div>
+                                                    <span className="text-xs text-muted-foreground">
+                                                        {formatHistoryTimestamp(selectedChecklistHistoryEntry.timestamp)}
+                                                    </span>
+                                                </div>
+                                                <div className="mt-4 space-y-2 flex-1">
+                                                    {renderChecklistSummaryBlocks(selectedChecklistHistoryEntry.content)}
                                                 </div>
                                             </div>
                                         </div>
-                                    );
-                                })()
-                            ) : sortedChecklistHistoryEntries.length ? (
-                                <div className="flex-1 space-y-4 overflow-y-auto pr-1">
-                                    {sortedChecklistHistoryEntries.map((entry) => (
-                                        <button
-                                            key={entry.id}
-                                            type="button"
-                                            className="flex w-full flex-col rounded-lg border bg-muted/30 px-4 py-4 text-left hover:bg-muted gap-3"
-                                            onClick={() => setSelectedChecklistHistoryId(entry.id)}
-                                        >
-                                            <div className="flex items-center justify-between gap-2">
-                                                <div className="flex flex-col">
-                                                    <span className="text-sm font-semibold text-foreground">
-                                                        {entry.groupTitle}
-                                                    </span>
-                                                </div>
-                                                <span className="text-xs text-muted-foreground">
-                                                    {formatHistoryTimestamp(entry.timestamp)}
+                                    </div>
+                                );
+                            })()
+                        ) : sortedChecklistHistoryEntries.length ? (
+                            <div className="flex-1 space-y-4 overflow-y-auto pr-1">
+                                {sortedChecklistHistoryEntries.map((entry) => (
+                                    <button
+                                        key={entry.id}
+                                        type="button"
+                                        className="flex w-full flex-col rounded-lg border bg-muted/30 px-4 py-4 text-left hover:bg-muted gap-3"
+                                        onClick={() => setSelectedChecklistHistoryId(entry.id)}
+                                    >
+                                        <div className="flex items-center justify-between gap-2">
+                                            <div className="flex flex-col">
+                                                <span className="text-sm font-semibold text-foreground">
+                                                    {entry.groupTitle}
                                                 </span>
                                             </div>
-                                            <div className="mt-2 text-sm text-muted-foreground space-y-1">
-                                                {renderChecklistSummaryBlocks(entry.content)}
-                                            </div>
-                                            <div className="flex items-center justify-start text-xs">
-                                                <span
-                                                    className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium ${getHistoryActionBadgeClass(entry.action)}`}
-                                                >
-                                                    {getHistoryActionLabel(entry.action)}
-                                                </span>
-                                            </div>
-                                        </button>
-                                    ))}
-                                </div>
-                            ) : (
-                                <p className="py-8 text-center text-sm text-muted-foreground">
-                                    아직 저장된 이력이 없습니다.
-                                </p>
-                            )}
-                        </div>
-
-                        <div className="border-t px-6 py-4">
-                            <Button2
-                                type="button"
-                                className="w-full"
-                                onClick={closeChecklistHistoryModal}
-                            >
-                                닫기
-                            </Button2>
-                        </div>
+                                            <span className="text-xs text-muted-foreground">
+                                                {formatHistoryTimestamp(entry.timestamp)}
+                                            </span>
+                                        </div>
+                                        <div className="mt-2 text-sm text-muted-foreground space-y-1">
+                                            {renderChecklistSummaryBlocks(entry.content)}
+                                        </div>
+                                        <div className="flex items-center justify-start text-xs">
+                                            <span
+                                                className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium ${getHistoryActionBadgeClass(entry.action)}`}
+                                            >
+                                                {getHistoryActionLabel(entry.action)}
+                                            </span>
+                                        </div>
+                                    </button>
+                                ))}
+                            </div>
+                        ) : (
+                            <p className="py-8 text-center text-sm text-muted-foreground">
+                                아직 저장된 이력이 없습니다.
+                            </p>
+                        )}
                     </div>
-                </div>
-            </div>
+
+                    <div className="border-t px-6 py-4">
+                        <Button2 type="button" className="w-full" onClick={closeChecklistHistoryModal}>
+                            닫기
+                        </Button2>
+                    </div>
+                </Card2>
+            </ModalShell>
         )}
+
+
         </>
     );
 }

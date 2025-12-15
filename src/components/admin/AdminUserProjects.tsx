@@ -1,10 +1,9 @@
-import { useMemo } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
-import { companyUsers } from "./userData";
 import { useUserProjects } from "../../hooks/useUserProjects";
+import { useAdminUser } from "../../hooks/useAdminUsers";
 
 // AdminUserDetail에서 쓰는 것과 동일한 스타일 맵
 const statusStyles = {
@@ -32,10 +31,7 @@ export function AdminUserProjects() {
   const { userId } = useParams<{ userId: string }>();
   const navigate = useNavigate();
 
-  const user = useMemo(
-      () => companyUsers.find((item) => item.id === userId),
-      [userId],
-  );
+  const { user, isLoading: isUserLoading, error: userError } = useAdminUser(userId);
   const {
     projects: assignedProjects,
     isLoading: isProjectsLoading,
@@ -44,10 +40,17 @@ export function AdminUserProjects() {
   } = useUserProjects(userId);
 
   if (!user) {
-    return (
+    if (isUserLoading) {
+      return (
         <div className="rounded-2xl bg-white p-6 text-center text-muted-foreground shadow-sm">
-          사용자를 찾을 수 없습니다.
+          사용자 정보를 불러오는 중입니다...
         </div>
+      );
+    }
+    return (
+      <div className="rounded-2xl bg-white p-6 text-center text-muted-foreground shadow-sm">
+        {userError ?? "사용자를 찾을 수 없습니다."}
+      </div>
     );
   }
 
@@ -58,15 +61,17 @@ export function AdminUserProjects() {
       <div className="space-y-6 pb-12 pt-6 min-h-0">
         {/* 헤더 - 유저 정보 */}
         <div className="flex items-center gap-6 rounded-2xl bg-white p-6 shadow-sm">
-          <Avatar className="size-14">
+          <Avatar className="size-32">
             {user.avatarUrl ? (
                 <AvatarImage
                     src={user.avatarUrl}
                     alt={user.name}
+                    width={128}
+                    height={128}
                     className="object-cover"
                 />
             ) : null}
-            <AvatarFallback className="bg-slate-100 text-lg font-semibold text-foreground">
+            <AvatarFallback className="bg-slate-100 text-2xl font-semibold text-foreground">
               {user.name
                   .split(" ")
                   .map((part) => part[0])
@@ -77,11 +82,11 @@ export function AdminUserProjects() {
           <div>
             <h2 className="text-2xl font-semibold">{user.name}</h2>
             <div className="text-sm text-muted-foreground">
-              <p>{user.email}</p>
-              <p>{user.phone}</p>
+              <p>{user.email || "이메일 정보 없음"}</p>
+              <p>{user.phone || "전화번호 정보 없음"}</p>
             </div>
             <div className="mt-2 flex flex-wrap gap-2 text-sm">
-              <Badge variant="secondary">{user.company}</Badge>
+              <Badge variant="secondary">{user.company || "소속 미지정"}</Badge>
               <Badge variant="secondary">{user.role}</Badge>
               {/* 🔥 여기 status 표시를 AdminUserDetail과 동일하게 */}
               <Badge
@@ -117,7 +122,7 @@ export function AdminUserProjects() {
               </div>
             ) : null}
             {!isProjectsLoading && projectsError ? (
-              <div className="col-span-full rounded-xl border border-destructive/50 bg-destructive/10 p-6 text-center text-sm text-destructive">
+              <div className="col-span-full rounded-md border border-red-200 bg-red-50 p-6 text-center text-sm text-red-700">
                 <p>프로젝트 정보를 가져오지 못했습니다.</p>
                 <Button variant="outline" size="sm" className="mt-3" onClick={refetchProjects}>
                   다시 시도

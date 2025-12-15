@@ -13,9 +13,9 @@ import {
 } from "../ui/select";
 import { Label } from "../ui/label";
 import { Alert, AlertDescription } from "../ui/alert";
-import { companyUsers } from "./userData";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
 import { Check } from "lucide-react";
+import { useAdminUsersList } from "../../hooks/useAdminUsers";
 
 const roles = ["Client", "Developer", "Admin"] as const;
 const roleLabels: Record<(typeof roles)[number], string> = {
@@ -42,6 +42,7 @@ export function AdminAddUser() {
   const [isCheckingUsername, setIsCheckingUsername] = useState(false);
   const [usernameCheckStatus, setUsernameCheckStatus] = useState<"idle" | "success" | "error">("idle");
   const [usernameCheckMessage, setUsernameCheckMessage] = useState("");
+  const { users: adminUsers } = useAdminUsersList();
 
   const handleSubmit = (event: FormEvent) => {
     event.preventDefault();
@@ -76,11 +77,11 @@ export function AdminAddUser() {
 
   const companyDirectory = useMemo(() => {
     const set = new Set<string>();
-    companyUsers.forEach((user) => {
+    adminUsers.forEach((user) => {
       if (user.company) set.add(user.company);
     });
     return Array.from(set).sort();
-  }, []);
+  }, [adminUsers]);
 
   const filteredCompanies = useMemo(() => {
     const term = companySearchTerm.trim().toLowerCase();
@@ -108,8 +109,8 @@ export function AdminAddUser() {
     setUsernameCheckStatus("idle");
     setUsernameCheckMessage("");
     setTimeout(() => {
-      const exists = companyUsers.some(
-        (user) => user.id?.toLowerCase() === username.toLowerCase()
+      const exists = adminUsers.some(
+        (user) => user.loginId?.toLowerCase() === username.toLowerCase() || user.id.toLowerCase() === username.toLowerCase(),
       );
       if (exists) {
         setUsernameCheckStatus("error");
