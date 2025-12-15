@@ -147,7 +147,7 @@ export function AdminAddUser() {
                 <PopoverTrigger asChild>
                   <button
                     type="button"
-                    className="flex h-9 w-full items-center justify-between gap-2 rounded-md border border-border bg-input-background px-3 py-2 text-sm transition-colors hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+                    className="flex h-9 w-full items-center justify-between gap-2 rounded-md border border-input bg-input-background px-3 py-2 text-sm transition-colors hover:bg-white dark:hover:bg-input/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 dark:bg-input/30"
                   >
                     <span className={`text-left text-sm ${form.company ? "text-foreground" : "text-muted-foreground"}`}>
                       {form.company || "고객사를 선택하세요"}
