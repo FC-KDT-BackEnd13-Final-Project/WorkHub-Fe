@@ -1,4 +1,4 @@
-import React, { ReactNode, useRef, useState } from "react";
+import React, { ReactNode, useEffect, useRef, useState } from "react";
 import { RichTextEditor } from "./RichTextEditor";
 import { Card, CardContent } from "./ui/card";
 import { Button } from "./ui/button";
@@ -29,9 +29,16 @@ interface RichTextDemoProps {
     onChange?: (draft: RichTextDraft) => void;
     initialDraft?: Partial<RichTextDraft>;
     showTypeSelector?: boolean;
+    allowLinks?: boolean;
 }
 
-export function RichTextDemo({ actionButtons, onChange, initialDraft, showTypeSelector = false }: RichTextDemoProps) {
+export function RichTextDemo({
+    actionButtons,
+    onChange,
+    initialDraft,
+    showTypeSelector = false,
+    allowLinks = true,
+}: RichTextDemoProps) {
     const defaultDraft: RichTextDraft = {
         title: initialDraft?.title ?? "",
         content: initialDraft?.content ?? "",
@@ -107,6 +114,7 @@ export function RichTextDemo({ actionButtons, onChange, initialDraft, showTypeSe
     };
 
     const handleAddLink = () => {
+        if (!allowLinks) return;
         const trimmedUrl = linkForm.url.trim();
         const trimmedDesc = linkForm.description.trim();
         if (!trimmedUrl) return;
@@ -119,11 +127,27 @@ export function RichTextDemo({ actionButtons, onChange, initialDraft, showTypeSe
     };
 
     const removeLink = (index: number) => {
+        if (!allowLinks) return;
         setDraftWithNotify((prev) => ({
             ...prev,
             links: prev.links.filter((_, i) => i !== index),
         }));
     };
+
+    useEffect(() => {
+        if (!allowLinks) {
+            if (isAddingLink) {
+                setIsAddingLink(false);
+                setLinkForm({ url: "", description: "" });
+            }
+            if (draft.links.length > 0) {
+                setDraftWithNotify((prev) => ({
+                    ...prev,
+                    links: [],
+                }));
+            }
+        }
+    }, [allowLinks, isAddingLink, draft.links.length]);
 
     const renderedActionButtons =
         typeof actionButtons === "function"
@@ -191,12 +215,18 @@ export function RichTextDemo({ actionButtons, onChange, initialDraft, showTypeSe
                             <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()}>
                                 파일 선택
                             </Button>
-                            <Button variant="outline" size="sm" onClick={() => setIsAddingLink((prev) => !prev)}>
-                                링크 추가
-                            </Button>
+                            {allowLinks && (
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => setIsAddingLink((prev) => !prev)}
+                                >
+                                    링크 추가
+                                </Button>
+                            )}
                         </div>
 
-                        {isAddingLink && (
+                        {allowLinks && isAddingLink && (
                             <div className="flex flex-col gap-2 rounded-md bg-background/80 p-3 sm:flex-row sm:items-center">
                                 <input
                                     type="url"
@@ -232,7 +262,7 @@ export function RichTextDemo({ actionButtons, onChange, initialDraft, showTypeSe
                             </div>
                         )}
 
-                        {(draft.attachments.length > 0 || draft.links.length > 0) && (
+                        {(draft.attachments.length > 0 || (allowLinks && draft.links.length > 0)) && (
                             <div className="space-y-2">
                                 {draft.attachments.map((file, index) => (
                                     <div
@@ -250,34 +280,35 @@ export function RichTextDemo({ actionButtons, onChange, initialDraft, showTypeSe
                                         </Button>
                                     </div>
                                 ))}
-                                {draft.links.map((link, index) => (
-                                    <div
-                                        key={`${link.url}-${index}`}
-                                        className="flex w-full items-center justify-between rounded-md border bg-background px-3 py-2 text-sm"
-                                    >
-                                        <div className="flex flex-col">
-                                            <span className="font-medium text-foreground">
-                                                {link.description || "링크 설명 없음"}
-                                            </span>
-                                            <a
-                                                href={link.url}
-                                                target="_blank"
-                                                rel="noreferrer"
-                                                className="text-xs text-primary underline"
-                                            >
-                                                {link.url}
-                                            </a>
-                                        </div>
-                                        <Button
-                                            variant="ghost"
-                                            size="sm"
-                                            className="text-xs text-muted-foreground"
-                                            onClick={() => removeLink(index)}
+                                {allowLinks &&
+                                    draft.links.map((link, index) => (
+                                        <div
+                                            key={`${link.url}-${index}`}
+                                            className="flex w-full items-center justify-between rounded-md border bg-background px-3 py-2 text-sm"
                                         >
-                                            삭제
-                                        </Button>
-                                    </div>
-                                ))}
+                                            <div className="flex flex-col">
+                                                <span className="font-medium text-foreground">
+                                                    {link.description || "링크 설명 없음"}
+                                                </span>
+                                                <a
+                                                    href={link.url}
+                                                    target="_blank"
+                                                    rel="noreferrer"
+                                                    className="text-xs text-primary underline"
+                                                >
+                                                    {link.url}
+                                                </a>
+                                            </div>
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                className="text-xs text-muted-foreground"
+                                                onClick={() => removeLink(index)}
+                                            >
+                                                삭제
+                                            </Button>
+                                        </div>
+                                    ))}
                             </div>
                         )}
                     </div>
