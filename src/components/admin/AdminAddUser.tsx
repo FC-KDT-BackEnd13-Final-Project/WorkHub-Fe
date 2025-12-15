@@ -14,6 +14,8 @@ import {
 import { Label } from "../ui/label";
 import { Alert, AlertDescription } from "../ui/alert";
 import { companyUsers } from "./userData";
+import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
+import { Check } from "lucide-react";
 
 const roles = ["Client", "Developer", "Admin"] as const;
 const roleLabels: Record<(typeof roles)[number], string> = {
@@ -43,6 +45,10 @@ export function AdminAddUser() {
 
   const handleSubmit = (event: FormEvent) => {
     event.preventDefault();
+    if (!form.company) {
+      setError("고객사를 선택해주세요.");
+      return;
+    }
     if (form.password !== form.confirmPassword) {
       setError("비밀번호가 일치하지 않습니다.");
       return;
@@ -87,6 +93,7 @@ export function AdminAddUser() {
     setForm((prev) => ({ ...prev, company }));
     setIsCompanyLookupOpen(false);
     setCompanySearchTerm("");
+    setError("");
   };
 
   // ID 중복 여부를 간단히 검사해 사용자에게 알려줌
@@ -125,50 +132,93 @@ export function AdminAddUser() {
         <form className="space-y-6" onSubmit={handleSubmit}>
           <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2">
-              <Label htmlFor="user-company">회사명</Label>
-              <div className="flex gap-2">
-                <Input
-                  id="user-company"
-                  required
-                  value={form.company}
-                  readOnly
-                  placeholder="조회 버튼으로 회사를 선택하세요"
-                  onClick={() => setIsCompanyLookupOpen(true)}
-                />
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="whitespace-nowrap"
-                  onClick={() => setIsCompanyLookupOpen((prev) => !prev)}
+              <Label className="flex items-center gap-2 text-sm leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50">
+                고객사
+              </Label>
+              <Popover
+                open={isCompanyLookupOpen}
+                onOpenChange={(open) => {
+                  setIsCompanyLookupOpen(open);
+                  if (!open) {
+                    setCompanySearchTerm("");
+                  }
+                }}
+              >
+                <PopoverTrigger asChild>
+                  <button
+                    type="button"
+                    className="flex h-9 w-full items-center justify-between gap-2 rounded-md border border-border bg-input-background px-3 py-2 text-sm transition-colors hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+                  >
+                    <span className={`text-left text-sm ${form.company ? "text-foreground" : "text-muted-foreground"}`}>
+                      {form.company || "고객사를 선택하세요"}
+                    </span>
+                    <svg
+                      className={`h-4 w-4 transition-transform ${isCompanyLookupOpen ? "rotate-180" : ""}`}
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      xmlns="http://www.w3.org/2000/svg"
+                    >
+                      <path
+                        d="m6 9 6 6 6-6"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent
+                  side="bottom"
+                  align="start"
+                  avoidCollisions={false}
+                  className="bg-popover text-popover-foreground data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 z-50 origin-[var(--radix-popover-content-transform-origin)] rounded-md border shadow-md outline-hidden w-[var(--radix-popover-trigger-width)] max-w-none p-0"
+                  style={{ width: "var(--radix-popover-trigger-width)" }}
                 >
-                  조회
-                </Button>
-              </div>
-              {isCompanyLookupOpen && (
-                <div className="space-y-3 rounded-xl border border-border bg-background/80 p-3 shadow-sm">
-                  <Input
-                    placeholder="회사명을 검색하세요"
-                    value={companySearchTerm}
-                    onChange={(event) => setCompanySearchTerm(event.target.value)}
-                  />
-                  <div className="max-h-48 space-y-1 overflow-y-auto pt-1 pb-1">
-                    {filteredCompanies.length ? (
-                      filteredCompanies.map((company) => (
-                        <button
-                          key={company}
-                          type="button"
-                          onClick={() => handleSelectCompany(company)}
-                          className="w-full rounded-lg border border-transparent px-3 py-2 text-left text-sm transition-colors hover:border-border hover:bg-accent"
-                        >
-                          {company}
-                        </button>
-                      ))
+                  <div className="border-b border-border px-3 py-2">
+                    <Input
+                      placeholder="고객사를 검색하세요"
+                      value={companySearchTerm}
+                      onChange={(event) => setCompanySearchTerm(event.target.value)}
+                      autoFocus
+                      className="h-8 text-sm"
+                    />
+                  </div>
+                  <div className="max-h-[13.5rem] overflow-y-auto">
+                    {companySearchTerm.trim() ? (
+                      filteredCompanies.length ? (
+                        filteredCompanies.map((company) => {
+                          const isActive = form.company === company;
+                          return (
+                            <button
+                              key={company}
+                              type="button"
+                              onMouseDown={(event) => {
+                                event.preventDefault();
+                                handleSelectCompany(company);
+                              }}
+                              className={`flex w-full items-center justify-between px-3 py-2 text-left text-sm transition-colors ${
+                                isActive ? "bg-primary/5 text-primary" : "hover:bg-accent/60"
+                              }`}
+                            >
+                              <span>{company}</span>
+                              {isActive && <Check className="h-4 w-4 text-primary" aria-hidden="true" />}
+                            </button>
+                          );
+                        })
+                      ) : (
+                        <p className="px-3 py-4 text-center text-sm text-muted-foreground">
+                          검색 결과가 없습니다.
+                        </p>
+                      )
                     ) : (
-                      <p className="text-xs text-muted-foreground">검색 결과가 없습니다.</p>
+                      <p className="px-3 py-4 text-center text-sm text-muted-foreground">
+                        검색어를 입력하면 고객사가 표시됩니다.
+                      </p>
                     )}
                   </div>
-                </div>
-              )}
+                </PopoverContent>
+              </Popover>
             </div>
             <div className="space-y-2">
               <Label>역할</Label>

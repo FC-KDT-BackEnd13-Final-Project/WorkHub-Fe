@@ -65,7 +65,7 @@ export function PostCard({ post, metaItems, headerLabel, extraMenu }: PostCardPr
   };
 
   return (
-    <Card2>
+    <Card2 variant="modal">
       <CardContent className="space-y-4 p-6">
         <div className="space-y-2">
           {headerLabel && (

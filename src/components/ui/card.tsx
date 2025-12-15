@@ -2,14 +2,24 @@ import * as React from "react";
 
 import { cn } from "./utils";
 
-function Card({ className, ...props }: React.ComponentProps<"div">) {
+type CardVariant = "surface" | "modal";
+
+type CardProps = React.ComponentProps<"div"> & {
+  variant?: CardVariant;
+};
+
+const cardVariants: Record<CardVariant, string> = {
+  surface:
+    "text-card-foreground flex flex-col gap-6 rounded-2xl border border-white/70 bg-white/90 shadow-sm backdrop-blur",
+  modal:
+    "bg-card text-card-foreground flex flex-col gap-6 rounded-2xl border border-border shadow-lg",
+};
+
+function Card({ className, variant = "surface", ...props }: CardProps) {
   return (
     <div
       data-slot="card"
-      className={cn(
-        "bg-card text-card-foreground flex flex-col gap-6 rounded-xl border",
-        className,
-      )}
+      className={cn(cardVariants[variant], className)}
       {...props}
     />
   );

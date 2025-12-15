@@ -20,6 +20,7 @@ import {
     type SupportTicketStatus,
 } from "../../data/supportTickets";
 import { saveSupportStatus } from "../../utils/supportTicketStatusStorage";
+import { ModalShell } from "../common/ModalShell";
 
 const COMMENTS_PER_PAGE = 5;
 const SUPPORT_STATUS_OPTIONS: SupportTicketStatus[] = [
@@ -1447,16 +1448,31 @@ export function ProjectPostDetail({
 
             {/* 댓글 페이지네이션 */}
             {topLevelComments.length > 0 && (
-                <div className="flex flex-col items-center gap-2 border-t pt-4 text-sm text-muted-foreground">
-                    <div className="flex items-center justify-center gap-2">
+                <div className="pt-4">
+                    <div className="flex items-center justify-center gap-2 mt-4 text-sm text-muted-foreground">
                         <Button2
                             variant="outline"
                             size="sm"
                             onClick={() => setCommentPage((prev) => Math.max(prev - 1, 1))}
                             disabled={commentPage === 1}
-                            aria-label="이전 댓글 페이지"
+                            aria-label="이전 페이지"
+                            className="h-8 rounded-md gap-1.5 px-3 has-[>svg]:px-2.5 border-0 bg-background text-foreground hover:bg-accent hover:text-accent-foreground dark:bg-input/30 dark:hover:bg-input/50"
                         >
-                            {"<"}
+                            <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                width="24"
+                                height="24"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="2"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                className="h-4 w-4"
+                                aria-hidden="true"
+                            >
+                                <path d="m15 18-6-6 6-6" />
+                            </svg>
                         </Button2>
                         {Array.from({ length: totalCommentPages }, (_, index) => index + 1).map(
                             (page) => (
@@ -1465,6 +1481,10 @@ export function ProjectPostDetail({
                                     variant={page === commentPage ? "default" : "outline"}
                                     size="sm"
                                     onClick={() => setCommentPage(page)}
+                                    aria-current={page === commentPage ? "page" : undefined}
+                                    className={`h-8 rounded-md gap-1.5 px-3 has-[>svg]:px-2.5 ${
+                                        page === commentPage ? "" : "border bg-background text-foreground hover:bg-accent hover:text-accent-foreground dark:bg-input/30 dark:hover:bg-input/50"
+                                    }`}
                                 >
                                     {page}
                                 </Button2>
@@ -1477,114 +1497,118 @@ export function ProjectPostDetail({
                                 setCommentPage((prev) => Math.min(prev + 1, totalCommentPages))
                             }
                             disabled={commentPage === totalCommentPages}
-                            aria-label="다음 댓글 페이지"
+                            aria-label="다음 페이지"
+                            className="h-8 rounded-md gap-1.5 px-3 has-[>svg]:px-2.5 border-0 bg-background text-foreground hover:bg-accent hover:text-accent-foreground dark:bg-input/30 dark:hover:bg-input/50"
                         >
-                            {">"}
+                            <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                width="24"
+                                height="24"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="2"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                className="h-4 w-4"
+                                aria-hidden="true"
+                            >
+                                <path d="m9 18 6-6-6-6" />
+                            </svg>
                         </Button2>
                     </div>
                 </div>
             )}
 
             {/* 댓글 이력 모달 */}
-            {isCommentHistoryOpen && (
-                <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm">
-                    <div className="absolute inset-0" onClick={closeCommentHistory} aria-hidden />
-                    <div className="relative z-10 flex h-full items-center justify-center p-4">
-                        <Card2 className="h-full w-full max-w-4xl max-h-[80vh] flex flex-col overflow-hidden">
-                            <CardHeader className="border-b text-center">
-                                <h3 className="text-lg font-semibold">댓글 이력</h3>
-                            </CardHeader>
-                            <CardContent className="flex flex-1 min-h-0 flex-col gap-4 overflow-hidden px-6 py-6">
-                                <div className="grid flex-1 min-h-0 gap-4 overflow-hidden md:grid-cols-2">
-                                    {/* 왼쪽: 현재/삭제 댓글 목록 */}
-                                    <div className="flex min-h-0 flex-col gap-4 overflow-y-auto pr-1">
-                                        <div className="space-y-2">
-                                            <div className="flex items-center justify-between text-sm text-muted-foreground">
-                                                <p className="font-medium text-foreground">현재 댓글</p>
-                                                <span>총 {activeComments.length}건</span>
-                                            </div>
-                                            <div className="space-y-2">{renderHistoryCommentList()}</div>
-                                        </div>
-                                        <div className="space-y-2">
-                                            <div className="flex items-center justify-between text-sm text-muted-foreground">
-                                                <p className="font-medium text-muted-foreground">삭제된 댓글</p>
-                                                <span>총 {deletedComments.length}건</span>
-                                            </div>
-                                            <div className="space-y-2">{renderDeletedCommentList()}</div>
-                                        </div>
+            <ModalShell open={isCommentHistoryOpen} onClose={closeCommentHistory} maxWidth="64rem">
+                <div className="login-theme bg-card text-card-foreground flex h-full max-h-[90vh] w-full flex-col gap-6 overflow-hidden rounded-xl border border-border shadow-2xl">
+                    <div className="flex flex-col gap-2 border-b px-6 pt-6 pb-6 text-center sm:flex-row sm:items-center sm:text-left">
+                        <div className="flex-1">
+                            <h2 className="text-xl font-semibold">댓글 이력</h2>
+                            <p className="text-sm text-muted-foreground">삭제된 댓글까지 모두 확인하고 선택한 댓글의 변화를 살펴보세요.</p>
+                        </div>
+                        <span className="text-sm font-semibold text-sky-600">총 {activeComments.length + deletedComments.length}건</span>
+                    </div>
+                    <div className="flex flex-1 flex-col gap-6 px-6 pb-6">
+                        <div className="grid flex-1 min-h-0 gap-4 overflow-hidden md:grid-cols-2">
+                            <div className="flex min-h-0 flex-col gap-4 overflow-y-auto pr-1">
+                                <div className="space-y-2">
+                                    <div className="flex items-center justify-between text-sm text-muted-foreground">
+                                        <p className="font-medium text-foreground">현재 댓글</p>
+                                        <span>총 {activeComments.length}건</span>
                                     </div>
-
-                                    {/* 오른쪽: 선택한 댓글의 히스토리 (스크롤 영역) */}
-                                    <div className="flex h-full min-h-0 flex-col space-y-2 overflow-hidden">
-                                        <div className="flex items-center justify-between text-sm text-muted-foreground">
-                                            <p className="font-medium">선택한 댓글의 히스토리</p>
-                                            {historyViewComment && <span>총 {historyTimeline.length}건</span>}
-                                        </div>
-                                        <div className="flex-1 overflow-y-auto rounded-lg border bg-muted/30 p-3">
-                                            <div className="space-y-3">
-                                                {!historyViewComment && (
-                                                    <p className="text-sm text-muted-foreground">
-                                                        왼쪽 목록에서 댓글을 선택해 주세요.
-                                                    </p>
+                                    <div className="space-y-2">{renderHistoryCommentList()}</div>
+                                </div>
+                                <div className="space-y-2">
+                                    <div className="flex items-center justify-between text-sm text-muted-foreground">
+                                        <p className="font-medium text-muted-foreground">삭제된 댓글</p>
+                                        <span>총 {deletedComments.length}건</span>
+                                    </div>
+                                    <div className="space-y-2">{renderDeletedCommentList()}</div>
+                                </div>
+                            </div>
+                            <div className="flex h-full min-h-0 flex-col space-y-2 overflow-hidden">
+                                <div className="flex items-center justify-between text-sm text-muted-foreground">
+                                    <p className="font-medium">선택한 댓글의 히스토리</p>
+                                    {historyViewComment && <span>총 {historyTimeline.length}건</span>}
+                                </div>
+                                <div className="flex-1 overflow-y-auto rounded-lg border bg-muted/30 p-3">
+                                    <div className="space-y-3">
+                                        {!historyViewComment && (
+                                            <p className="text-sm text-muted-foreground">왼쪽 목록에서 댓글을 선택해 주세요.</p>
+                                        )}
+                                        {historyViewComment && (
+                                            <>
+                                                {historyParentComment && (
+                                                    <div className="rounded-md border bg-background p-3 space-y-1">
+                                                        <span className="text-xs text-muted-foreground">원 댓글</span>
+                                                        <p className="text-xs text-muted-foreground">
+                                                            {historyParentComment.author || "익명"}
+                                                        </p>
+                                                        <p className="text-sm whitespace-pre-wrap text-foreground">
+                                                            {historyParentComment.content || "내용이 없습니다."}
+                                                        </p>
+                                                    </div>
                                                 )}
-
-                                                {historyViewComment && (
-                                                    <>
-                                                        {historyParentComment && (
-                                                            <div className="rounded-md border bg-background p-3 space-y-1">
-                                                                <span className="text-xs text-muted-foreground">원 댓글</span>
-                                                                <p className="text-xs text-muted-foreground">
-                                                                    {historyParentComment.author || "익명"}
-                                                                </p>
-                                                                <p className="text-sm whitespace-pre-wrap text-foreground">
-                                                                    {historyParentComment.content || "내용이 없습니다."}
-                                                                </p>
+                                                {historyTimeline.length === 0 ? (
+                                                    <p className="text-sm text-muted-foreground">수정/삭제 이력이 없습니다.</p>
+                                                ) : (
+                                                    historyTimeline.map((entry) => {
+                                                        const actionLabel = getHistoryActionLabel(entry.action);
+                                                        const isDeletedAction = entry.action === "deleted";
+                                                        return (
+                                                            <div
+                                                                key={entry.id}
+                                                                className="rounded-md border bg-background p-2 text-sm space-y-1"
+                                                            >
+                                                                <div className="flex items-center justify-between text-xs text-muted-foreground">
+                                                                    <span className={isDeletedAction ? "text-destructive" : undefined}>
+                                                                        {actionLabel}
+                                                                    </span>
+                                                                    <span className={isDeletedAction ? "text-destructive" : undefined}>
+                                                                        {entry.timestamp}
+                                                                    </span>
+                                                                </div>
+                                                                <p className="whitespace-pre-wrap">{entry.content || "내용이 없습니다."}</p>
                                                             </div>
-                                                        )}
-                                                        {historyTimeline.length === 0 ? (
-                                                            <p className="text-sm text-muted-foreground">
-                                                                수정/삭제 이력이 없습니다.
-                                                            </p>
-                                                        ) : (
-                                                            historyTimeline.map((entry) => {
-                                                                const actionLabel = getHistoryActionLabel(entry.action);
-                                                                const isDeletedAction = entry.action === "deleted";
-                                                                return (
-                                                                    <div
-                                                                        key={entry.id}
-                                                                        className="rounded-md border bg-background p-2 text-sm space-y-1"
-                                                                    >
-                                                                        <div className="flex items-center justify-between text-xs text-muted-foreground">
-                                                                            <span className={isDeletedAction ? "text-destructive" : undefined}>
-                                                                                {actionLabel}
-                                                                            </span>
-                                                                            <span className={isDeletedAction ? "text-destructive" : undefined}>
-                                                                                {entry.timestamp}
-                                                                            </span>
-                                                                        </div>
-                                                                        <p className="whitespace-pre-wrap">
-                                                                            {entry.content || "내용이 없습니다."}
-                                                                        </p>
-                                                                    </div>
-                                                                );
-                                                            })
-                                                        )}
-                                                    </>
+                                                        );
+                                                    })
                                                 )}
-                                            </div>
-                                        </div>
+                                            </>
+                                        )}
                                     </div>
                                 </div>
-                            </CardContent>
-                            <CardFooter className="border-t">
-                                <Button2 className="w-full justify-center" onClick={closeCommentHistory}>
-                                    닫기
-                                </Button2>
-                            </CardFooter>
-                        </Card2>
+                            </div>
+                        </div>
+                    </div>
+                    <div className="border-t px-6 py-4 mt-6">
+                        <Button2 className="w-full" onClick={closeCommentHistory}>
+                            닫기
+                        </Button2>
                     </div>
                 </div>
-            )}
+            </ModalShell>
 
             {/* 하단 버튼들 */}
             {showBackButton && (
@@ -1607,106 +1631,78 @@ export function ProjectPostDetail({
             )}
 
             {/* 수정 이력 모달 (게시글) */}
-            {isHistoryOpen && (
-                <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm">
-                    <div className="absolute inset-0" aria-hidden onClick={closeHistory} />
-                    <div className="relative z-10 flex h-full items-center justify-center p-4">
-                        <div className="login-theme bg-card text-card-foreground flex h-full max-h-[90vh] w-full max-w-4xl flex-col gap-6 overflow-hidden rounded-xl border border-border shadow-2xl">
-                            <div className="flex flex-col gap-2 border-b px-6 pt-6 pb-6 text-center sm:flex-row sm:items-center sm:text-left">
-                                <div className="flex-1">
-                                    <h2 className="text-xl font-semibold">수정 이력</h2>
-                                    <p className="text-sm text-muted-foreground">
-                                        게시글의 과거 버전을 확인하거나 현재 글과 비교할 수 있습니다.
-                                    </p>
-                                </div>
-                                <span className="text-sm font-semibold text-sky-600">
-                  총 {sortedRevisions.length}건
-                </span>
-                            </div>
-
-                            <div className="flex flex-1 flex-col gap-6 px-6 pb-6">
-                                {selectedRevision ? (
-                                    <>
-                                        <div className="flex flex-col gap-3 text-sm sm:flex-row sm:items-center sm:justify-between">
-                                            <Button2
-                                                variant="ghost"
-                                                size="sm"
-                                                onClick={() => setSelectedRevision(null)}
-                                            >
-                                                이력 목록으로 돌아가기
-                                            </Button2>
-                                        </div>
-                                        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                                            <PostCard
-                                                headerLabel="현재 게시물"
-                                                post={currentPostCardData}
-                                                metaItems={postMetaItems}
-                                            />
-                                            <PostCard
-                                                headerLabel={`수정 전 ${selectedRevision.version}`}
-                                                post={{
-                                                    title: selectedRevision.title,
-                                                    content: selectedRevision.content,
-                                                    type: post.type,
-                                                }}
-                                                metaItems={[
-                                                    selectedRevision.author &&
-                                                    `작성자: ${selectedRevision.author}`,
-                                                    (selectedRevision.updatedAt ||
-                                                        selectedRevision.editedAt ||
-                                                        selectedRevision.createdAt) &&
-                                                    `수정일: ${
-                                                        selectedRevision.updatedAt ??
-                                                        selectedRevision.editedAt ??
-                                                        selectedRevision.createdAt
-                                                    }`,
-                                                ].filter(Boolean) as string[]}
-                                            />
-                                        </div>
-                                    </>
-                                ) : sortedRevisions.length ? (
-                                    <div className="flex-1 space-y-6 overflow-y-auto pr-1">
-                                        {sortedRevisions.map((revision) => {
-                                            const revisionDate = getRevisionTimestamp(revision);
-                                            const previewText = getRevisionPreview(revision.content);
-                                            return (
-                                                <button
-                                                    key={revision.id}
-                                                    type="button"
-                                                    className="flex w-full flex-col rounded-lg border bg-muted/30 px-6 py-6 text-left hover:bg-muted"
-                                                    onClick={() => setSelectedRevision(revision)}
-                                                >
-                                                    <div className="flex items-center justify-between gap-2 text-base font-semibold mt-4">
-                                                        <span className="text-foreground">{revision.title}</span>
-                                                        <span className="text-muted-foreground text-sm">
-                              {revisionDate || "날짜 미정"}
-                            </span>
-                                                    </div>
-                                                    {previewText && (
-                                                        <p className="text-sm text-muted-foreground leading-relaxed mb-6">
-                                                            {previewText}
-                                                        </p>
-                                                    )}
-                                                </button>
-                                            );
-                                        })}
-                                    </div>
-                                ) : (
-                                    <p className="py-8 text-center text-sm text-muted-foreground">
-                                        아직 수정된 이력이 없습니다.
-                                    </p>
-                                )}
-                            </div>
-
-                            <div className="border-t px-6 py-4 mt-6">
-                                <Button2 type="button" className="w-full" onClick={closeHistory}>
-                                    닫기
-                                </Button2>
-                            </div>
+            <ModalShell open={isHistoryOpen} onClose={closeHistory} maxWidth="64rem">
+                <div className="login-theme bg-card text-card-foreground flex h-full max-h-[90vh] w-full flex-col gap-6 overflow-hidden rounded-xl border border-border shadow-2xl">
+                    <div className="flex flex-col gap-2 border-b px-6 pt-6 pb-6 text-center sm:flex-row sm:items-center sm:text-left">
+                        <div className="flex-1">
+                            <h2 className="text-xl font-semibold">수정 이력</h2>
+                            <p className="text-sm text-muted-foreground">게시글의 과거 버전을 확인하거나 현재 글과 비교할 수 있습니다.</p>
                         </div>
+                        <span className="text-sm font-semibold text-sky-600">총 {sortedRevisions.length}건</span>
+                    </div>
+                    <div className="flex flex-1 flex-col gap-6 px-6 pb-6">
+                        {selectedRevision ? (
+                            <>
+                                <div className="flex flex-col gap-3 text-sm sm:flex-row sm:items-center sm:justify-between">
+                                    <Button2 variant="ghost" size="sm" onClick={() => setSelectedRevision(null)}>
+                                        이력 목록으로 돌아가기
+                                    </Button2>
+                                </div>
+                                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                                    <PostCard headerLabel="현재 게시물" post={currentPostCardData} metaItems={postMetaItems} />
+                                    <PostCard
+                                        headerLabel={`수정 전 ${selectedRevision.version}`}
+                                        post={{
+                                            title: selectedRevision.title,
+                                            content: selectedRevision.content,
+                                            type: post.type,
+                                        }}
+                                        metaItems={[
+                                            selectedRevision.author && `작성자: ${selectedRevision.author}`,
+                                            (selectedRevision.updatedAt || selectedRevision.editedAt || selectedRevision.createdAt) &&
+                                                `수정일: ${
+                                                    selectedRevision.updatedAt ??
+                                                    selectedRevision.editedAt ??
+                                                    selectedRevision.createdAt
+                                                }`,
+                                        ].filter(Boolean) as string[]}
+                                    />
+                                </div>
+                            </>
+                        ) : sortedRevisions.length ? (
+                            <div className="flex-1 space-y-6 overflow-y-auto pr-1">
+                                {sortedRevisions.map((revision) => {
+                                    const revisionDate = getRevisionTimestamp(revision);
+                                    const previewText = getRevisionPreview(revision.content);
+                                    return (
+                                        <button
+                                            key={revision.id}
+                                            type="button"
+                                            className="flex w-full flex-col rounded-lg border bg-muted/30 px-6 py-6 text-left hover:bg-muted"
+                                            onClick={() => setSelectedRevision(revision)}
+                                        >
+                                            <div className="flex items-center justify-between gap-2 text-base font-semibold mt-4">
+                                                <span className="text-foreground">{revision.title}</span>
+                                                <span className="text-muted-foreground text-sm">{revisionDate || "날짜 미정"}</span>
+                                            </div>
+                                            {previewText && (
+                                                <p className="text-sm text-muted-foreground leading-relaxed mb-6">{previewText}</p>
+                                            )}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        ) : (
+                            <p className="py-8 text-center text-sm text-muted-foreground">아직 수정된 이력이 없습니다.</p>
+                        )}
+                    </div>
+                    <div className="border-t px-6 py-4 mt-6">
+                        <Button2 type="button" className="w-full" onClick={closeHistory}>
+                            닫기
+                        </Button2>
                     </div>
                 </div>
-            )}
+            </ModalShell>
         </div>
     );
 }

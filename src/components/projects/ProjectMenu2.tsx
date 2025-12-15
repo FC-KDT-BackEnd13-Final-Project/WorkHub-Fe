@@ -11,7 +11,7 @@ interface NavigationProps {
 
 export function ProjectMenu2({ activeTab, onTabChange }: NavigationProps) {
   return (
-      <Card2 className="my-9 py-6 border-0 shadow-none">
+      <Card2 variant="surface" className="my-9 py-6 border-0 shadow-none">
         <CardContent className="py-9">
           <div className="flex gap-2 justify-center py-9">
 

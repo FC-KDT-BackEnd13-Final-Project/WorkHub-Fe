@@ -1369,7 +1369,7 @@ export function FormQuestion2({
                 />
 
                 <div className="relative z-10 flex h-full items-center justify-center p-4">
-                    <Card2 className="flex h-full max-h-[80vh] w-full max-w-4xl flex-col overflow-hidden">
+                    <Card2 variant="modal" className="flex h-full max-h-[80vh] w-full max-w-4xl flex-col overflow-hidden">
                         <CardHeader className="relative border-b text-center">
                             <h3 className="text-lg font-semibold">
                                 코멘트 이력

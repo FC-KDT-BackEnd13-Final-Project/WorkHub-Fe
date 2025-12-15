@@ -34,6 +34,7 @@ import {
 } from "../../utils/supportTicketStatusStorage";
 import { csPostApi } from "../../lib/api";
 import type { CsPostApiItem, CsPostStatus } from "../../types/csPost";
+import { BackButton } from "../../components/common/BackButton";
 
 // API 응답을 UI 형식으로 변환
 interface Ticket {
@@ -273,7 +274,7 @@ export function SupportPage() {
               )}
 
               {/* 목록 */}
-              <Card2 className="overflow-hidden">
+        <Card2 className="overflow-hidden">
                 <CardContent className="p-0">
                   <Table2>
                     <TableHeader>
@@ -361,9 +362,7 @@ export function SupportPage() {
               </Card2>
 
               <div className="flex justify-end mt-4">
-                <Button2 variant="outline" onClick={() => navigate(-1)}>
-                  ← 뒤로가기
-                </Button2>
+                <BackButton />
               </div>
             </>
         )}

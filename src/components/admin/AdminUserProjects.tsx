@@ -5,6 +5,7 @@ import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
 import { companyUsers } from "./userData";
 import { useUserProjects } from "../../hooks/useUserProjects";
+import { BackButton } from "../common/BackButton";
 
 // AdminUserDetail에서 쓰는 것과 동일한 스타일 맵
 const statusStyles = {
@@ -199,9 +200,7 @@ export function AdminUserProjects() {
           </div>
 
           <div className="mt-4 flex justify-end">
-            <Button variant="outline" onClick={() => navigate(-1)}>
-              뒤로 가기
-            </Button>
+            <BackButton label="뒤로 가기" />
           </div>
         </div>
       </div>

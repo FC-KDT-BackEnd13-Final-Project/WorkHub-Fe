@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams, useLocation } from "react-router-dom";
-import { Button } from "../ui/button";
 import { ProjectMenu2 } from "./ProjectMenu2";
 import { ProjectChecklist2 } from "./ProjectChecklist2";
 import { ProjectPost2 } from "./ProjectPost2";
+import { BackButton } from "../common/BackButton";
 
 // 특정 노드의 체크리스트/게시판을 탭으로 전환하는 컨테이너
 export function ProjectNodeDetail() {
@@ -40,9 +40,7 @@ export function ProjectNodeDetail() {
         </div>
         <div className="mb-6">{activeTab === "form" ? <ProjectChecklist2 /> : <ProjectPost2 />}</div>
         <div className="flex justify-end">
-          <Button variant="outline" onClick={() => navigate(-1)}>
-            ← 뒤로가기
-          </Button>
+          <BackButton />
         </div>
       </div>
     </div>
