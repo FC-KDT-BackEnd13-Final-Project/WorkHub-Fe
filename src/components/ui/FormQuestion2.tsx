@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { Card2, CardContent, CardHeader } from "./card2";
 import { Label2 } from "./label2";
 import { CheckboxQuestion2 } from "./CheckboxQuestion2";
@@ -47,6 +47,17 @@ interface ChecklistHistoryEntry {
     author: string;
     content: string;
     timestamp: string;
+}
+
+interface ChecklistHistoryLogEntry {
+    id: number;
+    groupId: number;
+    groupTitle: string;
+    author: string;
+    content: string;
+    timestamp: string;
+    action: ChecklistHistoryAction;
+    type: "checklist";
 }
 
 interface HistoryTargetMeta {
@@ -102,6 +113,7 @@ interface FormQuestionProps {
     allowSelectionWhenDisabled?: boolean;
     allowCommentWhenDisabled?: boolean;
     commentAuthor?: string;
+    saveSignal?: number;
 }
 
 const createChecklistGroup = (id: number): ChecklistGroup => ({
@@ -128,10 +140,18 @@ export function FormQuestion2({
                                   allowSelectionWhenDisabled = false,
                                   allowCommentWhenDisabled = false,
                                   commentAuthor = "작성자",
+                                  saveSignal = 0,
                               }: FormQuestionProps) {
     const [groups, setGroups] = useState<ChecklistGroup[]>([
         createChecklistGroup(1),
     ]);
+    const [isChecklistHistoryOpen, setChecklistHistoryOpen] = useState(false);
+    const [selectedChecklistHistoryId, setSelectedChecklistHistoryId] =
+        useState<number | null>(null);
+    const [checklistHistoryLogs, setChecklistHistoryLogs] = useState<
+        ChecklistHistoryLogEntry[]
+    >([]);
+    const lastSavedSnapshotRef = useRef<Map<number, string>>(new Map());
 
     const canSelect = !disabled || allowSelectionWhenDisabled;
     const canComment = !disabled || allowCommentWhenDisabled;
@@ -147,10 +167,184 @@ export function FormQuestion2({
         ...payload,
     });
 
+    const groupsRef = useRef(groups);
+    useEffect(() => {
+        groupsRef.current = groups;
+    }, [groups]);
+
+    const sortedChecklistHistoryEntries = useMemo(
+        () =>
+            [...checklistHistoryLogs].sort(
+                (a, b) =>
+                    new Date(b.timestamp).getTime() -
+                    new Date(a.timestamp).getTime(),
+            ),
+        [checklistHistoryLogs],
+    );
+
+    const selectedChecklistHistoryEntry = useMemo(
+        () =>
+            selectedChecklistHistoryId !== null
+                ? sortedChecklistHistoryEntries.find(
+                      (entry) => entry.id === selectedChecklistHistoryId,
+                  ) ?? null
+                : null,
+        [selectedChecklistHistoryId, sortedChecklistHistoryEntries],
+    );
+
     const createAttachment = (file: File): CommentAttachment => ({
         id: Date.now() + Math.floor(Math.random() * 1000),
         file,
     });
+
+    const formatHistoryTimestamp = (value?: string | null) => {
+        if (!value) return "시간 정보 없음";
+        const date = new Date(value);
+        if (Number.isNaN(date.getTime())) return value;
+        return date.toLocaleString();
+    };
+
+    const getHistoryActionBadgeClass = (action: ChecklistHistoryAction) => {
+        if (action === "created")
+            return "bg-emerald-50 text-emerald-700 border border-emerald-200";
+        if (action === "edited")
+            return "bg-amber-50 text-amber-800 border border-amber-200";
+        return "bg-rose-50 text-rose-700 border border-rose-200";
+    };
+
+    const getHistoryTargetLabel = (
+        type: "comment" | "reply" | "checklist",
+    ) => {
+        if (type === "comment") return "댓글";
+        if (type === "reply") return "답글";
+        return "체크리스트";
+    };
+
+    const describeChecklistGroup = (group: ChecklistGroup, index: number) => {
+        const prefix = `preCheck-${group.id}-`;
+        const lines = group.rules
+            .map((rule, idx) => {
+                const trimmed = rule?.trim() ?? "";
+                if (!trimmed) return null;
+                const label = trimmed;
+                const evidence = group.evidences[`${prefix}${idx}`];
+                const files = evidence?.files?.map((file) => file.name).filter(Boolean) ?? [];
+                const links = evidence?.links?.filter(Boolean) ?? [];
+                const detailLines: string[] = [];
+                if (files.length) {
+                    detailLines.push(`첨부: ${files.join(", ")}`);
+                }
+                if (links.length) {
+                    detailLines.push(`링크: ${links.join(", ")}`);
+                }
+                const detailText =
+                    detailLines.length > 0
+                        ? `\n   - ${detailLines.join("\n   - ")}`
+                        : "";
+                return `${idx + 1}. ${label}${detailText}`;
+            })
+            .filter((line): line is string => Boolean(line));
+
+        return lines.length > 0 ? lines.join("\n\n") : "등록된 항목이 없습니다.";
+    };
+
+    const renderChecklistSummaryBlocks = (text?: string | null) => {
+        const normalized = text?.trim() ?? "";
+        if (!normalized) {
+            return (
+                <p className="text-sm text-muted-foreground">내용 없음</p>
+            );
+        }
+
+        const blocks = normalized
+            .split(/\r?\n\s*\r?\n/)
+            .map((block) => block.trim())
+            .filter(Boolean);
+
+        if (blocks.length === 0) {
+            return (
+                <p className="text-sm text-muted-foreground">내용 없음</p>
+            );
+        }
+
+        return blocks.map((block, index) => (
+            <p
+                key={`checklist-block-${index}`}
+                className="whitespace-pre-wrap text-sm text-foreground leading-relaxed"
+            >
+                {block}
+            </p>
+        ));
+    };
+
+    const getCurrentGroupInfo = (
+        entry: ChecklistHistoryLogEntry | null,
+    ) => {
+        if (!entry) return null;
+        const groupIndex = groups.findIndex((group) => group.id === entry.groupId);
+        if (groupIndex === -1) {
+            return {
+                title: entry.groupTitle,
+                summary: "현재 이 체크리스트를 찾을 수 없습니다.",
+                stateLabel: "삭제됨",
+            };
+        }
+        const group = groups[groupIndex];
+        return {
+            title: group.title?.trim() || entry.groupTitle,
+            summary: describeChecklistGroup(group, groupIndex),
+            stateLabel: "현재 상태",
+        };
+    };
+
+    const openChecklistHistoryModal = () => {
+        setChecklistHistoryOpen(true);
+        setSelectedChecklistHistoryId(null);
+    };
+
+    const closeChecklistHistoryModal = () => {
+        setChecklistHistoryOpen(false);
+        setSelectedChecklistHistoryId(null);
+    };
+
+    useEffect(() => {
+        if (!saveSignal) return;
+        const snapshot = groupsRef.current;
+        if (!snapshot.length) return;
+        const timestamp = new Date().toISOString();
+        const prevSnapshot = lastSavedSnapshotRef.current;
+        const nextSnapshot = new Map<number, string>();
+        const newEntries: ChecklistHistoryLogEntry[] = [];
+
+        snapshot.forEach((group, index) => {
+            const groupTitle = group.title?.trim() || `체크리스트 ${index + 1}`;
+            const content = describeChecklistGroup(group, index);
+            const signature = `${groupTitle}\n${content}`;
+            nextSnapshot.set(group.id, signature);
+            const previousSignature = prevSnapshot.get(group.id);
+            const action: ChecklistHistoryAction = previousSignature
+                ? "edited"
+                : "created";
+            if (previousSignature === signature) {
+                return;
+            }
+            newEntries.push({
+                id: Date.now() + index + Math.floor(Math.random() * 1000),
+                groupId: group.id,
+                groupTitle,
+                author: commentAuthor,
+                content,
+                timestamp,
+                action,
+                type: "checklist",
+            });
+        });
+
+        if (newEntries.length > 0) {
+            setChecklistHistoryLogs((prev) => [...prev, ...newEntries]);
+        }
+        lastSavedSnapshotRef.current = nextSnapshot;
+    }, [saveSignal, commentAuthor]);
 
     // RESET
     useEffect(() => {
@@ -192,7 +386,27 @@ export function FormQuestion2({
     // 체크리스트 카드 제거
     const handleRemoveGroup = () => {
         if (disabled) return;
-        setGroups((prev) => (prev.length <= 1 ? prev : prev.slice(0, -1)));
+        setGroups((prev) => {
+            if (prev.length <= 1) return prev;
+            const removedGroup = prev[prev.length - 1];
+            const timestamp = new Date().toISOString();
+            const removedEntry: ChecklistHistoryLogEntry = {
+                id: Date.now() + Math.floor(Math.random() * 1000),
+                groupId: removedGroup.id,
+                groupTitle:
+                    removedGroup.title?.trim() || `체크리스트 ${prev.length}`,
+                author: commentAuthor,
+                content: describeChecklistGroup(removedGroup, prev.length - 1),
+                timestamp,
+                action: "deleted",
+                type: "checklist",
+            };
+            setChecklistHistoryLogs((logs) => [...logs, removedEntry]);
+            const nextSnapshot = new Map(lastSavedSnapshotRef.current);
+            nextSnapshot.delete(removedGroup.id);
+            lastSavedSnapshotRef.current = nextSnapshot;
+            return prev.slice(0, -1);
+        });
     };
 
     const toggleComment = (groupIndex: number) => {
@@ -1401,7 +1615,7 @@ export function FormQuestion2({
                             </div>
                         </CardContent>
 
-                        <div className="-mx-6 flex justify-end border-t border-border px-6 pb-6 pt-6">
+                        <div className="-mx-6 flex justify-end border-t border-border px-6 pt-6 pb-6">
                             <Button2
                                 type="button"
                                 className="w-full bg-primary text-primary-foreground hover:bg-primary/90"
@@ -1416,6 +1630,7 @@ export function FormQuestion2({
         );
     };
     return (
+        <>
         <div>
             {/* 상단: 체크리스트 전체 + / - */}
             <div className="mb-2 flex items-center justify-between">
@@ -1423,33 +1638,44 @@ export function FormQuestion2({
                     체크리스트
                 </Label2>
 
-                {!disabled && (
-                    <div className="flex items-center gap-1">
-                        <button
-                            type="button"
-                            onClick={handleAddGroup}
-                            className="flex h-6 w-6 items-center justify-center rounded-md border text-xs hover:bg-muted/80"
-                        >
-                            +
-                        </button>
+                <div className="flex items-center gap-1">
+                    <button
+                        type="button"
+                        onClick={handleAddGroup}
+                        disabled={disabled}
+                        className="flex h-6 w-6 items-center justify-center rounded-md border text-xs hover:bg-muted/80 disabled:cursor-not-allowed disabled:opacity-50"
+                        aria-label="체크리스트 추가"
+                    >
+                        +
+                    </button>
 
-                        <button
-                            type="button"
-                            onClick={handleRemoveGroup}
-                            className="flex h-6 w-6 items-center justify-center rounded-md border text-xs hover:bg-muted/80"
-                        >
-                            -
-                        </button>
-                    </div>
-                )}
+                    <button
+                        type="button"
+                        onClick={handleRemoveGroup}
+                        disabled={disabled}
+                        className="flex h-6 w-6 items-center justify-center rounded-md border text-xs hover:bg-muted/80 disabled:cursor-not-allowed disabled:opacity-50"
+                        aria-label="체크리스트 제거"
+                    >
+                        -
+                    </button>
+
+                    <button
+                        type="button"
+                        onClick={openChecklistHistoryModal}
+                        className="flex h-6 w-6 items-center justify-center rounded-md border text-xs hover:bg-muted/80"
+                        aria-label="체크리스트 이력 보기"
+                    >
+                        ⋮
+                    </button>
+                </div>
             </div>
 
             {/* 체크리스트 카드들 */}
-            <div className="space-y-6">
+            <div className="space-y-2">
                 {groups.map((group, groupIndex) => (
                     <div key={group.id} className="relative">
                         <Card2 className="border border-border/60 bg-muted/40 shadow-none">
-                            <CardContent className="pt-4">
+                            <CardContent className="pt-6">
                                 <CheckboxQuestion2
                                     titleValue={group.title}
                                     onTitleChange={(value) => {
@@ -1645,7 +1871,7 @@ export function FormQuestion2({
                                 {/* 코멘트 / 이력 / 동의·보류 버튼 */}
                                 <div className="my-2 mt-2 flex w-full flex-col items-end gap-2">
                                     {/* 동의 / 보류 버튼 */}
-                                    <div className="flex items-center gap-1">
+                                    <div className="mb-6 flex items-center gap-1">
                                         {/* 동의 */}
                                         <button
                                             type="button"
@@ -1727,14 +1953,14 @@ export function FormQuestion2({
                                     </div>
 
                                     {/* 말풍선 + 이력 버튼 */}
-                                    <div className="border-t flex w-full items-center justify-between gap-2">
+                                    <div className="pt-4 border-t flex w-full items-center justify-between gap-2">
                                         <button
                                             type="button"
                                             disabled={!canComment}
                                             onClick={() =>
                                                 toggleComment(groupIndex)
                                             }
-                                            className="mb-2 mt-2 flex h-8 w-8 items-center justify-center rounded-md border border-border bg-background transition-colors hover:bg-muted disabled:cursor-not-allowed"
+                                            className="mb-4 flex h-8 w-8 items-center justify-center rounded-md border border-border bg-background transition-colors hover:bg-muted disabled:cursor-not-allowed"
                                         >
                                             <MessagesSquare className="h-4 w-4 text-muted-foreground " />
                                         </button>
@@ -1745,7 +1971,7 @@ export function FormQuestion2({
                                             onClick={() =>
                                                 openHistoryModal(groupIndex)
                                             }
-                                            className="mb-2 mt-2 text-xs text-muted-foreground underline-offset-2 hover:text-primary hover:underline disabled:cursor-not-allowed"
+                                            className="mb-4 text-xs text-muted-foreground underline-offset-2 hover:text-primary hover:underline disabled:cursor-not-allowed"
                                         >
                                             코멘트 이력 보기
                                         </button>
@@ -1754,7 +1980,7 @@ export function FormQuestion2({
 
                                 {/* === 코멘트 영역 === */}
                                 {group.isCommentOpen && (
-                                    <div className="mt-3 pb-6">
+                                    <div className="mt-3">
                                         <div className="space-y-2">
                                             {group.comments.map((comment) => {
                                                 const isEditing =
@@ -2490,7 +2716,7 @@ export function FormQuestion2({
                                                         </div>
                                                     )}
 
-                                                    <div className="flex items-center justify-between gap-3">
+                                                    <div className="pb-6 flex items-center justify-between gap-3">
                                                         <Button2
                                                             type="button"
                                                             variant="outline"
@@ -2535,5 +2761,174 @@ export function FormQuestion2({
                 ))}
             </div>
         </div>
+
+        {isChecklistHistoryOpen && (
+            <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm">
+                <div
+                    className="absolute inset-0"
+                    aria-hidden
+                    onClick={closeChecklistHistoryModal}
+                />
+                <div className="relative z-10 flex h-full items-center justify-center p-4">
+                    <div className="login-theme bg-card text-card-foreground flex h-full max-h-[90vh] w-full max-w-4xl flex-col gap-6 overflow-hidden rounded-xl border border-border shadow-2xl min-h-0">
+                        <div className="flex flex-col gap-2 border-b px-6 pt-6 pb-6 text-center sm:flex-row sm:items-center sm:text-left">
+                            <div className="flex-1">
+                                <h2 className="text-xl font-semibold">체크리스트 이력</h2>
+                                <p className="text-sm text-muted-foreground">
+                                    저장된 체크리스트 내용을 이력으로 확인할 수 있습니다.
+                                </p>
+                            </div>
+                            <span className="text-sm font-semibold text-sky-600">
+                                총 {sortedChecklistHistoryEntries.length}건
+                            </span>
+                        </div>
+
+                        <div className="flex flex-1 flex-col gap-6 px-6 pb-6 min-h-0 overflow-y-auto">
+                            {selectedChecklistHistoryEntry
+                                ? (() => {
+                                      const currentInfo = getCurrentGroupInfo(
+                                          selectedChecklistHistoryEntry,
+                                      );
+                                      return (
+                                          <>
+                                              <div className="flex flex-col gap-3 text-sm sm:flex-row sm:items-center">
+                                                  <Button2
+                                                      variant="ghost"
+                                                      size="sm"
+                                                      onClick={() =>
+                                                          setSelectedChecklistHistoryId(null)
+                                                      }
+                                                  >
+                                                      이력 목록으로 돌아가기
+                                                  </Button2>
+                                              </div>
+
+                                              <div className="space-y-4 rounded-lg border bg-muted/30 px-4 py-4 text-sm">
+                                                  <div className="flex items-start justify-between gap-4">
+                                                      <div>
+                                                          <p className="text-sm font-semibold text-foreground">
+                                                              {selectedChecklistHistoryEntry.groupTitle}
+                                                          </p>
+                                                          <p className="text-xs text-muted-foreground">
+                                                              {getHistoryTargetLabel(selectedChecklistHistoryEntry.type)} ·{" "}
+                                                              {selectedChecklistHistoryEntry.author || "익명"}
+                                                          </p>
+                                                      </div>
+                                                      <span className="text-xs text-muted-foreground">
+                                                          {formatHistoryTimestamp(
+                                                              selectedChecklistHistoryEntry.timestamp,
+                                                          )}
+                                                      </span>
+                                                  </div>
+
+                                                  <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                                                      <div className="rounded-lg border bg-background px-4 py-4 flex h-full flex-col">
+                                                          <div className="flex items-center justify-between">
+                                                              <p className="text-sm font-semibold text-foreground">
+                                                                  현재 체크리스트
+                                                              </p>
+                                                              <span className="text-xs text-muted-foreground">
+                                                                  {currentInfo?.stateLabel ?? "확인 불가"}
+                                                              </span>
+                                                          </div>
+                                                          <p className="mt-1 text-xs text-muted-foreground">
+                                                              {currentInfo?.title ?? selectedChecklistHistoryEntry.groupTitle}
+                                                          </p>
+                                                          <div className="mt-3 rounded-md border border-dashed border-border/60 bg-muted/40 px-3 py-2 space-y-2 flex-1">
+                                                              {renderChecklistSummaryBlocks(
+                                                                  currentInfo?.summary ?? "현재 이 체크리스트 정보를 불러올 수 없습니다.",
+                                                              )}
+                                                          </div>
+                                                      </div>
+
+                                                      <div className="rounded-lg border bg-background px-4 py-4 flex h-full flex-col">
+                                                          <div className="flex items-center justify-between">
+                                                              <p className="text-sm font-semibold text-foreground">
+                                                                  저장 당시
+                                                              </p>
+                                                              <span className="text-xs text-muted-foreground">
+                                                                  {formatHistoryTimestamp(
+                                                                      selectedChecklistHistoryEntry.timestamp,
+                                                                  )}
+                                                              </span>
+                                                          </div>
+                                                          <p className="mt-1 text-xs text-muted-foreground">
+                                                              {selectedChecklistHistoryEntry.groupTitle}
+                                                          </p>
+                                                          <div className="mt-3 rounded-md border border-dashed border-border/60 bg-muted/40 px-3 py-2 space-y-2 flex-1">
+                                                              {renderChecklistSummaryBlocks(
+                                                                  selectedChecklistHistoryEntry.content,
+                                                              )}
+                                                          </div>
+                                                      </div>
+                                                  </div>
+
+                                                  <div className="flex justify-end">
+                                                      <span
+                                                          className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-medium ${getHistoryActionBadgeClass(selectedChecklistHistoryEntry.action)}`}
+                                                      >
+                                                          {getHistoryActionLabel(selectedChecklistHistoryEntry.action)}
+                                                      </span>
+                                                  </div>
+                                              </div>
+                                          </>
+                                      );
+                                  })()
+                                : sortedChecklistHistoryEntries.length ? (
+                                <div className="flex-1 space-y-4 overflow-y-auto pr-1">
+                                    {sortedChecklistHistoryEntries.map((entry) => (
+                                        <button
+                                            key={entry.id}
+                                            type="button"
+                                            className="flex w-full flex-col rounded-lg border bg-muted/30 px-4 py-4 text-left hover:bg-muted h-full"
+                                            onClick={() => setSelectedChecklistHistoryId(entry.id)}
+                                        >
+                                            <div className="flex items-center justify-between gap-2">
+                                                <div className="flex flex-col">
+                                                    <span className="text-sm font-semibold text-foreground">
+                                                        {entry.groupTitle}
+                                                    </span>
+                                                    <span className="text-xs text-muted-foreground">
+                                                        {getHistoryTargetLabel(entry.type)}
+                                                    </span>
+                                                </div>
+                                                <span className="text-xs text-muted-foreground">
+                                                    {formatHistoryTimestamp(entry.timestamp)}
+                                                </span>
+                                            </div>
+                                            <div className="mt-2 text-sm text-muted-foreground space-y-1 flex-1">
+                                                {renderChecklistSummaryBlocks(entry.content)}
+                                            </div>
+                                            <div className="mt-auto flex items-center justify-end text-xs pt-3">
+                                                <span
+                                                    className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium ${getHistoryActionBadgeClass(entry.action)}`}
+                                                >
+                                                    {getHistoryActionLabel(entry.action)}
+                                                </span>
+                                            </div>
+                                        </button>
+                                    ))}
+                                </div>
+                            ) : (
+                                <p className="py-8 text-center text-sm text-muted-foreground">
+                                    아직 저장된 이력이 없습니다.
+                                </p>
+                            )}
+                        </div>
+
+                        <div className="border-t px-6 py-4">
+                            <Button2
+                                type="button"
+                                className="w-full"
+                                onClick={closeChecklistHistoryModal}
+                            >
+                                닫기
+                            </Button2>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        )}
+        </>
     );
 }
