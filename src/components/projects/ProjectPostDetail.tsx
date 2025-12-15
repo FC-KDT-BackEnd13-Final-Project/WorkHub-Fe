@@ -77,6 +77,7 @@ interface ProjectPostDetailProps {
     startInEditMode?: boolean;
     onDeletePost?: () => Promise<void> | void;
     isDeletingPost?: boolean;
+    onSubmitPostEdit?: (draft: RichTextDraft) => Promise<void> | void;
 }
 
 export function ProjectPostDetail({
@@ -86,6 +87,7 @@ export function ProjectPostDetail({
                                       startInEditMode = false,
                                       onDeletePost,
                                       isDeletingPost = false,
+                                      onSubmitPostEdit,
                                   }: ProjectPostDetailProps = {}) {
     const navigate = useNavigate();
     const { projectId, nodeId, postId } = useParams<{
@@ -148,6 +150,7 @@ export function ProjectPostDetail({
         links: [],
         type: post.type,
     });
+    const [isPostSaving, setIsPostSaving] = useState(false);
     const isPostOwner = post.isOwner ?? true; // 임시: 작성자로 가정
     const [postMenuOpen, setPostMenuOpen] = useState(false); // 게시글 메뉴 열림 여부
 
@@ -369,10 +372,24 @@ export function ProjectPostDetail({
         setPostEditDraft(draft);
     };
 
-    const submitPostEdit = () => {
+    const submitPostEdit = async () => {
         const trimmedTitle = postEditDraft.title.trim() || "무제";
         if (!trimmedTitle && !postEditDraft.content.trim()) {
             return;
+        }
+
+        if (onSubmitPostEdit) {
+            try {
+                setIsPostSaving(true);
+                await onSubmitPostEdit({
+                    ...postEditDraft,
+                    title: trimmedTitle,
+                });
+            } catch (error) {
+                setIsPostSaving(false);
+                return;
+            }
+            setIsPostSaving(false);
         }
 
         setPostTitleState(trimmedTitle);
@@ -636,11 +653,15 @@ export function ProjectPostDetail({
                                     clear();
                                     cancelPostEditing();
                                 }}
+                                disabled={isPostSaving}
                             >
                                 취소
                             </Button2>
-                            <Button2 onClick={submitPostEdit} disabled={!canSubmitPost}>
-                                저장
+                            <Button2
+                                onClick={submitPostEdit}
+                                disabled={!canSubmitPost || isPostSaving}
+                            >
+                                {isPostSaving ? "저장 중..." : "저장"}
                             </Button2>
                         </div>
                     )}

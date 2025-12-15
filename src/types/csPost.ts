@@ -122,3 +122,16 @@ export interface CsQnaListParams {
   size?: number;
   sort?: string[]; // 예: ["createdAt,DESC"]
 }
+
+export interface CsPostFileUpdateRequest {
+  fileId?: number;
+  fileName?: string;
+  fileOrder?: number;
+  deleted?: boolean;
+}
+
+export interface CsPostUpdateRequest {
+  title: string;
+  content: string;
+  files?: CsPostFileUpdateRequest[];
+}

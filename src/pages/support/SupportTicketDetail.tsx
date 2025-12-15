@@ -7,6 +7,7 @@ import { csPostApi } from "../../lib/api";
 import type { CsPostDetailResponse, CsQnaApiItem } from "../../types/csPost";
 import { saveRepliesForPost, type PostReplyItem } from "../../utils/postRepliesStorage";
 import { toast } from "sonner";
+import type { RichTextDraft } from "../../components/RichTextDemo";
 
 // API 응답을 UI 형식으로 변환
 interface TicketDetail {
@@ -170,6 +171,30 @@ export function SupportTicketDetail() {
     hashtag: ticket.hashtag || "",
   };
 
+  const handleUpdateTicket = async (draft: RichTextDraft) => {
+    if (!projectId || !ticketId) {
+      toast.error("프로젝트 정보가 없습니다.");
+      throw new Error("Missing project information");
+    }
+
+    const payload = {
+      title: draft.title.trim() || "무제",
+      content: draft.content,
+      files: [],
+    };
+
+    try {
+      await csPostApi.update(projectId, ticketId, payload);
+      toast.success("CS 문의가 수정되었습니다.");
+      const refreshed = await csPostApi.getDetail(projectId, ticketId);
+      setTicket(convertApiDetailToTicket(refreshed));
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "CS 문의 수정에 실패했습니다.";
+      toast.error(message);
+      throw err instanceof Error ? err : new Error(message);
+    }
+  };
+
   const handleDeleteTicket = async () => {
     if (isDeleting) return;
     if (!projectId || !ticketId) {
@@ -200,6 +225,7 @@ export function SupportTicketDetail() {
       backPath={backPath}
       showBackButton={true}
       startInEditMode={false}
+      onSubmitPostEdit={handleUpdateTicket}
       onDeletePost={handleDeleteTicket}
       isDeletingPost={isDeleting}
     />
