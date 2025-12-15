@@ -15,6 +15,7 @@ import {
 } from "../../components/ui/select";
 import { LoginScreen } from "../../components/Login";
 import { toast } from "sonner";
+import { ModalShell } from "../../components/common/ModalShell";
 import {
   PROFILE_STORAGE_KEY,
   PROFILE_UPDATE_EVENT,
@@ -49,6 +50,13 @@ export function SettingsPage() {
 
   const [twoFactorEnabled, setTwoFactorEnabled] = useState(true);
   const [showResetPassword, setShowResetPassword] = useState(false);
+  const [isEmailVerificationOpen, setIsEmailVerificationOpen] = useState(false);
+  const [isEmailVerified, setIsEmailVerified] = useState(false);
+  const [emailVerificationCode, setEmailVerificationCode] = useState("");
+  const [emailVerificationError, setEmailVerificationError] = useState("");
+  const [emailVerificationHint, setEmailVerificationHint] = useState("");
+  const [isSendingEmailCode, setIsSendingEmailCode] = useState(false);
+  const [isVerifyingEmailCode, setIsVerifyingEmailCode] = useState(false);
   // Sidebar 등 다른 화면과 설정 값을 공유하기 위해 로컬 스토리지에 저장한다.
   const [storedSettings, setStoredSettings] = useLocalStorageValue<StoredSettings | null>(
     PROFILE_STORAGE_KEY,
@@ -103,6 +111,57 @@ export function SettingsPage() {
 
   const triggerFileSelect = () => {
     fileInputRef.current?.click();
+  };
+  const openEmailVerificationModal = () => {
+    if (!profile.email) return;
+    setEmailVerificationError("");
+    setEmailVerificationCode("");
+    setIsEmailVerificationOpen(true);
+    void sendEmailVerificationCode();
+  };
+
+  const closeEmailVerificationModal = () => {
+    setIsEmailVerificationOpen(false);
+    setEmailVerificationCode("");
+    setEmailVerificationError("");
+  };
+
+  const sendEmailVerificationCode = async () => {
+    if (!profile.email) return;
+    setIsSendingEmailCode(true);
+    setEmailVerificationHint("");
+    setEmailVerificationError("");
+    try {
+      await new Promise((resolve) => setTimeout(resolve, 800));
+      setEmailVerificationHint(`${profile.email} 주소로 인증 코드를 전송했습니다.`);
+      toast.success("인증 코드가 전송되었습니다.");
+    } catch (error) {
+      console.error("이메일 인증 코드 전송 실패", error);
+      toast.error("인증 코드 전송에 실패했습니다. 잠시 후 다시 시도해주세요.");
+    } finally {
+      setIsSendingEmailCode(false);
+    }
+  };
+
+  const handleVerifyEmailCode = async () => {
+    if (!emailVerificationCode.trim()) {
+      setEmailVerificationError("인증 코드를 입력해주세요.");
+      return;
+    }
+    setIsVerifyingEmailCode(true);
+    setEmailVerificationError("");
+    try {
+      await new Promise((resolve) => setTimeout(resolve, 800));
+      setIsEmailVerified(true);
+      setEmailVerificationHint("");
+      toast.success("이메일 인증이 완료되었습니다.");
+      closeEmailVerificationModal();
+    } catch (error) {
+      console.error("이메일 인증 실패", error);
+      setEmailVerificationError("인증에 실패했습니다. 다시 시도해주세요.");
+    } finally {
+      setIsVerifyingEmailCode(false);
+    }
   };
 
   // 페이지 최초 로드시 저장된 프로필/사진/보안 설정 복원
@@ -224,12 +283,32 @@ export function SettingsPage() {
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="email">이메일</Label>
-                  <Input
-                      id="email"
-                      type="email"
-                      value={profile.email}
-                      onChange={handleProfileChange("email")}
-                  />
+                  <div className="flex flex-col gap-2">
+                    <div className="flex items-center gap-2">
+                      <Input
+                          id="email"
+                          type="email"
+                          value={profile.email}
+                          onChange={(event) => {
+                            handleProfileChange("email")(event);
+                            setIsEmailVerified(false);
+                          }}
+                          className="flex-1"
+                      />
+                      <Button
+                          type="button"
+                          variant={isEmailVerified ? "secondary" : "outline"}
+                          className="whitespace-nowrap"
+                          onClick={openEmailVerificationModal}
+                          disabled={!profile.email}
+                      >
+                        {isEmailVerified ? "인증 완료" : "이메일 인증"}
+                      </Button>
+                    </div>
+                    <p className={`text-xs ${isEmailVerified ? "text-emerald-600" : "text-muted-foreground"}`}>
+                      {isEmailVerified ? "이메일 인증이 완료되었습니다." : "보안을 위해 이메일 인증을 진행해주세요."}
+                    </p>
+                  </div>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="phone">전화번호</Label>
@@ -285,24 +364,88 @@ export function SettingsPage() {
         </Card>
       </div>
 
-      {showResetPassword && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center px-4">
-          <div
-            className="absolute inset-0"
-            onClick={() => setShowResetPassword(false)}
-            aria-hidden
+      <ModalShell
+        open={isEmailVerificationOpen}
+        onClose={closeEmailVerificationModal}
+        maxWidth="28rem"
+      >
+        <Card variant="modal" className="login-theme border border-border shadow-2xl">
+          <CardHeader className="space-y-2 pb-2 text-center">
+            <h2 className="text-xl font-semibold">이메일 인증</h2>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {emailVerificationHint && (
+              <p className="text-sm text-primary text-center">{emailVerificationHint}</p>
+            )}
+            <div className="rounded-md bg-muted/30 px-3 py-2 text-sm text-muted-foreground">
+              인증 코드는 10분간 유효합니다. 메일이 보이지 않으면 스팸함을 확인해주세요.
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="emailVerificationCode" className="text-gray-700">인증 코드</Label>
+              <Input
+                  id="emailVerificationCode"
+                  value={emailVerificationCode}
+                  onChange={(event) => {
+                    setEmailVerificationCode(event.target.value);
+                    setEmailVerificationError("");
+                  }}
+                  placeholder="인증 코드를 입력하세요"
+              />
+            </div>
+            {emailVerificationError && (
+              <p className="text-sm text-destructive">{emailVerificationError}</p>
+            )}
+            <div className="flex justify-center gap-4">
+              <Button
+                  type="button"
+                  variant="secondary"
+                  className="h-9 px-6"
+                  onClick={closeEmailVerificationModal}
+                  disabled={isVerifyingEmailCode}
+              >
+                취소
+              </Button>
+              <Button
+                  type="button"
+                  className="h-9 px-6"
+                  onClick={handleVerifyEmailCode}
+                  disabled={!emailVerificationCode.trim() || isVerifyingEmailCode}
+              >
+                {isVerifyingEmailCode ? "확인 중..." : "인증 완료"}
+              </Button>
+            </div>
+            <Button
+                type="button"
+                variant="ghost"
+                className="w-full text-sm"
+                onClick={sendEmailVerificationCode}
+                disabled={isSendingEmailCode}
+            >
+              {isSendingEmailCode ? "전송 중..." : "인증 코드 다시 보내기"}
+            </Button>
+          </CardContent>
+        </Card>
+      </ModalShell>
+
+      <ModalShell
+        open={showResetPassword}
+        onClose={() => setShowResetPassword(false)}
+        maxWidth="var(--login-card-max-width, 42rem)"
+        className="login-theme"
+      >
+        <div className="w-full max-w-lg overflow-y-auto bg-card text-card-foreground shadow-2xl rounded-2xl border border-border">
+          <LoginScreen
+            initialResetStage="request"
+            defaultResetId={profile.id}
+            defaultResetEmail={profile.email}
+            variant="modal"
+            allowLoginNavigation={false}
+            onCancel={() => setShowResetPassword(false)}
+            onSuccess={() => setShowResetPassword(false)}
+            cancelLabel="취소하기"
           />
-          <div className="relative z-10 w-full max-w-lg overflow-y-auto bg-white shadow-2xl rounded-2xl border border-border">
-            <LoginScreen
-              initialResetStage="request"
-              defaultResetId={profile.id}
-              defaultResetEmail={profile.email}
-              variant="modal"
-              onSuccess={() => setShowResetPassword(false)}
-            />
-          </div>
         </div>
-      )}
+      </ModalShell>
     </>
   );
 }

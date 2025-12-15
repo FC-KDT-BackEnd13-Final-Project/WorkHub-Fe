@@ -34,7 +34,6 @@ import {
 } from "../../utils/supportTicketStatusStorage";
 import { csPostApi } from "../../lib/api";
 import type { CsPostApiItem, CsPostStatus } from "../../types/csPost";
-import { BackButton } from "../../components/common/BackButton";
 
 // API 응답을 UI 형식으로 변환
 interface Ticket {
@@ -361,9 +360,6 @@ export function SupportPage() {
                 </CardContent>
               </Card2>
 
-              <div className="flex justify-end mt-4">
-                <BackButton />
-              </div>
             </>
         )}
 

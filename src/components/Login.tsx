@@ -25,6 +25,9 @@ interface LoginScreenProps {
     defaultResetId?: string;
     defaultResetEmail?: string;
     variant?: "page" | "modal";
+    onCancel?: () => void;
+    allowLoginNavigation?: boolean;
+    cancelLabel?: string;
 }
 
 export function LoginScreen({
@@ -33,6 +36,9 @@ export function LoginScreen({
     defaultResetId = '',
     defaultResetEmail = '',
     variant = "page",
+    onCancel,
+    allowLoginNavigation = true,
+    cancelLabel,
 }: LoginScreenProps) {
     const [userId, setUserId] = useState('')
     const [password, setPassword] = useState('')
@@ -221,19 +227,36 @@ export function LoginScreen({
         setIsResetSubmitting(true)
         try {
             await new Promise((resolve) => setTimeout(resolve, 1000))
-            setResetStage('login')
             setResetId('')
             setResetEmail('')
             setResetCode('')
             setNewPassword('')
             setConfirmPassword('')
             setResetErrors({})
+            if (allowLoginNavigation) {
+                setResetStage('login')
+            } else {
+                onCancel?.()
+            }
         } finally {
             setIsResetSubmitting(false)
         }
     }
 
     const isModalVariant = variant === "modal";
+
+    const handleReturnToLoginOrCancel = (options?: { resetNewPassword?: boolean }) => {
+        setResetErrors({});
+        if (options?.resetNewPassword) {
+            setNewPassword('');
+            setConfirmPassword('');
+        }
+        if (allowLoginNavigation) {
+            setResetStage('login');
+        } else {
+            onCancel?.();
+        }
+    };
 
     return (
         <div
@@ -389,12 +412,9 @@ export function LoginScreen({
                                     type="button"
                                     variant="secondary"
                                     className="w-1/2"
-                                    onClick={() => {
-                                        setResetStage('login')
-                                        setResetErrors({})
-                                    }}
+                                    onClick={() => handleReturnToLoginOrCancel()}
                                 >
-                                    뒤로가기
+                                    {cancelLabel ?? "뒤로가기"}
                                 </Button>
                                 <Button
                                     type="submit"
@@ -492,14 +512,11 @@ export function LoginScreen({
                                     type="button"
                                     variant="secondary"
                                     className="w-1/2"
-                                    onClick={() => {
-                                        setResetStage('login')
-                                        setResetErrors({})
-                                        setNewPassword('')
-                                        setConfirmPassword('')
-                                    }}
+                                    onClick={() =>
+                                        handleReturnToLoginOrCancel({ resetNewPassword: true })
+                                    }
                                 >
-                                    취소
+                                    {cancelLabel ?? "취소"}
                                 </Button>
                                 <Button
                                     type="submit"
