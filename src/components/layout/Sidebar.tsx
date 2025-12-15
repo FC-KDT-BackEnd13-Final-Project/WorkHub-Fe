@@ -175,15 +175,19 @@ export function Sidebar({ isMobileOpen: controlledMobileOpen, onMobileOpenChange
       </div>
       <nav className="flex-1 space-y-4 p-6">
         {(
-          [
-            { label: "Dashboard", icon: LayoutDashboard, path: "/dashboard" },
-            { label: "Projects", icon: FolderOpen, path: "/projects" },
-            { label: "Users", icon: Users, path: "/admin/users" },
-            userRole === "ADMIN"
-              ? { label: "History", icon: History, path: "/history" }
-              : { label: "Notifications", icon: Bell, path: "/notifications" },
-            { label: "Settings", icon: Settings, path: "/settings" },
-          ] satisfies NavigationItem[]
+          userRole === "ADMIN"
+            ? ([
+                { label: "Dashboard", icon: LayoutDashboard, path: "/dashboard" },
+                { label: "Projects", icon: FolderOpen, path: "/projects" },
+                { label: "Users", icon: Users, path: "/admin/users" },
+                { label: "History", icon: History, path: "/history" },
+                { label: "Settings", icon: Settings, path: "/settings" },
+              ] satisfies NavigationItem[])
+            : ([
+                { label: "Projects", icon: FolderOpen, path: "/projects" },
+                { label: "Notifications", icon: Bell, path: "/notifications" },
+                { label: "Settings", icon: Settings, path: "/settings" },
+              ] satisfies NavigationItem[])
         ).map((item) => {
           const isActive = item.path ? location.pathname.startsWith(item.path) : false;
           const badgeValue = (() => {
