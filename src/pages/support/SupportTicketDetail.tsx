@@ -1,11 +1,12 @@
 import { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { ProjectPostDetail } from "../../components/projects/ProjectPostDetail";
 import { supportTicketStatusLabel, type SupportTicketStatus } from "../../data/supportTickets";
 import { loadSupportStatus } from "../../utils/supportTicketStatusStorage";
 import { csPostApi } from "../../lib/api";
 import type { CsPostDetailResponse, CsQnaApiItem } from "../../types/csPost";
-import { saveRepliesForPost, POST_REPLIES_UPDATED_EVENT, type PostReplyItem } from "../../utils/postRepliesStorage";
+import { saveRepliesForPost, type PostReplyItem } from "../../utils/postRepliesStorage";
+import { toast } from "sonner";
 
 // API 응답을 UI 형식으로 변환
 interface TicketDetail {
@@ -63,11 +64,14 @@ const convertQnaToReply = (qna: CsQnaApiItem): PostReplyItem[] => {
 
 // 단일 문의 상세를 보여주며 목록 경로로 복귀 링크를 제공
 export function SupportTicketDetail() {
+  const navigate = useNavigate();
   const { projectId, ticketId } = useParams<{ projectId?: string; ticketId?: string }>();
   const [ticket, setTicket] = useState<TicketDetail | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [commentsLoaded, setCommentsLoaded] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const backPath = projectId ? `/projects/${projectId}/nodes/support` : undefined;
 
   useEffect(() => {
     const fetchTicketAndComments = async () => {
@@ -155,7 +159,6 @@ export function SupportTicketDetail() {
     );
   }
 
-  const backPath = projectId ? `/projects/${projectId}/nodes/support` : undefined;
   const overrideStatus = loadSupportStatus(ticket.id);
   const effectiveStatus = overrideStatus ?? ticket.status;
   const ticketWithStatusLabel = {
@@ -167,6 +170,29 @@ export function SupportTicketDetail() {
     hashtag: ticket.hashtag || "",
   };
 
+  const handleDeleteTicket = async () => {
+    if (isDeleting) return;
+    if (!projectId || !ticketId) {
+      toast.error("프로젝트 정보가 없습니다.");
+      return;
+    }
+    const confirmed = window.confirm("해당 CS 문의를 삭제하시겠습니까?");
+    if (!confirmed) return;
+
+    setIsDeleting(true);
+    try {
+      await csPostApi.delete(projectId, ticketId);
+      toast.success("CS 문의가 삭제되었습니다.");
+      const targetPath = backPath ?? `/projects/${projectId}/nodes/support`;
+      navigate(targetPath, { replace: true });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "CS 문의 삭제에 실패했습니다.";
+      toast.error(message);
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   return (
     <ProjectPostDetail
       key={`support-${ticket.id}-${commentsLoaded ? 'loaded' : 'loading'}`}
@@ -174,6 +200,8 @@ export function SupportTicketDetail() {
       backPath={backPath}
       showBackButton={true}
       startInEditMode={false}
+      onDeletePost={handleDeleteTicket}
+      isDeletingPost={isDeleting}
     />
   );
 }
