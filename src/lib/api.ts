@@ -1,7 +1,7 @@
 import axios from 'axios';
 import type { ProjectApiResponse, ProjectListParams } from '@/types/project';
 import type { NodeListApiResponse } from '@/types/projectNodeList';
-import {CreateNodePayload} from "@/types/proj,,ectNode";
+import { CreateNodePayload } from '@/types/projectNode';
 import type {
   CsPostListApiResponse,
   CsPostListParams,
@@ -143,6 +143,37 @@ export const userApi = {
       return data;
     }
     throw new Error(message || "프로필 이미지 변경에 실패했습니다.");
+  },
+
+  /**
+   * 관리자: 회원 상세 조회
+   */
+  getAdminUserDetail: async (userId: string | number) => {
+    const response = await apiClient.get(`/api/v1/users/${userId}`);
+    const { success, message, data } = response.data;
+    if (success === true) {
+      return data;
+    }
+    throw new Error(message || "회원 상세 조회에 실패했습니다.");
+  },
+
+  /**
+   * 관리자: 회원 목록 조회
+   */
+  getAdminUsers: async () => {
+    const response = await apiClient.get(`/api/v1/users/list`);
+    const payload = response.data;
+
+    if (Array.isArray(payload)) {
+      return payload;
+    }
+
+    const { success, message, data } = payload;
+    if (success === true && Array.isArray(data)) {
+      return data;
+    }
+
+    throw new Error(message || "회원 목록 조회에 실패했습니다.");
   },
 };
 

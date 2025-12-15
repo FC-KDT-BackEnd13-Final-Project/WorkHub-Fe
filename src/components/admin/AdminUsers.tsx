@@ -11,7 +11,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "../ui/select";
-import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
 import {
   Table,
   TableBody,
@@ -20,11 +19,11 @@ import {
   TableHeader,
   TableRow,
 } from "../ui/table";
-import { companyUsers } from "./userData";
 import { PageHeader } from "../common/PageHeader";
 import { FilterToolbar } from "../common/FilterToolbar";
 import { calculateTotalPages, clampPage, paginate } from "../../../src/utils/pagination";
 import { PaginationControls } from "../common/PaginationControls";
+import { useAdminUsersList } from "../../hooks/useAdminUsers";
 
 const statusStyles = {
   ACTIVE: {
@@ -65,11 +64,17 @@ export function AdminUsers() {
   const [companyFilter, setCompanyFilter] = useState<string>("All");
   const [statusFilter, setStatusFilter] = useState<(typeof statusOptions)[number]>("All");
   const [currentPage, setCurrentPage] = useState(1);
+  const {
+    users: adminUsers,
+    isLoading: isRemoteLoading,
+    error: remoteError,
+  } = useAdminUsersList();
+  const allUsers = adminUsers;
 
   // 검색/필터 조건이 많아 useMemo로 묶어 테이블 렌더 비용을 줄인다.
   const filteredUsers = useMemo(() => {
     const term = search.toLowerCase();
-    return companyUsers.filter((user) => {
+    return allUsers.filter((user) => {
       const matchesSearch =
         user.name.toLowerCase().includes(term) || user.email.toLowerCase().includes(term);
       const matchesRole = roleFilter === "All" || user.role === roleFilter;
@@ -77,13 +82,17 @@ export function AdminUsers() {
       const matchesStatus = statusFilter === "All" || user.status === statusFilter;
       return matchesSearch && matchesRole && matchesCompany && matchesStatus;
     });
-  }, [search, roleFilter, companyFilter, statusFilter]);
+  }, [search, roleFilter, companyFilter, statusFilter, allUsers]);
 
   const companies = useMemo(() => {
     const set = new Set<string>();
-    companyUsers.forEach((user) => set.add(user.company));
+    allUsers.forEach((user) => {
+      if (user.company) {
+        set.add(user.company);
+      }
+    });
     return Array.from(set);
-  }, []);
+  }, [allUsers]);
 
   // 공통 pagination 유틸로 페이지 수 계산과 슬라이싱을 통일한다.
   const totalPages = calculateTotalPages(filteredUsers.length, PAGE_SIZE);
@@ -153,7 +162,17 @@ export function AdminUsers() {
       </FilterToolbar>
 
       <Card className="rounded-2xl bg-white shadow-sm">
-        <CardContent className="px-6 pt-6 pb-6">
+        <CardContent className="px-6 pt-6 pb-6 space-y-3">
+          {isRemoteLoading ? (
+            <div className="rounded-lg border border-dashed border-border bg-muted/30 px-4 py-3 text-sm text-muted-foreground">
+              회원 목록을 불러오는 중입니다...
+            </div>
+          ) : null}
+          {!isRemoteLoading && remoteError ? (
+            <div className="p-4 bg-red-50 border border-red-200 rounded-md text-red-700 text-sm">
+              {remoteError}
+            </div>
+          ) : null}
           <Table>
             <TableHeader>
               <TableRow>
@@ -166,67 +185,71 @@ export function AdminUsers() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {paginatedUsers.map((user) => (
-                <TableRow
-                  key={user.id}
-                  className="cursor-pointer"
-                  onClick={() => navigate(`/admin/users/${user.id}`)}
-                >
-                  <TableCell>
-                    <div className="flex items-center gap-3">
-                      <div className="relative h-12 w-12 overflow-hidden rounded-xl border border-white/70 shadow-sm">
-                        {user.avatarUrl ? (
-                          <img
-                            src={user.avatarUrl}
-                            alt={user.name}
-                            className="h-full w-full object-cover"
-                          />
-                        ) : (
-                          <div className="flex h-full w-full items-center justify-center bg-slate-100 text-sm font-semibold text-muted-foreground">
-                            {user.name
-                              .split(" ")
-                              .map((part) => part[0])
-                              .join("")
-                              .slice(0, 2)}
-                          </div>
-                        )}
-                      </div>
-                      <div>
-                        <p className="font-medium">{user.name}</p>
-                        <p className="text-xs text-muted-foreground">{user.email}</p>
-                      </div>
-                    </div>
+              {paginatedUsers.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={6} className="h-32 text-center text-sm text-muted-foreground">
+                    {isRemoteLoading ? "회원 목록을 불러오는 중입니다..." : "조건에 맞는 회원이 없습니다."}
                   </TableCell>
-                  <TableCell className="text-center">
-                    <Badge variant="secondary">{user.company}</Badge>
-                  </TableCell>
-                  <TableCell className="text-center text-sm text-muted-foreground">
-                    {roleDisplayMap[user.role] ?? user.role}
-                  </TableCell>
-                  <TableCell className="text-center">
-                    <Badge
-                      variant="outline"
-                      style={{
-                        backgroundColor: statusStyles[user.status]?.bg ?? statusStyles.INACTIVE.bg,
-                        color: statusStyles[user.status]?.color ?? statusStyles.INACTIVE.color,
-                        border: `1px solid ${
-                          statusStyles[user.status]?.border ?? statusStyles.INACTIVE.border
-                        }`,
-                      }}
-                    >
-                      {statusStyles[user.status]?.label ?? statusStyles.INACTIVE.label}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-center font-medium">
-                    {Array.isArray(user.projects) ? user.projects.length : user.projects ?? 0}
-                  </TableCell>
-                  <TableCell className="text-center text-sm text-muted-foreground">
-                    {new Date(user.joined).toLocaleDateString()}
-                  </TableCell>
-
-
                 </TableRow>
-              ))}
+              ) : (
+                paginatedUsers.map((user) => (
+                  <TableRow
+                    key={user.id}
+                    className="cursor-pointer"
+                    onClick={() => navigate(`/admin/users/${user.id}`)}
+                  >
+                    <TableCell>
+                      <div className="flex items-center gap-3">
+                        <div className="relative h-12 w-12 overflow-hidden rounded-xl border border-white/70 shadow-sm">
+                          {user.avatarUrl ? (
+                            <img
+                              src={user.avatarUrl}
+                              alt={user.name}
+                              className="h-full w-full object-cover"
+                            />
+                          ) : (
+                            <div className="flex h-full w-full items-center justify-center bg-slate-100 text-sm font-semibold text-muted-foreground">
+                              {user.name
+                                .split(" ")
+                                .map((part) => part[0])
+                                .join("")
+                                .slice(0, 2)}
+                            </div>
+                          )}
+                        </div>
+                        <div>
+                          <p className="font-medium">{user.name}</p>
+                          <p className="text-xs text-muted-foreground">{user.email}</p>
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-center">
+                      <Badge variant="secondary">{user.company || "소속 미지정"}</Badge>
+                    </TableCell>
+                    <TableCell className="text-center text-sm text-muted-foreground">
+                      {roleDisplayMap[user.role] ?? user.role}
+                    </TableCell>
+                    <TableCell className="text-center">
+                      <Badge
+                        variant="outline"
+                        style={{
+                          backgroundColor: statusStyles[user.status]?.bg ?? statusStyles.INACTIVE.bg,
+                          color: statusStyles[user.status]?.color ?? statusStyles.INACTIVE.color,
+                          border: `1px solid ${
+                            statusStyles[user.status]?.border ?? statusStyles.INACTIVE.border
+                          }`,
+                        }}
+                      >
+                        {statusStyles[user.status]?.label ?? statusStyles.INACTIVE.label}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-center font-medium">{user.projectCount ?? 0}</TableCell>
+                    <TableCell className="text-center text-sm text-muted-foreground">
+                      {user.joined ? new Date(user.joined).toLocaleDateString() : "-"}
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
             </TableBody>
           </Table>
         </CardContent>

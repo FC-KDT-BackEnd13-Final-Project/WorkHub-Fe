@@ -44,7 +44,7 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-background text-foreground flex flex-col">
+    <div className="min-h-screen w-full bg-background text-foreground flex flex-col">
       <Navigation
         onOpenSidebar={
           isAuthenticated ? () => setIsSidebarMobileOpen(true) : undefined

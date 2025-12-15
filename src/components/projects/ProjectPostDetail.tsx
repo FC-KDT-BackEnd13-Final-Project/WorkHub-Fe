@@ -4,7 +4,7 @@ import { Card2, CardContent, CardFooter, CardHeader } from "../ui/card2";
 import { Badge2 } from "../ui/badge2";
 import { Button2 } from "../ui/button2";
 import { Textarea2 } from "../ui/textarea2";
-import { MoreVertical, Pencil, Trash2, CornerDownRight, History } from "lucide-react";
+import { MoreVertical, Pencil, Trash2, CornerDownRight, History, X } from "lucide-react";
 import { PostCard } from "./PostCard";
 import { RichTextDemo, type RichTextDraft, type AttachmentDraft } from "../RichTextDemo";
 import { postRevisionsByPostId, type PostRevision } from "../../data/postRevisions";
@@ -1521,16 +1521,25 @@ export function ProjectPostDetail({
             )}
 
             {/* 댓글 이력 모달 */}
-            <ModalShell open={isCommentHistoryOpen} onClose={closeCommentHistory} maxWidth="64rem">
-                <div className="login-theme bg-card text-card-foreground flex h-full max-h-[90vh] w-full flex-col gap-6 overflow-hidden rounded-xl border border-border shadow-2xl">
-                    <div className="flex flex-col gap-2 border-b px-6 pt-6 pb-6 text-center sm:flex-row sm:items-center sm:text-left">
-                        <div className="flex-1">
-                            <h2 className="text-xl font-semibold">댓글 이력</h2>
-                            <p className="text-sm text-muted-foreground">삭제된 댓글까지 모두 확인하고 선택한 댓글의 변화를 살펴보세요.</p>
-                        </div>
-                        <span className="text-sm font-semibold text-sky-600">총 {activeComments.length + deletedComments.length}건</span>
-                    </div>
-                    <div className="flex flex-1 flex-col gap-6 px-6 pb-6">
+            <ModalShell open={isCommentHistoryOpen} onClose={closeCommentHistory} maxWidth="64rem" className="h-full">
+                <Card2
+                    variant="modal"
+                    className="flex h-full max-h-[80vh] w-full max-w-4xl flex-col overflow-hidden min-h-0"
+                >
+                    <CardHeader className="relative border-b text-center">
+                        <h3 className="text-lg font-semibold">댓글 이력</h3>
+                        <Button2
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            aria-label="댓글 이력 닫기"
+                            className="absolute right-4 top-3 rounded-md p-1 hover:bg-muted"
+                            onClick={closeCommentHistory}
+                        >
+                            <X className="h-4 w-4" />
+                        </Button2>
+                    </CardHeader>
+                    <CardContent className="flex min-h-0 flex-1 flex-col gap-6 overflow-hidden px-6 py-6">
                         <div className="grid flex-1 min-h-0 gap-4 overflow-hidden md:grid-cols-2">
                             <div className="flex min-h-0 flex-col gap-4 overflow-y-auto pr-1">
                                 <div className="space-y-2">
@@ -1601,13 +1610,13 @@ export function ProjectPostDetail({
                                 </div>
                             </div>
                         </div>
-                    </div>
-                    <div className="border-t px-6 py-4 mt-6">
+                    </CardContent>
+                    <CardFooter className="border-t px-6">
                         <Button2 className="w-full" onClick={closeCommentHistory}>
                             닫기
                         </Button2>
-                    </div>
-                </div>
+                    </CardFooter>
+                </Card2>
             </ModalShell>
 
             {/* 하단 버튼들 */}
@@ -1631,18 +1640,27 @@ export function ProjectPostDetail({
             )}
 
             {/* 수정 이력 모달 (게시글) */}
-            <ModalShell open={isHistoryOpen} onClose={closeHistory} maxWidth="64rem">
-                <div className="login-theme bg-card text-card-foreground flex h-full max-h-[90vh] w-full flex-col gap-6 overflow-hidden rounded-xl border border-border shadow-2xl">
-                    <div className="flex flex-col gap-2 border-b px-6 pt-6 pb-6 text-center sm:flex-row sm:items-center sm:text-left">
-                        <div className="flex-1">
-                            <h2 className="text-xl font-semibold">수정 이력</h2>
-                            <p className="text-sm text-muted-foreground">게시글의 과거 버전을 확인하거나 현재 글과 비교할 수 있습니다.</p>
-                        </div>
-                        <span className="text-sm font-semibold text-sky-600">총 {sortedRevisions.length}건</span>
-                    </div>
-                    <div className="flex flex-1 flex-col gap-6 px-6 pb-6">
+            <ModalShell open={isHistoryOpen} onClose={closeHistory} maxWidth="64rem" className="h-full">
+                <Card2
+                    variant="modal"
+                    className="flex h-full max-h-[80vh] w-full max-w-4xl flex-col overflow-hidden min-h-0"
+                >
+                    <CardHeader className="relative border-b text-center">
+                        <h3 className="text-lg font-semibold">수정 이력</h3>
+                        <Button2
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            aria-label="수정 이력 닫기"
+                            className="absolute right-4 top-3 rounded-md p-1 hover:bg-muted"
+                            onClick={closeHistory}
+                        >
+                            <X className="h-4 w-4" />
+                        </Button2>
+                    </CardHeader>
+                    <CardContent className="flex min-h-0 flex-1 flex-col gap-6 overflow-hidden px-6 py-6">
                         {selectedRevision ? (
-                            <>
+                            <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto pr-1">
                                 <div className="flex flex-col gap-3 text-sm sm:flex-row sm:items-center sm:justify-between">
                                     <Button2 variant="ghost" size="sm" onClick={() => setSelectedRevision(null)}>
                                         이력 목록으로 돌아가기
@@ -1668,7 +1686,7 @@ export function ProjectPostDetail({
                                         ].filter(Boolean) as string[]}
                                     />
                                 </div>
-                            </>
+                            </div>
                         ) : sortedRevisions.length ? (
                             <div className="flex-1 space-y-6 overflow-y-auto pr-1">
                                 {sortedRevisions.map((revision) => {
@@ -1681,12 +1699,12 @@ export function ProjectPostDetail({
                                             className="flex w-full flex-col rounded-lg border bg-muted/30 px-6 py-6 text-left hover:bg-muted"
                                             onClick={() => setSelectedRevision(revision)}
                                         >
-                                            <div className="flex items-center justify-between gap-2 text-base font-semibold mt-4">
+                                            <div className="mt-4 flex items-center justify-between gap-2 text-base font-semibold">
                                                 <span className="text-foreground">{revision.title}</span>
-                                                <span className="text-muted-foreground text-sm">{revisionDate || "날짜 미정"}</span>
+                                                <span className="text-sm text-muted-foreground">{revisionDate || "날짜 미정"}</span>
                                             </div>
                                             {previewText && (
-                                                <p className="text-sm text-muted-foreground leading-relaxed mb-6">{previewText}</p>
+                                                <p className="mb-6 text-sm leading-relaxed text-muted-foreground">{previewText}</p>
                                             )}
                                         </button>
                                     );
@@ -1695,13 +1713,13 @@ export function ProjectPostDetail({
                         ) : (
                             <p className="py-8 text-center text-sm text-muted-foreground">아직 수정된 이력이 없습니다.</p>
                         )}
-                    </div>
-                    <div className="border-t px-6 py-4 mt-6">
+                    </CardContent>
+                    <CardFooter className="border-t px-6">
                         <Button2 type="button" className="w-full" onClick={closeHistory}>
                             닫기
                         </Button2>
-                    </div>
-                </div>
+                    </CardFooter>
+                </Card2>
             </ModalShell>
         </div>
     );

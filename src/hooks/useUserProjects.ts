@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { projectApi } from "../lib/api";
-import { mapApiProjectToUiProject, type Project } from "../utils/projectMapper";
+import type { Project } from "../utils/projectMapper";
+import { mapApiProjectToUiProject } from "../utils/projectMapper";
 import type { ProjectListParams } from "../types/project";
 
 type UseUserProjectsResult = {

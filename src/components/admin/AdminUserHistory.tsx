@@ -3,11 +3,12 @@ import { format } from "date-fns";
 import { useNavigate, useParams } from "react-router-dom";
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
 import { Badge } from "../ui/badge";
-import { companyUsers, activityHistory } from "./userData";
+import { activityHistory } from "./userData";
 import { calculateTotalPages, paginate } from "../../utils/pagination";
 import { activityTypePalette } from "./activityPalette";
 import logoImage from "../../../image/logo.png";
 import { PaginationControls } from "../common/PaginationControls";
+import { useAdminUser } from "../../hooks/useAdminUsers";
 
 const shouldUseLogo = (name?: string) => {
   if (!name) return true;
@@ -29,7 +30,7 @@ export function AdminUserHistory() {
   const { userId } = useParams<{ userId: string }>();
   const navigate = useNavigate();
 
-  const user = useMemo(() => companyUsers.find((item) => item.id === userId), [userId]);
+  const { user, isLoading: isUserLoading, error: userError } = useAdminUser(userId);
 
   const userActivities = useMemo(
     () => activityHistory.filter((activity) => activity.actor === user?.name),
@@ -51,9 +52,16 @@ export function AdminUserHistory() {
   }, [currentPage, totalPages]);
 
   if (!user) {
+    if (isUserLoading) {
+      return (
+        <div className="rounded-2xl bg-white p-6 text-center text-muted-foreground shadow-sm">
+          사용자 정보를 불러오는 중입니다...
+        </div>
+      );
+    }
     return (
       <div className="rounded-2xl bg-white p-6 text-center text-muted-foreground shadow-sm">
-        사용자를 찾을 수 없습니다.
+        {userError ?? "사용자를 찾을 수 없습니다."}
       </div>
     );
   }
@@ -61,11 +69,17 @@ export function AdminUserHistory() {
   return (
     <div className="space-y-6 pb-12 pt-6 min-h-0">
       <div className="flex items-center gap-6 rounded-2xl bg-white p-6 shadow-sm">
-        <Avatar className="size-14">
+        <Avatar className="size-32">
           {user.avatarUrl ? (
-            <AvatarImage src={user.avatarUrl} alt={user.name} className="object-cover" />
+            <AvatarImage
+              src={user.avatarUrl}
+              alt={user.name}
+              width={128}
+              height={128}
+              className="object-cover"
+            />
           ) : null}
-          <AvatarFallback className="bg-slate-100 text-lg font-semibold text-foreground">
+          <AvatarFallback className="bg-slate-100 text-2xl font-semibold text-foreground">
             {user.name
               .split(" ")
               .map((part) => part[0])
@@ -76,11 +90,11 @@ export function AdminUserHistory() {
         <div>
           <h2 className="text-2xl font-semibold">{user.name}</h2>
           <div className="text-sm text-muted-foreground">
-            <p>{user.email}</p>
-            <p>{user.phone}</p>
+            <p>{user.email || "이메일 정보 없음"}</p>
+            <p>{user.phone || "전화번호 정보 없음"}</p>
           </div>
           <div className="mt-2 flex flex-wrap gap-2 text-sm">
-            <Badge variant="secondary">{user.company}</Badge>
+            <Badge variant="secondary">{user.company || "소속 미지정"}</Badge>
             <Badge variant="secondary">{user.role}</Badge>
             <Badge
               variant="outline"
@@ -94,7 +108,9 @@ export function AdminUserHistory() {
             >
               {statusStyles[user.status]?.label ?? statusStyles.INACTIVE.label}
             </Badge>
-            <span className="text-muted-foreground">마지막 활동 · {user.lastActive}</span>
+            <span className="text-muted-foreground">
+              마지막 활동 · {user.lastActive ?? "정보 없음"}
+            </span>
           </div>
         </div>
       </div>

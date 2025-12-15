@@ -43,10 +43,9 @@ export function Navigation({ onOpenSidebar, mobileMenuContent }: NavigationProps
 
   return (
     <>
-      <nav className="fixed top-0 w-full bg-background/90 backdrop-blur-md border-b border-border z-40">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-4">
-          <div className="flex items-center gap-2">
+      <nav className="fixed inset-x-0 top-0 z-[200] w-full border-b border-border bg-background/80 shadow-sm backdrop-blur-md supports-[backdrop-filter]:bg-background/60">
+        <div className="flex w-full items-center justify-between px-4 py-4 sm:px-6 lg:px-8">
+          <div className="flex items-center gap-4">
             {onOpenSidebar && (
               <Button
                 variant="ghost"
@@ -64,7 +63,6 @@ export function Navigation({ onOpenSidebar, mobileMenuContent }: NavigationProps
             </div>
           </div>
 
-          {/* Desktop Navigation */}
           <div className="hidden md:flex items-center space-x-8">
             {navItems.map((item) => (
               <button
@@ -85,7 +83,6 @@ export function Navigation({ onOpenSidebar, mobileMenuContent }: NavigationProps
             </Button>
           </div>
 
-          {/* Mobile Menu Button */}
           <div className="md:hidden flex items-center space-x-2">
             <Button
               variant="ghost"
@@ -99,7 +96,7 @@ export function Navigation({ onOpenSidebar, mobileMenuContent }: NavigationProps
         </div>
 
         {isMobileMenuOpen && (
-          <div className="md:hidden py-4 border-t border-border">
+          <div className="md:hidden border-t border-border py-4">
             {mobileMenuContent ? (
               mobileMenuContent
             ) : (
@@ -117,7 +114,6 @@ export function Navigation({ onOpenSidebar, mobileMenuContent }: NavigationProps
             )}
           </div>
         )}
-      </div>
       </nav>
       <div className="h-[88px]" aria-hidden />
     </>
