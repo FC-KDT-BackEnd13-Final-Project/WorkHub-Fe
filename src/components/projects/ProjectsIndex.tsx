@@ -48,8 +48,18 @@ const statusOptions = [
 ] as const;
 
 const projectStatusOptions: ProjectStatus[] = statusOptions.filter(
-    (option): option is ProjectStatus => option !== "ALL",
+  (option): option is ProjectStatus => option !== "ALL",
 );
+
+const statusLabels: Record<StatusFilter, string> = {
+  ALL: "전체",
+  CONTRACT: "계약",
+  IN_PROGRESS: "진행 중",
+  DELIVERY: "납품",
+  MAINTENANCE: "유지 보수",
+  COMPLETED: "완료",
+  CANCELLED: "취소",
+};
 
 // 정렬 옵션: startDate 기준
 const sortOptions = ["최신순", "오래된순"] as const;
@@ -782,7 +792,7 @@ export function ProjectsIndex() {
                   <SelectContent>
                     {projectStatusOptions.map((option) => (
                       <SelectItem key={option} value={option}>
-                        {option}
+                        {statusLabels[option]}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -1301,19 +1311,17 @@ export function ProjectsIndex() {
 
           {/* 상태 필터 */}
           <Select
-              value={statusFilter}
-              onValueChange={(value) =>
-                  setStatusFilter(value as StatusFilter)
-              }
+            value={statusFilter}
+            onValueChange={(value) => setStatusFilter(value as StatusFilter)}
           >
             <SelectTrigger className="h-9 rounded-md bg-input-background px-3 py-1 md:w-40">
-              <SelectValue placeholder="ALL" />
+              <SelectValue placeholder="상태 선택" />
             </SelectTrigger>
             <SelectContent>
               {statusOptions.map((option) => (
-                  <SelectItem value={option} key={option}>
-                    {option}
-                  </SelectItem>
+                <SelectItem value={option} key={option}>
+                  {statusLabels[option]}
+                </SelectItem>
               ))}
             </SelectContent>
           </Select>
@@ -1470,7 +1478,7 @@ export function ProjectsIndex() {
                                     borderColor: badgeColors.border,
                                   }}
                               >
-                                {project.status}
+                                {statusLabels[project.status]}
                               </Badge>
                               {isProjectEditMode && (
                                   <ProjectActionMenu

@@ -1,4 +1,4 @@
-import { Routes, Route, useLocation, Navigate, useNavigate, Outlet } from "react-router-dom";
+import { Routes, Route, Navigate, useNavigate, Outlet, useLocation } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { Main } from "./components/Main";
 import { Navigation } from "./components/layout/Navigation";
@@ -50,7 +50,7 @@ export default function App() {
           isAuthenticated ? () => setIsSidebarMobileOpen(true) : undefined
         }
       />
-      <main className="pt-16 flex-1">
+      <main className="flex-1 pt-[88px]">
         <Routes>
           <Route path="/" element={<LandingPage onLoginSuccess={handleLoginSuccess} />} />
           <Route
@@ -227,7 +227,7 @@ interface SidebarLayoutProps {
 
 function SidebarLayout({ isSidebarMobileOpen, onSidebarMobileOpenChange }: SidebarLayoutProps) {
   return (
-    <div className="flex min-h-[calc(100vh-4rem)] bg-[#f8fafc]">
+    <div className="flex min-h-screen bg-[#f8fafc]">
       <Sidebar
         isMobileOpen={isSidebarMobileOpen}
         onMobileOpenChange={onSidebarMobileOpenChange}
