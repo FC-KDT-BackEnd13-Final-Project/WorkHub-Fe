@@ -20,11 +20,10 @@ import {
 } from "../../components/ui/table2";
 import { RichTextDemo } from "../../components/RichTextDemo";
 import {
-  supportTickets,
   supportTicketStatusLabel,
   type SupportTicketStatus,
 } from "../../data/supportTickets";
-import { calculateTotalPages, paginate, clampPage } from "../../utils/pagination";
+import { clampPage } from "../../utils/pagination";
 import { PageHeader } from "../../components/common/PageHeader";
 import { FilterToolbar } from "../../components/common/FilterToolbar";
 import { PaginationControls } from "../../components/common/PaginationControls";
@@ -35,9 +34,31 @@ import {
   loadSupportStatusMap,
   SUPPORT_STATUS_UPDATED_EVENT,
 } from "../../utils/supportTicketStatusStorage";
+import { csPostApi } from "../../lib/api";
+import type { CsPostApiItem, CsPostStatus } from "../../types/csPost";
 
-// SupportTicket 타입 재사용
-type Ticket = (typeof supportTickets)[number];
+// API 응답을 UI 형식으로 변환
+interface Ticket {
+  id: string;
+  customerName: string;
+  status: SupportTicketStatus;
+  title: string;
+  content: string;
+  createdDate: string;
+  updatedDate: string;
+  isOwner?: boolean;
+}
+
+const convertApiItemToTicket = (item: CsPostApiItem): Ticket => ({
+  id: String(item.csPostId),
+  customerName: item.customerName,
+  status: item.csPostStatus,
+  title: item.title,
+  content: item.content,
+  createdDate: item.createdAt,
+  updatedDate: item.updatedAt,
+  isOwner: true,
+});
 
 type StatusStyle = {
   background: string;
@@ -99,38 +120,55 @@ export function SupportPage() {
   const [searchInput, setSearchInput] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | SupportTicketStatus>("all");
   const [isWriting, setIsWriting] = useState(false);
-  const [currentPage, setCurrentPage] = useState(1);
+  const [currentPage, setCurrentPage] = useState(0); // 0-based for API
   const [statusOverrides, setStatusOverrides] = useState<Record<string, SupportTicketStatus>>({});
+
+  // API 상태
+  const [tickets, setTickets] = useState<Ticket[]>([]);
+  const [totalPages, setTotalPages] = useState(0);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const ITEMS_PER_PAGE = 8;
 
-  // 검색 + 필터
-  const effectiveTickets = useMemo(
-      () =>
-          supportTickets.map((ticket) => ({
-            ...ticket,
-            status: statusOverrides[ticket.id] ?? ticket.status,
-          })),
-      [statusOverrides],
-  );
+  // API 데이터 가져오기
+  const fetchCsPosts = async () => {
+    if (!projectId) return;
 
-  const filteredTickets = useMemo(() => {
-    const term = searchTerm.toLowerCase();
-    return effectiveTickets.filter(
-        (ticket) =>
-            (statusFilter === "all" || ticket.status === statusFilter) &&
-            (ticket.title.toLowerCase().includes(term) ||
-                ticket.content.toLowerCase().includes(term) ||
-                ticket.customerName.toLowerCase().includes(term))
-    );
-  }, [effectiveTickets, searchTerm, statusFilter]);
+    setIsLoading(true);
+    setError(null);
 
-  const totalPages = calculateTotalPages(filteredTickets.length, ITEMS_PER_PAGE);
+    try {
+      const response = await csPostApi.getList(projectId, {
+        searchValue: searchTerm || undefined,
+        csPostStatus: statusFilter === "all" ? undefined : (statusFilter as CsPostStatus),
+        page: currentPage,
+        size: ITEMS_PER_PAGE,
+        sort: ["createdAt,DESC"],
+      });
 
+      const convertedTickets = response.content.map(convertApiItemToTicket);
+      setTickets(convertedTickets);
+      setTotalPages(response.totalPages);
+    } catch (err) {
+      if (err instanceof Error) {
+        setError(err.message);
+      } else {
+        setError("CS 게시글을 불러오는 중 오류가 발생했습니다.");
+      }
+      setTickets([]);
+      setTotalPages(0);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // 페이지, 검색어, 필터 변경 시 데이터 다시 가져오기
   useEffect(() => {
-    setCurrentPage((prev) => clampPage(prev, totalPages));
-  }, [totalPages]);
+    fetchCsPosts();
+  }, [projectId, currentPage, searchTerm, statusFilter]);
 
+  // 상태 오버라이드 로드
   useEffect(() => {
     const refreshStatusOverrides = () => {
       setStatusOverrides(loadSupportStatusMap());
@@ -156,12 +194,17 @@ export function SupportPage() {
     return undefined;
   }, []);
 
-  const paginatedTickets = useMemo(
-      () => paginate(filteredTickets, currentPage, ITEMS_PER_PAGE),
-      [filteredTickets, currentPage]
+  // 상태 오버라이드 적용
+  const effectiveTickets = useMemo(
+      () =>
+          tickets.map((ticket) => ({
+            ...ticket,
+            status: statusOverrides[ticket.id] ?? ticket.status,
+          })),
+      [tickets, statusOverrides],
   );
 
-  const goToPage = (page: number) => setCurrentPage(clampPage(page, totalPages));
+  const goToPage = (page: number) => setCurrentPage(clampPage(page - 1, totalPages - 1)); // UI는 1-based, API는 0-based
 
   const withStatusLabel = (ticket: Ticket) => ({
     ...ticket,
@@ -191,10 +234,14 @@ export function SupportPage() {
                   onChange={(e) => {
                     const value = e.target.value;
                     setSearchInput(value);
-                    setSearchTerm(value);
-                    goToPage(1);
                   }}
-                  placeholder="검색어를 입력하세요"
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      setSearchTerm(searchInput);
+                      setCurrentPage(0);
+                    }
+                  }}
+                  placeholder="검색어를 입력하세요 (Enter로 검색)"
                   className="md:flex-1"
               />
 
@@ -202,7 +249,7 @@ export function SupportPage() {
                   value={statusFilter}
                   onValueChange={(value) => {
                     setStatusFilter(value as SupportTicketStatus | "all");
-                    goToPage(1);
+                    setCurrentPage(0);
                   }}
               >
                 <SelectTrigger className="h-9 rounded-md border bg-input-background px-3 py-1 md:w-52">
@@ -238,6 +285,13 @@ export function SupportPage() {
             </div>
         ) : (
             <>
+              {/* 에러 메시지 */}
+              {error && (
+                  <div className="p-4 bg-red-50 border border-red-200 rounded-md text-red-700">
+                    {error}
+                  </div>
+              )}
+
               {/* 목록 */}
               <Card2 className="overflow-hidden">
                 <CardContent className="p-0">
@@ -255,124 +309,133 @@ export function SupportPage() {
                     </TableHeader>
 
                     <TableBody>
-                      {paginatedTickets.map((ticket, index) => {
-                        const replies = loadRepliesForPost(ticket.id) ?? [];
-                        const statusLabel = supportTicketStatusLabel[ticket.status];
-                        const statusStyle = statusStyles[ticket.status];
-
-                        return (
-                            <Fragment key={ticket.id}>
-                              {/* 원글 */}
-                              <TableRow
-                                  className="cursor-pointer"
-                                  onClick={() => navigateToDetail(ticket)}
-                              >
-                                <TableCell className="px-2 py-2 text-center">
-                                  {(currentPage - 1) * ITEMS_PER_PAGE + index + 1}
-                                </TableCell>
-
-                                <TableCell className="px-3 py-2 whitespace-nowrap">
-                                  {ticket.customerName}
-                                </TableCell>
-
-                                <TableCell className="px-3 py-2 whitespace-nowrap">
-                            <span
-                                className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium border"
-                                style={{
-                                  backgroundColor: statusStyle.background,
-                                  color: statusStyle.text,
-                                  borderColor: statusStyle.border,
-                                }}
-                            >
-                              {statusLabel}
-                            </span>
-                                </TableCell>
-
-                                <TableCell className="px-3 py-2">
-                                  <div className="w-[200px] truncate">{ticket.title}</div>
-                                </TableCell>
-
-                                <TableCell className="px-3 py-2">
-                                  <div className="w-[260px] truncate">{ticket.content}</div>
-                                </TableCell>
-
-                                <TableCell className="px-3 py-2 whitespace-nowrap">
-                                  {formatDateOnly(ticket.createdDate)}
-                                </TableCell>
-
-                                <TableCell className="px-3 py-2 whitespace-nowrap">
-                                  {formatDateOnly(ticket.updatedDate)}
-                                </TableCell>
-                              </TableRow>
-
-                              {/* 답글 */}
-                              {replies.length > 0 &&
-                                  replies.map((reply) => {
-                                    const created = formatReplyDate(reply.createdAt);
-                                    const updated = formatReplyDate(reply.updatedAt || reply.createdAt);
-
-                                    return (
-                                        <TableRow
-                                            key={`${ticket.id}-${reply.id}`}
-                                            className="bg-muted/20 cursor-pointer"
-                                            onClick={() => navigateToDetail(ticket, reply)}
-                                        >
-                                          <TableCell />
-                                          <TableCell className="px-3 py-2 whitespace-nowrap">
-                                            <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                                              <CornerDownRight className="h-4 w-4 text-primary" />
-                                              {reply.author}
-                                            </div>
-                                          </TableCell>
-
-                                          <TableCell className="px-3 py-2 whitespace-nowrap">
-                                  <span
-                                      className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium border"
-                                      style={{
-                                        backgroundColor: replyTypeStyle.background,
-                                        color: replyTypeStyle.text,
-                                        borderColor: replyTypeStyle.border,
-                                      }}
-                                  >
-                                    답글
-                                  </span>
-                                          </TableCell>
-
-                                          <TableCell className="px-3 py-2">
-                                            <div className="w-[200px] truncate">
-                                              {reply.title || "무제 답글"}
-                                            </div>
-                                          </TableCell>
-
-                                          <TableCell className="px-3 py-2">
-                                            <div
-                                                className="w-[260px] truncate"
-                                                title={stripHtml(reply.content) || "내용 없음"}
-                                            >
-                                              {stripHtml(reply.content) || "내용 없음"}
-                                            </div>
-                                          </TableCell>
-
-                                          <TableCell className="px-3 py-2 whitespace-nowrap text-sm">
-                                            {created}
-                                          </TableCell>
-
-                                          <TableCell className="px-3 py-2 whitespace-nowrap text-sm">
-                                            {updated}
-                                          </TableCell>
-                                        </TableRow>
-                                    );
-                                  })}
-                            </Fragment>
-                        );
-                      })}
-
-                      {filteredTickets.length === 0 && (
+                      {isLoading ? (
+                          <TableRow>
+                            <TableCell colSpan={7} className="py-8 text-center text-muted-foreground">
+                              로딩 중...
+                            </TableCell>
+                          </TableRow>
+                      ) : effectiveTickets.length === 0 ? (
                           <TableRow>
                             <TableCell colSpan={7} className="py-8 text-center text-muted-foreground">
                               조건에 맞는 문의가 없습니다.
                             </TableCell>
                           </TableRow>
+                      ) : (
+                          effectiveTickets.map((ticket, index) => {
+                            const replies = loadRepliesForPost(ticket.id) ?? [];
+                            const statusLabel = supportTicketStatusLabel[ticket.status];
+                            const statusStyle = statusStyles[ticket.status];
+                            const hasStatus = ticket.status && statusLabel && statusStyle;
+
+                            return (
+                                <Fragment key={ticket.id}>
+                                  {/* 원글 */}
+                                  <TableRow
+                                      className="cursor-pointer"
+                                      onClick={() => navigateToDetail(ticket)}
+                                  >
+                                    <TableCell className="px-2 py-2 text-center">
+                                      {currentPage * ITEMS_PER_PAGE + index + 1}
+                                    </TableCell>
+
+                                    <TableCell className="px-3 py-2 whitespace-nowrap">
+                                      {ticket.customerName}
+                                    </TableCell>
+
+                                    <TableCell className="px-3 py-2 whitespace-nowrap">
+                                      {hasStatus && (
+                                        <span
+                                            className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium border"
+                                            style={{
+                                              backgroundColor: statusStyle.background,
+                                              color: statusStyle.text,
+                                              borderColor: statusStyle.border,
+                                            }}
+                                        >
+                                          {statusLabel}
+                                        </span>
+                                      )}
+                                    </TableCell>
+
+                                    <TableCell className="px-3 py-2">
+                                      <div className="w-[200px] truncate">{ticket.title}</div>
+                                    </TableCell>
+
+                                    <TableCell className="px-3 py-2">
+                                      <div className="w-[260px] truncate">{ticket.content}</div>
+                                    </TableCell>
+
+                                    <TableCell className="px-3 py-2 whitespace-nowrap">
+                                      {formatDateOnly(ticket.createdDate)}
+                                    </TableCell>
+
+                                    <TableCell className="px-3 py-2 whitespace-nowrap">
+                                      {formatDateOnly(ticket.updatedDate)}
+                                    </TableCell>
+                                  </TableRow>
+
+                                  {/* 답글 */}
+                                  {replies.length > 0 &&
+                                      replies.map((reply) => {
+                                        const created = formatReplyDate(reply.createdAt);
+                                        const updated = formatReplyDate(reply.updatedAt || reply.createdAt);
+
+                                        return (
+                                            <TableRow
+                                                key={`${ticket.id}-${reply.id}`}
+                                                className="bg-muted/20 cursor-pointer"
+                                                onClick={() => navigateToDetail(ticket, reply)}
+                                            >
+                                              <TableCell />
+                                              <TableCell className="px-3 py-2 whitespace-nowrap">
+                                                <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                                                  <CornerDownRight className="h-4 w-4 text-primary" />
+                                                  {reply.author}
+                                                </div>
+                                              </TableCell>
+
+                                              <TableCell className="px-3 py-2 whitespace-nowrap">
+                                      <span
+                                          className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium border"
+                                          style={{
+                                            backgroundColor: replyTypeStyle.background,
+                                            color: replyTypeStyle.text,
+                                            borderColor: replyTypeStyle.border,
+                                          }}
+                                      >
+                                        답글
+                                      </span>
+                                              </TableCell>
+
+                                              <TableCell className="px-3 py-2">
+                                                <div className="w-[200px] truncate">
+                                                  {reply.title || "무제 답글"}
+                                                </div>
+                                              </TableCell>
+
+                                              <TableCell className="px-3 py-2">
+                                                <div
+                                                    className="w-[260px] truncate"
+                                                    title={stripHtml(reply.content) || "내용 없음"}
+                                                >
+                                                  {stripHtml(reply.content) || "내용 없음"}
+                                                </div>
+                                              </TableCell>
+
+                                              <TableCell className="px-3 py-2 whitespace-nowrap text-sm">
+                                                {created}
+                                              </TableCell>
+
+                                              <TableCell className="px-3 py-2 whitespace-nowrap text-sm">
+                                                {updated}
+                                              </TableCell>
+                                            </TableRow>
+                                        );
+                                      })}
+                                </Fragment>
+                            );
+                          })
                       )}
                     </TableBody>
                   </Table2>
@@ -388,10 +451,10 @@ export function SupportPage() {
         )}
 
         {/* 페이징 */}
-        {!isWriting && filteredTickets.length > 0 && (
+        {!isWriting && !isLoading && effectiveTickets.length > 0 && (
             <div className="flex flex-col items-center gap-2 pt-4 text-muted-foreground">
               <PaginationControls
-                  currentPage={currentPage}
+                  currentPage={currentPage + 1}
                   totalPages={totalPages}
                   onPageChange={goToPage}
               />

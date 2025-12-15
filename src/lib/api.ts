@@ -2,6 +2,11 @@ import axios from 'axios';
 import type { ProjectApiResponse, ProjectListParams } from '@/types/project';
 import type { NodeListApiResponse } from '@/types/projectNodeList';
 import {CreateNodePayload} from "@/types/projectNode";
+import type {
+  CsPostListApiResponse,
+  CsPostListParams,
+  CreateCsPostPayload
+} from '@/types/csPost';
 
 // 모든 API 요청이 갈 기본 서버 주소
 const API_BASE_URL = 'https://workhub.o-r.kr'
@@ -135,5 +140,53 @@ export const userApi = {
       return data;
     }
     throw new Error(message || "프로필 이미지 변경에 실패했습니다.");
+  },
+};
+
+/**
+ * CS 게시글 API
+ */
+export const csPostApi = {
+  /**
+   * CS 게시글 목록 조회
+   * @param projectId - 프로젝트 ID
+   * @param params - 검색 및 페이지네이션 파라미터
+   * @returns CS 게시글 목록 및 페이지네이션 정보
+   */
+  getList: async (
+    projectId: string,
+    params?: CsPostListParams
+  ): Promise<CsPostListApiResponse> => {
+    const response = await apiClient.get(`/api/v1/projects/${projectId}/csPosts`, {
+      params: params,
+    });
+
+    const { success, message, data } = response.data;
+
+    if (success === true) {
+      return data;
+    }
+
+    throw new Error(message || 'CS 게시글 목록 조회에 실패했습니다.');
+  },
+
+  /**
+   * CS 게시글 생성
+   * @param projectId - 프로젝트 ID
+   * @param payload - 게시글 생성 데이터
+   */
+  create: async (projectId: string, payload: CreateCsPostPayload) => {
+    const response = await apiClient.post(
+      `/api/v1/projects/${projectId}/csPosts`,
+      payload
+    );
+
+    const { success, message, data } = response.data;
+
+    if (success === true) {
+      return data;
+    }
+
+    throw new Error(message || 'CS 게시글 생성에 실패했습니다.');
   },
 };
