@@ -21,6 +21,7 @@ export interface PostReplyItem {
     links: ReplyLinkInfo[];
     updatedAt?: string;
     parentId?: string | null;
+    isComment?: boolean;
 }
 
 export type ReplyMap = Record<string, PostReplyItem[]>;

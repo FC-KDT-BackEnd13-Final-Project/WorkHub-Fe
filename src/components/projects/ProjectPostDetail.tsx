@@ -277,7 +277,9 @@ export function ProjectPostDetail({
 
     // postReplies가 변경되면 comments도 업데이트
     useEffect(() => {
-        const convertedComments = postReplies.map(convertReplyToComment);
+        const convertedComments = postReplies
+            .filter((reply) => reply.isComment)
+            .map(convertReplyToComment);
         setComments(convertedComments);
     }, [postReplies]);
     const [newComment, setNewComment] = useState("");
@@ -525,6 +527,7 @@ export function ProjectPostDetail({
             createdAt: now.toISOString(),
             author: "나",
             updatedAt: undefined,
+            isComment: false,
         };
         setPostReplies((prev) => {
             const updated = [newReply, ...prev];
@@ -802,8 +805,9 @@ export function ProjectPostDetail({
             try {
                 const created = await onSubmitInlineComment({ content: trimmed });
                 if (created) {
+                    const commentReply: PostReplyItem = { ...created, isComment: true };
                     setPostReplies((prev) => {
-                        const updated = [...prev, created];
+                        const updated = [...prev, commentReply];
                         saveRepliesForPost(postStorageKey, updated);
                         return updated;
                     });
@@ -907,9 +911,10 @@ export function ProjectPostDetail({
         try {
             const updated = await onUpdateInlineComment({ commentId: id, content });
             if (updated) {
+                const normalizedUpdated: PostReplyItem = { ...updated, isComment: true };
                 setPostReplies((prev) => {
                     const next = prev.map((reply) =>
-                        reply.id === id ? updated : reply,
+                        reply.id === id ? normalizedUpdated : reply,
                     );
                     saveRepliesForPost(postStorageKey, next);
                     return next;
@@ -963,8 +968,9 @@ export function ProjectPostDetail({
             try {
                 const created = await onSubmitInlineComment({ content: text, parentId: rootId });
                 if (created) {
+                    const commentReply: PostReplyItem = { ...created, isComment: true };
                     setPostReplies((postPrev) => {
-                        const updated = [...postPrev, created];
+                        const updated = [...postPrev, commentReply];
                         saveRepliesForPost(postStorageKey, updated);
                         return updated;
                     });
