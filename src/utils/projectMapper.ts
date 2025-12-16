@@ -17,6 +17,7 @@ export interface Project {
   status: "CONTRACT" | "IN_PROGRESS" | "DELIVERY" | "MAINTENANCE" | "COMPLETED" | "CANCELLED";
   teamSize: number;
   tasks: number;
+  approveWorkflow?: number;
   description: string;
 }
 
@@ -28,6 +29,8 @@ export function mapApiProjectToUiProject(apiProject: ProjectApiItem): Project {
   const companyName = apiProject.company?.companyName ?? "";
   const clientMembers = apiProject.clientMembers ?? [];
   const devMembers = apiProject.devMembers ?? [];
+  const totalWorkflow = apiProject.totalWorkflow ?? 0;
+  const approvedWorkflow = apiProject.approveWorkflow ?? 0;
 
   return {
     id: String(apiProject.projectId), // number → string 변환
@@ -40,7 +43,8 @@ export function mapApiProjectToUiProject(apiProject: ProjectApiItem): Project {
     endDate: apiProject.contractEndDate,
     status: apiProject.status,
     teamSize: apiProject.totalMembers,
-    tasks: apiProject.workflowStep,
+    tasks: totalWorkflow,
+    approveWorkflow: approvedWorkflow,
 
     // 배열 변환: 객체 배열 → 이름 문자열 배열
     managers: clientMembers.map((m) =>
@@ -52,6 +56,6 @@ export function mapApiProjectToUiProject(apiProject: ProjectApiItem): Project {
     })),
 
     // API에서 제공하지 않는 필드는 기본값 설정
-    progress: 0, // TODO: workflowStep 기반 계산 로직 추가 가능
+    progress: totalWorkflow > 0 ? Math.round((approvedWorkflow / totalWorkflow) * 100) : 0,
   };
 }

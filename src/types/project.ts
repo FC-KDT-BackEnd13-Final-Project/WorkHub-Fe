@@ -19,14 +19,17 @@ export interface ProjectApiItem {
   };
   devMembers: {
     devMemberId: number;
+    devMemberLoginId: string;
     devMemberName: string;
   }[];
   clientMembers: {
     clientMemberId: number;
+    clientMemberLoginId: string;
     clientMemberName: string;
   }[];
   totalMembers: number;
-  workflowStep: number;
+  approveWorkflow: number;
+  totalWorkflow: number;
 }
 
 export type ProjectStatus =
