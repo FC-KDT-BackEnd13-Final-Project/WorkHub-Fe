@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState, useCallback } from "react";
 import { CheckSquare } from "lucide-react";
-import { NotificationTabs, NotificationTab } from "../../components/notifications/NotificationTabs";
+import { useNavigate } from "react-router-dom";
+import type { NotificationTab } from "../../components/notifications/NotificationTabs";
 import { NotificationList } from "../../components/notifications/NotificationList";
 import type { Notification } from "../../components/notifications/NotificationItem";
 import { Button } from "../../components/ui/button";
@@ -12,35 +13,20 @@ import {
   SelectTrigger,
   SelectValue,
 } from "../../components/ui/select";
-import { initialNotifications } from "../../data/notifications";
-import { useLocalStorageValue } from "../../hooks/useLocalStorageValue";
 import { PageHeader } from "../../components/common/PageHeader";
 import { FilterToolbar } from "../../components/common/FilterToolbar";
 import { filterNotifications, type NotificationEventFilter } from "../../utils/notificationFilters";
+import { useNotificationCenter } from "../../contexts/NotificationContext";
 
 // 알림 목록/필터/읽음 처리를 제공하는 알림 페이지
 export function NotificationsPage() {
-  const [notifications, setNotifications] = useState(initialNotifications);
+  const navigate = useNavigate();
+  const { notifications, markRead, markAllRead, removeNotification, resolveLink, loading, error, refresh } =
+    useNotificationCenter();
   const [activeTab, setActiveTab] = useState<NotificationTab>("All");
   const [searchTerm, setSearchTerm] = useState("");
   const [eventFilter, setEventFilter] = useState<NotificationEventFilter>("all");
   const [readFilter, setReadFilter] = useState<"all" | "unread">("all"); // idx_notification_user_unread 스타일 필터
-
-  // Sidebar와 동일한 키를 사용해 읽지 않은 알림 개수를 공유한다.
-  const [, setStoredUnreadCount] = useLocalStorageValue<number>("workhubUnreadNotificationCount", {
-    defaultValue: initialNotifications.filter((notification) => !notification.read).length,
-    parser: (value) => {
-      const parsed = Number(value);
-      return Number.isFinite(parsed) ? parsed : 0;
-    },
-    serializer: (value) => String(value),
-    listen: false,
-  });
-
-  useEffect(() => {
-    const unreadCount = notifications.filter((notification) => !notification.read).length;
-    setStoredUnreadCount(unreadCount);
-  }, [notifications, setStoredUnreadCount]);
 
   // 탭/필터 조건을 묶어서 별도 util로 위임하면 테스트하기 쉬워진다.
   const filteredNotifications = useMemo(
@@ -54,21 +40,28 @@ export function NotificationsPage() {
     [activeTab, eventFilter, notifications, readFilter, searchTerm],
   );
 
-  const markAllRead = () => {
-    setNotifications((prev) => prev.map((notification) => ({ ...notification, read: true })));
-  };
+  const handleMarkRead = useCallback(
+    (id: string) => {
+      markRead(id);
+    },
+    [markRead],
+  );
 
-  const handleMarkRead = (id: string) => {
-    setNotifications((prev) =>
-      prev.map((notification) =>
-        notification.id === id ? { ...notification, read: true } : notification,
-      ),
-    );
-  };
+  const handleRemove = useCallback(
+    (id: string) => {
+      removeNotification(id);
+    },
+    [removeNotification],
+  );
 
-  const handleRemove = (id: string) => {
-    setNotifications((prev) => prev.filter((notification) => notification.id !== id));
-  };
+  const handleOpen = useCallback(
+    (notification: Notification) => {
+      handleMarkRead(notification.id);
+      const target = resolveLink(notification);
+      navigate(target);
+    },
+    [handleMarkRead, navigate, resolveLink],
+  );
 
   return (
     <div className="space-y-6 pb-12 min-h-0">
@@ -115,10 +108,23 @@ export function NotificationsPage() {
         </Button>
       </FilterToolbar>
 
+      {loading && (
+        <p className="text-sm text-muted-foreground">알림을 불러오는 중입니다...</p>
+      )}
+      {error && (
+        <div className="text-sm text-red-600 flex items-center justify-between bg-red-50 border border-red-100 px-3 py-2 rounded-md">
+          <span>{error}</span>
+          <Button size="sm" variant="outline" onClick={refresh}>
+            다시 시도
+          </Button>
+        </div>
+      )}
+
       <NotificationList
         notifications={filteredNotifications}
         onMarkRead={handleMarkRead}
         onRemove={handleRemove}
+        onOpen={handleOpen}
       />
     </div>
   );

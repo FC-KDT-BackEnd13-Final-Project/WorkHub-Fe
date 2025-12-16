@@ -1,16 +1,8 @@
 import type { Notification } from "../components/notifications/NotificationItem";
+import type { NotificationEventType } from "../components/notifications/NotificationItem";
 import type { NotificationTab } from "../components/notifications/NotificationTabs";
 
-export type NotificationEventFilter =
-  | "all"
-  | "REVIEW_REQUEST"
-  | "REVIEW_COMPLETED"
-  | "REVIEW_REJECTED"
-  | "STATUS_CHANGED"
-  | "POST_CREATED"
-  | "POST_COMMENT_CREATED"
-  | "CS_QNA_CREATED"
-  | "CS_QNA_ANSWERED";
+export type NotificationEventFilter = "all" | NotificationEventType;
 
 export interface NotificationFilterOptions {
   tab: NotificationTab;
