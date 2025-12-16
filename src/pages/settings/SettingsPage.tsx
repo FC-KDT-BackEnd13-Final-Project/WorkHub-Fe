@@ -59,6 +59,7 @@ export function SettingsPage() {
   const [isSendingEmailCode, setIsSendingEmailCode] = useState(false);
   const [isVerifyingEmailCode, setIsVerifyingEmailCode] = useState(false);
   const [isSavingProfile, setIsSavingProfile] = useState(false);
+  const [displayLoginId, setDisplayLoginId] = useState("");
   // Sidebar 등 다른 화면과 설정 값을 공유하기 위해 로컬 스토리지에 저장한다.
   const [storedSettings, setStoredSettings] = useLocalStorageValue<StoredSettings | null>(
     PROFILE_STORAGE_KEY,
@@ -282,25 +283,12 @@ export function SettingsPage() {
   // 페이지 최초 로드시 저장된 프로필/사진/보안 설정 복원
   useEffect(() => {
     const loginId = getStoredLoginId();
-    if (!storedSettings) {
-      setProfile((prev) => (prev.id === loginId ? prev : { ...prev, id: loginId }));
-      return;
-    }
-    if (storedSettings.profile) {
-      const nextProfile = {
-        ...storedSettings.profile,
-        id: loginId || storedSettings.profile.id,
-      };
+    setDisplayLoginId(loginId);
+    if (storedSettings?.profile) {
       setProfile((prev) => ({
-        ...nextProfile,
-        role: normalizeUserRole(nextProfile.role) ?? prev.role,
+        ...storedSettings.profile,
+        role: normalizeUserRole(storedSettings.profile.role) ?? prev.role,
       }));
-      if (nextProfile.id !== storedSettings.profile.id) {
-        setStoredSettings({
-          ...storedSettings,
-          profile: nextProfile,
-        });
-      }
     }
     if (storedSettings.photo) {
       setPhoto(storedSettings.photo);
@@ -418,12 +406,12 @@ export function SettingsPage() {
               <div className="grid flex-1 gap-4 md:grid-cols-2">
                 <div className="space-y-2">
                   <Label htmlFor="id">아이디</Label>
-                  <Input
-                      id="id"
-                      value={profile.id}
-                      readOnly
-                      aria-readonly="true"
-                  />
+                      <Input
+                          id="id"
+                          value={displayLoginId || profile.id}
+                          readOnly
+                          aria-readonly="true"
+                      />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="email">이메일</Label>

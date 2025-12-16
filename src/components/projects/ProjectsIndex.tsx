@@ -30,7 +30,7 @@ import {
   DropdownMenuTrigger,
 } from "../ui/dropdown-menu";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
-import { projectApi } from "@/lib/api";
+import { companyApi, projectApi } from "@/lib/api";
 import { mapApiProjectToUiProject, type Project } from "@/utils/projectMapper";
 import type { ProjectListParams, SortOrder, UpdateProjectPayload } from "@/types/project";
 import { cn } from "../ui/utils";
@@ -124,6 +124,11 @@ type DeveloperSelection = {
   name: string;
   email?: string;
   avatarUrl?: string;
+};
+
+type CompanyOption = {
+  companyId: number;
+  companyName: string;
 };
 
 const parseLabelToNameAndId = (label: string) => {
@@ -243,6 +248,12 @@ export function ProjectsIndex() {
   const [filterStartDate, setFilterStartDate] = useState("");
   const [filterEndDate, setFilterEndDate] = useState("");
 
+  const [companyOptions, setCompanyOptions] = useState<CompanyOption[]>([]);
+  const [companyMembersMap, setCompanyMembersMap] = useState<Map<number, CompanyContact[]>>(
+    () => new Map(),
+  );
+  const [hasFetchedCompanies, setHasFetchedCompanies] = useState(false);
+  const [isFetchingCompanies, setIsFetchingCompanies] = useState(false);
   const [selectedCompany, setSelectedCompany] = useState<string | null>(null);
   const [selectedCompanyContacts, setSelectedCompanyContacts] = useState<CompanyContact[]>([]);
   const [companySearchTerm, setCompanySearchTerm] = useState("");
@@ -257,6 +268,9 @@ export function ProjectsIndex() {
   const fetchedProjectProgress = useRef(new Set<string>());
   const navigate = useNavigate();
   const isEditingProjectForm = Boolean(editingProject);
+  const [developerOptions, setDeveloperOptions] = useState<DeveloperSelection[]>([]);
+  const [hasFetchedDevelopers, setHasFetchedDevelopers] = useState(false);
+  const [isFetchingDevelopers, setIsFetchingDevelopers] = useState(false);
 
   // API 연동을 위한 상태
   const [isLoading, setIsLoading] = useState(false);
@@ -270,6 +284,10 @@ export function ProjectsIndex() {
   const observerTarget = useRef<HTMLDivElement>(null);
 
   const developerDirectory = useMemo(() => {
+    if (developerOptions.length > 0) {
+      return developerOptions;
+    }
+
     const map = new Map<string, DeveloperSelection>();
 
     companyUsers.forEach((user) => {
@@ -293,7 +311,7 @@ export function ProjectsIndex() {
     });
 
     return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name, "ko-KR"));
-  }, [projects]);
+  }, [developerOptions, projects]);
 
   const availableDeveloperOptions = useMemo(() => developerDirectory, [developerDirectory]);
   const visibleDeveloperOptions = useMemo(() => {
@@ -312,6 +330,69 @@ export function ProjectsIndex() {
     () => newProject.developers.map((developer) => developer.name).join(", "),
     [newProject.developers],
   );
+
+  const fetchCompanyList = useCallback(async () => {
+    if (hasFetchedCompanies || isFetchingCompanies) return;
+    setIsFetchingCompanies(true);
+    try {
+      const companies = await companyApi.getCompanies();
+      setCompanyOptions(companies);
+      setHasFetchedCompanies(true);
+    } catch (err) {
+      const message = getErrorMessage(err, "고객사 목록을 불러오지 못했습니다.");
+      toast.error(message);
+    } finally {
+      setIsFetchingCompanies(false);
+    }
+  }, [hasFetchedCompanies, isFetchingCompanies]);
+
+  const fetchCompanyMembers = useCallback(
+    async (companyId: number, companyName?: string) => {
+      if (companyMembersMap.get(companyId)) return;
+      try {
+        const members = await companyApi.getCompanyMembers(companyId);
+        const contacts: CompanyContact[] = members.map((member) => ({
+          id: String(member.userId),
+          name: member.userName,
+          email: member.loginId,
+          company: companyName ?? "",
+          avatarUrl: member.profileImg || undefined,
+        }));
+        setCompanyMembersMap((prev) => {
+          const next = new Map(prev);
+          next.set(companyId, contacts);
+          return next;
+        });
+      } catch (err) {
+        const message = getErrorMessage(err, "고객사 담당자 목록을 불러오지 못했습니다.");
+        toast.error(message);
+      }
+    },
+    [companyMembersMap],
+  );
+
+  const fetchDevelopers = useCallback(async () => {
+    if (hasFetchedDevelopers || isFetchingDevelopers) return;
+    setIsFetchingDevelopers(true);
+    try {
+      const members = await companyApi.getCompanyMembers(1);
+      const developers = members
+        .map<DeveloperSelection>((member) => ({
+          id: String(member.userId),
+          name: member.userName,
+          email: member.loginId,
+          avatarUrl: member.profileImg || undefined,
+        }))
+        .sort((a, b) => a.name.localeCompare(b.name, "ko-KR"));
+      setDeveloperOptions(developers);
+      setHasFetchedDevelopers(true);
+    } catch (err) {
+      const message = getErrorMessage(err, "개발자 목록을 불러오지 못했습니다.");
+      toast.error(message);
+    } finally {
+      setIsFetchingDevelopers(false);
+    }
+  }, [hasFetchedDevelopers, isFetchingDevelopers]);
 
   const toggleDeveloperSelection = (developerId: string) => {
     const selected = developerDirectory.find((developer) => developer.id === developerId);
@@ -393,49 +474,41 @@ export function ProjectsIndex() {
     });
   }, [projects, searchTerm]);
 
-  const companyDirectory = useMemo(() => {
-    const names = new Set<string>();
-    companyUsers.forEach((user) => names.add(user.company));
-    projects.forEach((project) => {
-      if (project.brand) {
-        names.add(project.brand);
-      }
-    });
-    return Array.from(names).sort();
-  }, [companyUsers, projects]);
+  const companyDirectory = useMemo(
+    () =>
+      companyOptions
+        .map((company) => company.companyName)
+        .sort((a, b) => a.localeCompare(b, "ko-KR")),
+    [companyOptions],
+  );
 
   const companyIdMap = useMemo(() => {
     const map = new Map<string, number>();
-    projects.forEach((project) => {
-      if (project.brand && typeof project.companyId === "number") {
-        map.set(project.brand, project.companyId);
-      }
+    companyOptions.forEach((company) => {
+      map.set(company.companyName, company.companyId);
     });
     return map;
-  }, [projects]);
+  }, [companyOptions]);
 
   const companyContactMap = useMemo(() => {
     const map = new Map<string, CompanyContact[]>();
 
-    companyUsers.forEach((user) => {
-      if (!map.has(user.company)) {
-        map.set(user.company, []);
+    companyOptions.forEach((company) => {
+      const members = companyMembersMap.get(company.companyId);
+      if (members && members.length > 0) {
+        map.set(
+          company.companyName,
+          [...members].sort((a, b) => a.name.localeCompare(b.name, "ko-KR")),
+        );
       }
-      map.get(user.company)!.push({
-        id: user.id,
-        name: user.name,
-        email: user.email,
-        company: user.company,
-        avatarUrl: user.avatarUrl,
-      });
     });
 
     return map;
-  }, [companyUsers]);
+  }, [companyMembersMap, companyOptions]);
 
   const filteredCompanyDirectory = useMemo(() => {
     const term = normalizeText(companySearchTerm.trim());
-    if (!term) return [];
+    if (!term) return companyDirectory;
     return companyDirectory.filter((name) => normalizeText(name).includes(term));
   }, [companyDirectory, companySearchTerm]);
 
@@ -473,12 +546,18 @@ export function ProjectsIndex() {
     setIsDeveloperDropdownOpen(false);
     setDeveloperSearchTerm("");
 
+    const companyId = companyIdMap.get(companyName) ?? null;
+
     setNewProject((prev) => ({
       ...prev,
       brand: companyName,
-      companyId: companyIdMap.get(companyName) ?? null,
+      companyId,
       managers: [],
     }));
+
+    if (companyId !== null) {
+      void fetchCompanyMembers(companyId, companyName);
+    }
   };
 
   const handleToggleCompanyContact = (contact: CompanyContact) => {
@@ -607,28 +686,49 @@ export function ProjectsIndex() {
       return;
     }
 
-    const project: Project = {
-      id: crypto.randomUUID(),
-      name: newProject.name,
-      description: newProject.description,
-      brand: newProject.brand,
-      companyId: newProject.companyId ?? undefined,
-      manager: managerText,
-      developer: developerText,
-      managers: [...newProject.managers],
-      developers: [...newProject.developers],
-      startDate: newProject.startDate,
-      endDate: newProject.endDate,
-      progress: 0,
-      status: "IN_PROGRESS",
-      teamSize,
-      tasks: 0,
-    };
+    if (!newProject.companyId) {
+      toast.error("고객사를 선택해주세요.");
+      return;
+    }
 
-    setProjects((prev) => [...prev, project]);
-    resetCreateForm();
-    setEditingProject(null);
-    setIsProjectModalOpen(false);
+    setIsSavingProject(true);
+    try {
+      const payload = {
+        projectName: newProject.name,
+        projectDescription: newProject.description,
+        company: newProject.companyId,
+        managerIds: managerIdPayload ?? [],
+        developerIds: developerIdPayload ?? [],
+        starDate: newProject.startDate,
+        endDate: newProject.endDate,
+      };
+
+      const created = await projectApi.create(payload);
+      const mapped = mapApiProjectToUiProject(created);
+
+      // progress/totals는 별도 호출로 누적될 수 있어 기존 로직과 맞추기 위해 초기값 설정
+      const project: Project = {
+        ...mapped,
+        managers: [...newProject.managers],
+        developers: [...newProject.developers],
+        manager: managerText,
+        developer: developerText,
+        teamSize,
+        progress: mapped.progress ?? 0,
+        tasks: mapped.tasks ?? 0,
+      };
+
+      setProjects((prev) => [project, ...prev]);
+      toast.success("프로젝트가 생성되었습니다.");
+      resetCreateForm();
+      setEditingProject(null);
+      setIsProjectModalOpen(false);
+    } catch (err) {
+      const message = getErrorMessage(err, "프로젝트 생성에 실패했습니다.");
+      toast.error(message);
+    } finally {
+      setIsSavingProject(false);
+    }
   };
 
   const handleEditProject = (project: Project) => {
@@ -669,6 +769,10 @@ export function ProjectsIndex() {
                 );
               })
             : [];
+
+    if (project.companyId) {
+      void fetchCompanyMembers(project.companyId, project.brand ?? undefined);
+    }
 
     setNewProject({
       name: project.name,
@@ -871,6 +975,12 @@ export function ProjectsIndex() {
     });
   }, [projects]);
 
+  useEffect(() => {
+    if (!isProjectModalOpen) return;
+    void fetchCompanyList();
+    void fetchDevelopers();
+  }, [fetchCompanyList, fetchDevelopers, isProjectModalOpen]);
+
   const getManagerDisplay = (project: Project) => {
     const fromString = formatLabelString(project.manager);
     if (fromString) return fromString;
@@ -1065,40 +1175,41 @@ export function ProjectsIndex() {
                                     className="h-8 text-sm"
                                   />
                                 </div>
-                              <div className="max-h-[13.5rem] overflow-y-auto">
-                                {companySearchTerm.trim()
-                                  ? filteredCompanyDirectory.length > 0
-                                    ? filteredCompanyDirectory.map((company) => {
-                                        const isActive = selectedCompany === company;
-                                        return (
-                                          <button
-                                            type="button"
-                                            key={company}
-                                            onMouseDown={(event) => {
-                                              event.preventDefault();
-                                              handleSelectCompany(company);
-                                              setIsCompanyDropdownOpen(false);
-                                            }}
-                                            className={cn(
-                                              "flex w-full items-center justify-between px-3 py-2 text-left text-sm transition-colors",
-                                              isActive ? "bg-primary/5 text-primary" : "hover:bg-accent/60",
-                                            )}
-                                          >
-                                            <span>{company}</span>
-                                            {isActive && <Check className="h-4 w-4 text-primary" aria-hidden="true" />}
-                                          </button>
-                                        );
-                                      })
-                                    : (
-                                      <p className="px-3 py-4 text-center text-sm text-muted-foreground">
-                                        검색 결과가 없습니다.
-                                      </p>
-                                    )
-                                  : (
-                                    <p className="px-3 py-4 text-center text-sm text-muted-foreground">
-                                      검색어를 입력하면 고객사가 표시됩니다.
-                                    </p>
-                                  )}
+                              <div
+                                className="overflow-y-auto"
+                                style={{ maxHeight: "9rem" }}
+                              >
+                                {isFetchingCompanies ? (
+                                  <p className="px-3 py-4 text-center text-sm text-muted-foreground">
+                                    고객사를 불러오는 중...
+                                  </p>
+                                ) : filteredCompanyDirectory.length > 0 ? (
+                                  filteredCompanyDirectory.map((company) => {
+                                    const isActive = selectedCompany === company;
+                                    return (
+                                      <button
+                                        type="button"
+                                        key={company}
+                                        onMouseDown={(event) => {
+                                          event.preventDefault();
+                                          handleSelectCompany(company);
+                                          setIsCompanyDropdownOpen(false);
+                                        }}
+                                        className={cn(
+                                          "flex w-full items-center justify-between px-3 py-2 text-left text-sm transition-colors",
+                                          isActive ? "bg-primary/5 text-primary" : "hover:bg-accent/60",
+                                        )}
+                                      >
+                                        <span>{company}</span>
+                                        {isActive && <Check className="h-4 w-4 text-primary" aria-hidden="true" />}
+                                      </button>
+                                    );
+                                  })
+                                ) : (
+                                  <p className="px-3 py-4 text-center text-sm text-muted-foreground">
+                                    등록된 고객사가 없습니다.
+                                  </p>
+                                )}
                               </div>
                               </PopoverContent>
                             </Popover>
@@ -1172,55 +1283,52 @@ export function ProjectsIndex() {
                                     autoFocus
                                   />
                                 </div>
-                                <div className="max-h-[13.5rem] overflow-y-auto">
-                                  {hasContactSearch ? (
-                                    visibleCompanyContacts.length > 0 ? (
-                                      visibleCompanyContacts.map((member) => {
-                                        const isSelected = selectedCompanyContacts.some(
-                                          (contact) =>
-                                            (!!contact.id && contact.id === member.id) ||
-                                            contact.name === member.name,
-                                        );
-                                        return (
-                                          <button
-                                            type="button"
-                                            key={member.id}
-                                            onMouseDown={(event) => {
-                                              event.preventDefault();
-                                              handleToggleCompanyContact(member);
-                                            }}
-                                            className={cn(
-                                              "flex w-full items-center justify-between px-3 py-1.5 text-left text-sm transition-colors",
-                                              isSelected ? "bg-primary/5 text-primary" : "hover:bg-accent/60",
-                                            )}
-                                          >
-                                            <div className="flex items-center gap-3">
-                                              <img
-                                                src={member.avatarUrl || "/default-profile.png"}
-                                                alt={`${member.name} 프로필`}
+                                <div
+                                  className="overflow-y-auto"
+                                  style={{ maxHeight: "9rem" }}
+                                >
+                                  {visibleCompanyContacts.length > 0 ? (
+                                    visibleCompanyContacts.map((member) => {
+                                      const isSelected = selectedCompanyContacts.some(
+                                        (contact) =>
+                                          (!!contact.id && contact.id === member.id) ||
+                                          contact.name === member.name,
+                                      );
+                                      return (
+                                        <button
+                                          type="button"
+                                          key={member.id}
+                                          onMouseDown={(event) => {
+                                            event.preventDefault();
+                                            handleToggleCompanyContact(member);
+                                          }}
+                                          className={cn(
+                                            "flex w-full items-center justify-between px-3 py-1.5 text-left text-sm transition-colors",
+                                            isSelected ? "bg-primary/5 text-primary" : "hover:bg-accent/60",
+                                          )}
+                                        >
+                                          <div className="flex items-center gap-3">
+                                            <img
+                                              src={member.avatarUrl || "/default-profile.png"}
+                                              alt={`${member.name} 프로필`}
                                                 className="h-6 w-6 rounded-full object-cover"
                                               />
                                               <div className="flex flex-col leading-tight">
                                                 <span className="text-sm font-medium">
-                                                  {member.name} ({member.id})
+                                                  {member.name}
                                                 </span>
                                                 <span className="text-xs text-muted-foreground">
                                                   {member.email ?? "이메일 정보 없음"}
                                                 </span>
                                               </div>
-                                            </div>
-                                            {isSelected && <Check className="h-4 w-4 text-primary" aria-hidden="true" />}
-                                          </button>
-                                        );
-                                      })
-                                    ) : (
-                                      <p className="px-3 py-4 text-center text-sm text-muted-foreground">
-                                        검색 결과가 없습니다.
-                                      </p>
-                                    )
+                                          </div>
+                                          {isSelected && <Check className="h-4 w-4 text-primary" aria-hidden="true" />}
+                                        </button>
+                                      );
+                                    })
                                   ) : (
                                     <p className="px-3 py-4 text-center text-sm text-muted-foreground">
-                                      검색어를 입력하면 결과가 표시됩니다.
+                                      {hasContactSearch ? "검색 결과가 없습니다." : "담당자 목록이 없습니다."}
                                     </p>
                                   )}
                                 </div>
@@ -1301,50 +1409,50 @@ export function ProjectsIndex() {
                                     className="h-8 text-sm"
                                   />
                                 </div>
-                                <div className="max-h-[13.5rem] overflow-y-auto">
-                                  {hasDeveloperSearch ? (
-                                    visibleDeveloperOptions.length > 0 ? (
-                                      visibleDeveloperOptions.map((developer) => {
-                                        const isSelected = newProject.developers.some(
-                                          (item) => item.id === developer.id,
-                                        );
-                                        return (
-                                          <button
-                                            type="button"
-                                            key={developer.id}
-                                            onMouseDown={(event) => {
-                                              event.preventDefault();
-                                              toggleDeveloperSelection(developer.id);
-                                            }}
-                                            className="flex w-full items-center justify-between px-3 py-1.5 text-left text-sm transition-colors hover:bg-accent/60"
-                                          >
-                                            <div className="flex items-center gap-3">
-                                              <img
-                                                src={developer.avatarUrl || "/default-profile.png"}
-                                                alt={`${developer.name} 프로필`}
-                                                className="h-6 w-6 rounded-full object-cover"
-                                              />
-                                              <div className="flex flex-col leading-tight">
-                                                <span className="text-sm font-medium">
-                                                  {developer.name} ({developer.id})
-                                                </span>
-                                                <span className="text-xs text-muted-foreground">
-                                                  {developer.email ?? "이메일 정보 없음"}
-                                                </span>
-                                              </div>
-                                            </div>
-                                            {isSelected && <Check className="h-4 w-4 text-primary" aria-hidden="true" />}
-                                          </button>
-                                        );
-                                      })
-                                    ) : (
-                                      <p className="px-3 py-4 text-center text-sm text-muted-foreground">
-                                        검색 결과가 없습니다.
-                                      </p>
-                                    )
+                                <div
+                                  className="overflow-y-auto"
+                                  style={{ maxHeight: "9rem" }}
+                                >
+                                  {visibleDeveloperOptions.length > 0 ? (
+                                    visibleDeveloperOptions.map((developer) => {
+                                      const isSelected = newProject.developers.some(
+                                        (item) => item.id === developer.id,
+                                      );
+                                      return (
+                                        <button
+                                          type="button"
+                                          key={developer.id}
+                                          onMouseDown={(event) => {
+                                            event.preventDefault();
+                                            toggleDeveloperSelection(developer.id);
+                                          }}
+                                          className={cn(
+                                            "flex w-full items-center justify-between px-3 py-1.5 text-left text-sm transition-colors",
+                                            isSelected ? "bg-primary/5 text-primary" : "hover:bg-accent/60",
+                                          )}
+                                        >
+                                          <div className="flex items-center gap-3">
+                                            <img
+                                              src={developer.avatarUrl || "/default-profile.png"}
+                                              alt={`${developer.name} 프로필`}
+                                              className="h-6 w-6 rounded-full object-cover"
+                                            />
+                                          <div className="flex flex-col leading-tight">
+                                            <span className="text-sm font-medium">
+                                              {developer.name}
+                                            </span>
+                                            <span className="text-xs text-muted-foreground">
+                                              {developer.email ?? "이메일 정보 없음"}
+                                            </span>
+                                          </div>
+                                          </div>
+                                          {isSelected && <Check className="h-4 w-4 text-primary" aria-hidden="true" />}
+                                        </button>
+                                      );
+                                    })
                                   ) : (
                                     <p className="px-3 py-4 text-center text-sm text-muted-foreground">
-                                      검색어를 입력하면 결과가 표시됩니다.
+                                      검색 결과가 없습니다.
                                     </p>
                                   )}
                                 </div>

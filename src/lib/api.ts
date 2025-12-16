@@ -25,6 +25,38 @@ import type {
   CsQnaUpdateRequest,
 } from '@/types/csPost';
 
+type CreateProjectPayload = {
+  projectName: string;
+  projectDescription: string;
+  company: number;
+  managerIds: number[];
+  developerIds: number[];
+  starDate: string;
+  endDate: string;
+};
+
+type CompanyListResponse = {
+  success: boolean;
+  code: string;
+  message: string;
+  data: Array<{
+    companyId: number;
+    companyName: string;
+  }>;
+};
+
+type CompanyMemberListResponse = {
+  success: boolean;
+  code: string;
+  message: string;
+  data: Array<{
+    userId: number;
+    loginId: string;
+    userName: string;
+    profileImg?: string | null;
+  }>;
+};
+
 // 모든 API 요청이 갈 기본 서버 주소
 const API_BASE_URL = 'https://workhub.o-r.kr'
 
@@ -297,6 +329,25 @@ export const projectApi = {
   },
 
   /**
+   * 프로젝트 생성
+   */
+  create: async (payload: CreateProjectPayload): Promise<ProjectApiItem> => {
+    const response = await apiClient.post('/api/v1/projects', payload);
+    const { success, message, data } = response.data ?? {};
+
+    if (success === true && data) {
+      return data;
+    }
+
+    // 백엔드가 바로 프로젝트 객체를 반환할 수도 있음
+    if (response.data && typeof response.data === 'object' && 'projectId' in response.data) {
+      return response.data as ProjectApiItem;
+    }
+
+    throw new Error(message || '프로젝트 생성에 실패했습니다.');
+  },
+
+  /**
    * 특정 노드의 체크리스트 조회
    */
   getCheckList: async (
@@ -369,6 +420,32 @@ export const projectApi = {
     }
 
     throw new Error(message || '체크리스트 수정에 실패했습니다.');
+  },
+};
+
+export const companyApi = {
+  /**
+   * 회사 목록 조회
+   */
+  getCompanies: async () => {
+    const response = await apiClient.get<CompanyListResponse>('/api/v1/company/list');
+    const { success, message, data } = response.data;
+    if (success === true) {
+      return data;
+    }
+    throw new Error(message || '회사 목록 조회에 실패했습니다.');
+  },
+
+  /**
+   * 특정 회사 소속 직원 목록 조회
+   */
+  getCompanyMembers: async (companyId: number) => {
+    const response = await apiClient.get<CompanyMemberListResponse>(`/api/v1/company/${companyId}/list`);
+    const { success, message, data } = response.data;
+    if (success === true) {
+      return data;
+    }
+    throw new Error(message || '회사 구성원 목록 조회에 실패했습니다.');
   },
 };
 
