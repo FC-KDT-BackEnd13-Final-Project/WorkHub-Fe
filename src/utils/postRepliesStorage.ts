@@ -1,4 +1,4 @@
-const STORAGE_KEY = "workhub:postReplies";
+export const POST_REPLIES_STORAGE_KEY = "workhub:postReplies";
 
 export interface ReplyLinkInfo {
     url: string;
@@ -31,7 +31,7 @@ const isBrowser = typeof window !== "undefined";
 const readReplyMap = (): ReplyMap => {
     if (!isBrowser) return {};
     try {
-        const raw = window.localStorage.getItem(STORAGE_KEY);
+        const raw = window.localStorage.getItem(POST_REPLIES_STORAGE_KEY);
         if (!raw) return {};
         const parsed = JSON.parse(raw);
         return typeof parsed === "object" && parsed ? parsed : {};
@@ -50,7 +50,7 @@ const notifyRepliesUpdated = () => {
 const writeReplyMap = (map: ReplyMap) => {
     if (!isBrowser) return;
     try {
-        window.localStorage.setItem(STORAGE_KEY, JSON.stringify(map));
+        window.localStorage.setItem(POST_REPLIES_STORAGE_KEY, JSON.stringify(map));
         notifyRepliesUpdated();
     } catch {
         // ignore

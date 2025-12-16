@@ -11,6 +11,12 @@ import { toast } from "sonner";
 import type { RichTextDraft } from "../../components/RichTextDemo";
 import { getErrorMessage } from "@/utils/errorMessages";
 
+const QNA_FETCH_PARAMS = {
+  page: 0,
+  size: 100,
+  sort: ["createdAt,ASC"],
+} as const;
+
 // API 응답을 UI 형식으로 변환
 interface TicketDetail {
   id: string;
@@ -60,6 +66,19 @@ export function SupportTicketDetail() {
   const [isInlineCommentSubmitting, setIsInlineCommentSubmitting] = useState(false);
   const backPath = projectId ? `/projects/${projectId}/nodes/support` : undefined;
 
+  const refreshRepliesFromServer = async () => {
+    if (!projectId || !ticketId) return;
+    try {
+      const qnaResponse = await csPostApi.getQnas(projectId, ticketId, {
+        ...QNA_FETCH_PARAMS,
+      });
+      const normalizedReplies = qnaResponse.content.flatMap(convertQnaToReply);
+      saveRepliesForPost(String(ticketId), normalizedReplies);
+    } catch (err) {
+      console.error("댓글 목록 갱신 실패", err);
+    }
+  };
+
   useEffect(() => {
     const fetchTicketAndComments = async () => {
       if (!projectId || !ticketId) {
@@ -76,9 +95,7 @@ export function SupportTicketDetail() {
         const [ticketResponse, commentsResponse] = await Promise.all([
           csPostApi.getDetail(projectId, ticketId),
           csPostApi.getQnas(projectId, ticketId, {
-            page: 0,
-            size: 100,
-            sort: ["createdAt,ASC"],
+            ...QNA_FETCH_PARAMS,
           }),
         ]);
 
@@ -207,7 +224,9 @@ export function SupportTicketDetail() {
     try {
       const response = await csPostApi.createQna(projectId, ticketId, {
         qnaContent: draft.content,
+        parentQnaId: null,
       });
+      await refreshRepliesFromServer();
       toast.success("댓글이 등록되었습니다.");
       return convertQnaResponseToReply(response);
     } catch (err) {
@@ -238,8 +257,9 @@ export function SupportTicketDetail() {
     try {
       const response = await csPostApi.createQna(projectId, ticketId, {
         qnaContent: content,
-        parentQnaId,
+        parentQnaId: parentQnaId ?? null,
       });
+      await refreshRepliesFromServer();
       return convertQnaResponseToReply(response);
     } catch (err) {
       const message = err instanceof Error ? err.message : "CS 댓글 등록에 실패했습니다.";
@@ -266,6 +286,7 @@ export function SupportTicketDetail() {
       const response = await csPostApi.updateQna(projectId, ticketId, commentId, {
         qnaContent: content,
       });
+      await refreshRepliesFromServer();
       toast.success("댓글이 수정되었습니다.");
       return convertQnaResponseToReply(response);
     } catch (err) {
@@ -283,6 +304,7 @@ export function SupportTicketDetail() {
 
     try {
       await csPostApi.deleteQna(projectId, ticketId, commentId);
+      await refreshRepliesFromServer();
       toast.success("댓글이 삭제되었습니다.");
     } catch (err) {
       const message = err instanceof Error ? err.message : "CS 댓글 삭제에 실패했습니다.";
@@ -334,6 +356,7 @@ export function SupportTicketDetail() {
       isReplySubmitting={isReplySubmitting}
       isInlineCommentSubmitting={isInlineCommentSubmitting}
       showStatusControls={true}
+      useExternalCommentSync={true}
     />
   );
 }
