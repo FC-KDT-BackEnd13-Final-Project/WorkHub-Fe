@@ -274,7 +274,7 @@ export const userApi = {
    * 관리자: 회원 상세 조회
    */
   getAdminUserDetail: async (userId: string | number) => {
-    const response = await apiClient.get(`/api/v1/users/${userId}`);
+    const response = await apiClient.get(`/api/v1/admin/users/${userId}`);
     const { success, message, data } = response.data;
     if (success === true) {
       return data;
@@ -286,19 +286,68 @@ export const userApi = {
    * 관리자: 회원 목록 조회
    */
   getAdminUsers: async () => {
-    const response = await apiClient.get(`/api/v1/users/list`);
-    const payload = response.data;
+      const response = await apiClient.get(`/api/v1/admin/users/list`);
+      const payload = response.data;
 
-    if (Array.isArray(payload)) {
-      return payload;
+      if (Array.isArray(payload)) {
+          return payload;
+      }
+
+      const {success, message, data} = payload;
+      if (success === true && Array.isArray(data)) {
+          return data;
+      }
+
+      throw new Error(message || "회원 목록 조회에 실패했습니다.");
+  },
+
+  /*
+   * 이메일 인증 코드 발송
+   * @param email 대상 이메일
+   * @param userName 사용자 이름
+   */
+  sendEmailVerification: async (email: string, userName: string) => {
+    const response = await apiClient.post("/api/v1/email-verification/send", {
+      email,
+      userName,
+    });
+
+    const { success, message, code, data } = response.data;
+    if (success === true) {
+      return { message, code, data };
     }
+    throw new Error(message || "이메일 인증 코드 전송에 실패했습니다.");
+  },
 
-    const { success, message, data } = payload;
-    if (success === true && Array.isArray(data)) {
-      return data;
+  /**
+   * 이메일 인증 코드 검증
+   * @param email 대상 이메일
+   * @param code 인증 코드
+   */
+  confirmEmailVerification: async (email: string, code: string) => {
+    const response = await apiClient.post("/api/v1/users/confirm", {
+      email,
+      code,
+    });
+
+    const { success, message, data } = response.data;
+    if (success === true) {
+      return { message, data };
     }
+    throw new Error(message || "이메일 인증에 실패했습니다.");
+  },
 
-    throw new Error(message || "회원 목록 조회에 실패했습니다.");
+  /**
+   * 전화번호 변경
+   * @param phone 숫자만 포함된 전화번호
+   */
+  updatePhone: async (phone: string) => {
+    const response = await apiClient.patch("/api/v1/users/phone", { phone });
+    const { success, message, data } = response.data;
+    if (success === true) {
+      return { message, data };
+    }
+    throw new Error(message || "전화번호 변경에 실패했습니다.");
   },
 };
 

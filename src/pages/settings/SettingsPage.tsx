@@ -52,11 +52,13 @@ export function SettingsPage() {
   const [showResetPassword, setShowResetPassword] = useState(false);
   const [isEmailVerificationOpen, setIsEmailVerificationOpen] = useState(false);
   const [isEmailVerified, setIsEmailVerified] = useState(false);
+  const [emailForVerification, setEmailForVerification] = useState(profile.email);
   const [emailVerificationCode, setEmailVerificationCode] = useState("");
   const [emailVerificationError, setEmailVerificationError] = useState("");
   const [emailVerificationHint, setEmailVerificationHint] = useState("");
   const [isSendingEmailCode, setIsSendingEmailCode] = useState(false);
   const [isVerifyingEmailCode, setIsVerifyingEmailCode] = useState(false);
+  const [isSavingProfile, setIsSavingProfile] = useState(false);
   // Sidebar 등 다른 화면과 설정 값을 공유하기 위해 로컬 스토리지에 저장한다.
   const [storedSettings, setStoredSettings] = useLocalStorageValue<StoredSettings | null>(
     PROFILE_STORAGE_KEY,
@@ -112,12 +114,31 @@ export function SettingsPage() {
   const triggerFileSelect = () => {
     fileInputRef.current?.click();
   };
+
+  const formatPhoneNumber = (value: string) => {
+    const digits = value.replace(/\D/g, "");
+    if (digits.length === 11) {
+      return `${digits.slice(0, 3)}-${digits.slice(3, 7)}-${digits.slice(7, 11)}`;
+    }
+    if (digits.length === 10) {
+      if (digits.startsWith("02")) {
+        return `${digits.slice(0, 2)}-${digits.slice(2, 6)}-${digits.slice(6, 10)}`;
+      }
+      return `${digits.slice(0, 3)}-${digits.slice(3, 6)}-${digits.slice(6, 10)}`;
+    }
+    return digits;
+  };
+
+  const handlePhoneChange = (event: ChangeEvent<HTMLInputElement>) => {
+    const digitsOnly = event.target.value.replace(/\D/g, "");
+    setProfile((prev) => ({ ...prev, phone: digitsOnly }));
+  };
   const openEmailVerificationModal = () => {
-    if (!profile.email) return;
     setEmailVerificationError("");
     setEmailVerificationCode("");
+    setEmailForVerification("");
+    setEmailVerificationHint("");
     setIsEmailVerificationOpen(true);
-    void sendEmailVerificationCode();
   };
 
   const closeEmailVerificationModal = () => {
@@ -126,18 +147,91 @@ export function SettingsPage() {
     setEmailVerificationError("");
   };
 
+  const getStoredUserName = () => {
+    if (typeof window === "undefined") {
+      return profile.id;
+    }
+    try {
+      const rawUser = localStorage.getItem("user");
+      if (rawUser) {
+        const parsed = JSON.parse(rawUser);
+        if (parsed?.userName) {
+          return parsed.userName;
+        }
+      }
+      const rawProfile = localStorage.getItem(PROFILE_STORAGE_KEY);
+      if (rawProfile) {
+        const parsed = JSON.parse(rawProfile);
+        return parsed?.profile?.id || profile.id;
+      }
+    } catch (error) {
+      console.error("사용자 이름 조회 실패", error);
+    }
+    return profile.id;
+  };
+
+  const getStoredLoginId = () => {
+    if (typeof window === "undefined") {
+      return profile.id;
+    }
+    try {
+      const rawUser = localStorage.getItem("user");
+      if (rawUser) {
+        const parsed = JSON.parse(rawUser);
+        if (parsed?.loginId) {
+          return parsed.loginId;
+        }
+      }
+    } catch (error) {
+      console.error("로그인 아이디 조회 실패", error);
+    }
+    return profile.id;
+  };
+
+  const updateStoredUserEmail = (nextEmail: string) => {
+    if (typeof window === "undefined") return;
+    try {
+      const rawUser = localStorage.getItem("user");
+      if (rawUser) {
+        const parsed = JSON.parse(rawUser);
+        localStorage.setItem(
+          "user",
+          JSON.stringify({
+            ...parsed,
+            email: nextEmail,
+          }),
+        );
+      }
+    } catch (error) {
+      console.error("저장된 사용자 이메일 업데이트 실패", error);
+    }
+  };
+
   const sendEmailVerificationCode = async () => {
-    if (!profile.email) return;
+    if (!emailForVerification?.trim()) {
+      setEmailVerificationError("인증할 이메일을 입력해주세요.");
+      return;
+    }
     setIsSendingEmailCode(true);
     setEmailVerificationHint("");
     setEmailVerificationError("");
     try {
-      await new Promise((resolve) => setTimeout(resolve, 800));
-      setEmailVerificationHint(`${profile.email} 주소로 인증 코드를 전송했습니다.`);
-      toast.success("인증 코드가 전송되었습니다.");
-    } catch (error) {
+      const userName = getStoredUserName();
+      const targetEmail = emailForVerification.trim();
+      const response = await userApi.sendEmailVerification(targetEmail, userName);
+      const successMessage =
+        response?.message ||
+        `${targetEmail} 주소로 인증 코드를 전송했습니다.`;
+      setEmailVerificationHint(successMessage);
+      toast.success(successMessage);
+    } catch (error: any) {
       console.error("이메일 인증 코드 전송 실패", error);
-      toast.error("인증 코드 전송에 실패했습니다. 잠시 후 다시 시도해주세요.");
+      const message =
+        error?.response?.data?.message ||
+        error?.message ||
+        "인증 코드 전송에 실패했습니다. 잠시 후 다시 시도해주세요.";
+      setEmailVerificationError(message);
+      toast.error(message);
     } finally {
       setIsSendingEmailCode(false);
     }
@@ -151,14 +245,35 @@ export function SettingsPage() {
     setIsVerifyingEmailCode(true);
     setEmailVerificationError("");
     try {
-      await new Promise((resolve) => setTimeout(resolve, 800));
+      const targetEmail = emailForVerification.trim();
+      const response = await userApi.confirmEmailVerification(
+        targetEmail,
+        emailVerificationCode.trim(),
+      );
       setIsEmailVerified(true);
-      setEmailVerificationHint("");
-      toast.success("이메일 인증이 완료되었습니다.");
+      setEmailVerificationHint(response?.message || "");
+      const successMessage = response?.message || "이메일 인증이 완료되었습니다.";
+      const updatedProfile = { ...profile, email: targetEmail };
+      setProfile(updatedProfile);
+      const payload = {
+        profile: updatedProfile,
+        photo,
+        twoFactorEnabled,
+        updatedAt: new Date().toISOString(),
+      };
+      setStoredSettings(payload);
+      updateStoredUserEmail(targetEmail);
+      window.dispatchEvent(new CustomEvent<UserRole>(PROFILE_UPDATE_EVENT, { detail: profile.role }));
+      toast.success(successMessage);
       closeEmailVerificationModal();
-    } catch (error) {
+    } catch (error: any) {
       console.error("이메일 인증 실패", error);
-      setEmailVerificationError("인증에 실패했습니다. 다시 시도해주세요.");
+      const message =
+        error?.response?.data?.message ||
+        error?.message ||
+        "인증에 실패했습니다. 다시 시도해주세요.";
+      setEmailVerificationError(message);
+      toast.error(message);
     } finally {
       setIsVerifyingEmailCode(false);
     }
@@ -166,14 +281,26 @@ export function SettingsPage() {
 
   // 페이지 최초 로드시 저장된 프로필/사진/보안 설정 복원
   useEffect(() => {
+    const loginId = getStoredLoginId();
     if (!storedSettings) {
+      setProfile((prev) => (prev.id === loginId ? prev : { ...prev, id: loginId }));
       return;
     }
     if (storedSettings.profile) {
-      setProfile((prev) => ({
+      const nextProfile = {
         ...storedSettings.profile,
-        role: normalizeUserRole(storedSettings.profile.role) ?? prev.role,
+        id: loginId || storedSettings.profile.id,
+      };
+      setProfile((prev) => ({
+        ...nextProfile,
+        role: normalizeUserRole(nextProfile.role) ?? prev.role,
       }));
+      if (nextProfile.id !== storedSettings.profile.id) {
+        setStoredSettings({
+          ...storedSettings,
+          profile: nextProfile,
+        });
+      }
     }
     if (storedSettings.photo) {
       setPhoto(storedSettings.photo);
@@ -221,12 +348,28 @@ export function SettingsPage() {
       twoFactorEnabled,
       updatedAt: new Date().toISOString(),
     };
-    // 훅 setter를 통해 저장하면 storage 이벤트까지 자동으로 전파된다.
-    setStoredSettings(payload);
-    window.dispatchEvent(new CustomEvent<UserRole>(PROFILE_UPDATE_EVENT, { detail: profile.role }));
-    toast.success("변경 사항이 저장되었습니다.", {
-      description: "설정한 정보가 기기에 안전하게 보관됩니다.",
-    });
+    const normalizedPhone = profile.phone.replace(/\D/g, "");
+    setIsSavingProfile(true);
+    userApi
+      .updatePhone(normalizedPhone)
+      .then((response) => {
+        setStoredSettings(payload);
+        window.dispatchEvent(new CustomEvent<UserRole>(PROFILE_UPDATE_EVENT, { detail: profile.role }));
+        toast.success(response?.message || "변경 사항이 저장되었습니다.", {
+          description: "설정한 정보가 기기에 안전하게 보관됩니다.",
+        });
+      })
+      .catch((error: any) => {
+        console.error("전화번호 변경 실패", error);
+        const message =
+          error?.response?.data?.message ||
+          error?.message ||
+          "전화번호 변경에 실패했습니다. 잠시 후 다시 시도해주세요.";
+        toast.error(message);
+      })
+      .finally(() => {
+        setIsSavingProfile(false);
+      });
   };
 
   return (
@@ -295,15 +438,17 @@ export function SettingsPage() {
                             setIsEmailVerified(false);
                           }}
                           className="flex-1"
+                          readOnly
+                          aria-readonly="true"
                       />
                       <Button
                           type="button"
                           variant={isEmailVerified ? "secondary" : "outline"}
                           className="whitespace-nowrap"
                           onClick={openEmailVerificationModal}
-                          disabled={!profile.email}
+                          disabled={false}
                       >
-                        {isEmailVerified ? "인증 완료" : "이메일 인증"}
+                        {isEmailVerified ? "이메일 변경 완료" : "이메일 변경"}
                       </Button>
                     </div>
                     <p className={`text-xs ${isEmailVerified ? "text-emerald-600" : "text-muted-foreground"}`}>
@@ -315,8 +460,8 @@ export function SettingsPage() {
                   <Label htmlFor="phone">전화번호</Label>
                   <Input
                       id="phone"
-                      value={profile.phone}
-                      onChange={handleProfileChange("phone")}
+                      value={formatPhoneNumber(profile.phone)}
+                      onChange={handlePhoneChange}
                   />
                 </div>
                 <div className="space-y-2">
@@ -340,8 +485,8 @@ export function SettingsPage() {
 
             {/* Save 버튼 – 카드 하단 오른쪽 정렬 */}
             <div className="mt-6 border-t pt-6" style={{ display: "flex" }}>
-              <Button style={{ marginLeft: "auto" }} onClick={handleSaveProfile}>
-                변경 사항 저장
+              <Button style={{ marginLeft: "auto" }} onClick={handleSaveProfile} disabled={isSavingProfile}>
+                {isSavingProfile ? "저장 중..." : "변경 사항 저장"}
               </Button>
             </div>
           </CardContent>
@@ -378,6 +523,31 @@ export function SettingsPage() {
             {emailVerificationHint && (
               <p className="text-sm text-primary text-center">{emailVerificationHint}</p>
             )}
+            <div className="space-y-2">
+              <Label htmlFor="emailForVerification" className="text-gray-700">이메일</Label>
+              <div className="flex gap-2">
+                <Input
+                    id="emailForVerification"
+                    type="email"
+                    value={emailForVerification}
+                    onChange={(event) => {
+                      setEmailForVerification(event.target.value);
+                      setIsEmailVerified(false);
+                      setEmailVerificationError("");
+                    }}
+                    placeholder="인증할 이메일을 입력하세요"
+                    className="flex-1"
+                />
+                <Button
+                    type="button"
+                    variant="secondary"
+                    onClick={sendEmailVerificationCode}
+                    disabled={isSendingEmailCode}
+                >
+                  {isSendingEmailCode ? "전송 중..." : "인증 코드 보내기"}
+                </Button>
+              </div>
+            </div>
             <div className="rounded-md bg-muted/30 px-3 py-2 text-sm text-muted-foreground">
               인증 코드는 10분간 유효합니다. 메일이 보이지 않으면 스팸함을 확인해주세요.
             </div>
@@ -415,15 +585,6 @@ export function SettingsPage() {
                 {isVerifyingEmailCode ? "확인 중..." : "인증 완료"}
               </Button>
             </div>
-            <Button
-                type="button"
-                variant="ghost"
-                className="w-full text-sm"
-                onClick={sendEmailVerificationCode}
-                disabled={isSendingEmailCode}
-            >
-              {isSendingEmailCode ? "전송 중..." : "인증 코드 다시 보내기"}
-            </Button>
           </CardContent>
         </Card>
       </ModalShell>
@@ -437,7 +598,7 @@ export function SettingsPage() {
         <div className="w-full max-w-lg overflow-y-auto bg-card text-card-foreground shadow-2xl rounded-2xl border border-border">
           <LoginScreen
             initialResetStage="request"
-            defaultResetId={profile.id}
+            defaultResetId={getStoredLoginId()}
             defaultResetEmail={profile.email}
             variant="modal"
             allowLoginNavigation={false}
