@@ -14,6 +14,8 @@ import { Sidebar } from "./components/layout/Sidebar";
 import { Toaster } from "./components/ui/sonner";
 import { ProjectPostDetail } from "./components/projects/ProjectPostDetail";
 import { AdminUsers } from "./components/admin/AdminUsers";
+import { AdminCompanies } from "./components/admin/AdminCompanies";
+import { AdminCompanyCreate } from "./components/admin/AdminCompanyCreate";
 import { AdminUserCreate } from "./components/admin/AdminUserCreate";
 import { AdminUserSuccess } from "./components/admin/AdminUserSuccess";
 import { AdminUserDetail } from "./components/admin/AdminUserDetail";
@@ -85,6 +87,14 @@ export default function App() {
             <Route
               path="/admin/users"
               element={isAuthenticated ? <AdminUsers /> : <Navigate to="/" replace />}
+            />
+            <Route
+              path="/admin/companies"
+              element={isAuthenticated ? <AdminCompanies /> : <Navigate to="/" replace />}
+            />
+            <Route
+              path="/admin/companies/add"
+              element={isAuthenticated ? <AdminCompanyCreate /> : <Navigate to="/" replace />}
             />
             <Route
               path="/admin/users/add"

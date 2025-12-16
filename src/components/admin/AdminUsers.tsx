@@ -107,10 +107,12 @@ export function AdminUsers() {
   }, [totalPages]);
 
   return (
-    <div className="space-y-6 pb-12">
+      <main className="flex-1 overflow-auto px-4 sm:px-6 lg:px-8">
+          <div className="mx-auto max-w-7xl">
+              <div className="space-y-6 pb-12">
       <PageHeader
         title="Users"
-        description="워크스페이스 구성원을 관리하고 권한을 지정하며 활동 현황을 확인하세요."
+        description="구성원을 관리하고 권한을 지정하며 활동 현황을 확인하세요."
       />
 
       <FilterToolbar align="between">
@@ -156,9 +158,18 @@ export function AdminUsers() {
             <SelectItem value="SUSPENDED">정지</SelectItem>
           </SelectContent>
         </Select>
-        <Button className="md:w-auto" onClick={() => navigate("/admin/users/add")}>
-          + 추가
-        </Button>
+          <div className="flex items-center gap-2">
+              <Button className="md:w-auto" onClick={() => navigate("/admin/users/add")}>
+                  + 추가
+              </Button>
+              <Button
+                  variant="outline"
+                  className="md:w-auto"
+                  onClick={() => navigate("/admin/companies")}
+              >
+                  고객사 목록
+              </Button>
+          </div>
       </FilterToolbar>
 
       <Card className="rounded-2xl bg-white shadow-sm">
@@ -254,7 +265,9 @@ export function AdminUsers() {
           </Table>
         </CardContent>
       </Card>
-      <PaginationControls className="mt-4" currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} />
-    </div>
+                  <PaginationControls className="mt-4" currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} />
+              </div>
+          </div>
+      </main>
   );
 }

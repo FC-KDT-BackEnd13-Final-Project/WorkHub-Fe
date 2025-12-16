@@ -203,9 +203,57 @@ export function Sidebar() {
               </div>
             </div>
           </div>
+<<<<<<< Updated upstream
 
           {/* 메뉴 */}
           <nav
+=======
+        </div>
+      </div>
+      <nav
+        className={cn(
+          "flex-1 space-y-4 p-6",
+          isCompact && "flex flex-col items-center space-y-0 gap-3 px-2 py-4",
+        )}
+      >
+        {(
+          userRole === "ADMIN"
+            ? ([
+                { label: "Dashboard", icon: LayoutDashboard, path: "/dashboard" },
+                { label: "Projects", icon: FolderOpen, path: "/projects" },
+                { label: "Users", icon: Users, path: "/admin/users" },
+                { label: "History", icon: History, path: "/history" },
+                { label: "Settings", icon: Settings, path: "/settings" },
+              ] satisfies NavigationItem[])
+            : ([
+                { label: "Projects", icon: FolderOpen, path: "/projects" },
+                { label: "Notifications", icon: Bell, path: "/notifications" },
+                { label: "Settings", icon: Settings, path: "/settings" },
+              ] satisfies NavigationItem[])
+        ).map((item) => {
+          const isActive = item.path ? (() => {
+            if (item.path === "/admin/users") {
+              // Users 메뉴는 /admin/users와 /admin/companies 둘 다 활성화
+              return location.pathname.startsWith("/admin/users") || location.pathname.startsWith("/admin/companies");
+            }
+            return location.pathname.startsWith(item.path);
+          })() : false;
+          const badgeValue = (() => {
+            if (item.label === "Notifications" && notificationCount > 0) {
+              return String(notificationCount);
+            }
+            if (item.label === "Projects" && activeProjectCount > 0) {
+              return String(activeProjectCount);
+            }
+            return item.badge;
+          })();
+          const isCompact = collapsed && !isMobile;
+          return (
+            <Button
+              key={item.label}
+              variant="ghost"
+              size={isCompact ? "icon" : "default"}
+>>>>>>> Stashed changes
               className={cn(
                   "flex-1 space-y-4 p-6",
                   isCompactDesktop && "flex flex-col items-center space-y-0 gap-3 px-2 py-4",
