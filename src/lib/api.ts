@@ -1,5 +1,12 @@
 import axios from 'axios';
 import type { ProjectApiResponse, ProjectListParams, ProjectApiItem, UpdateProjectPayload, ProjectStatus } from '@/types/project';
+import type { NodeListApiResponse } from '@/types/projectNodeList';
+import { CreateNodePayload } from '@/types/projectNode';
+import type {
+  CheckListCreateRequest,
+  CheckListResponse,
+  CheckListUpdateRequest,
+} from '@/types/checkList';
 import type { NodeListApiResponse, NodeApiItem } from '@/types/projectNodeList';
 import { CreateNodePayload, UpdateNodePayload, type NodeStatusPayload, type UpdateNodeOrderPayload } from '@/types/projectNode';
 import type { CheckListCreateRequest, CheckListResponse } from '@/types/checkList';
@@ -340,6 +347,28 @@ export const projectApi = {
     }
 
     throw new Error(message || '체크리스트 생성에 실패했습니다.');
+  },
+
+  /**
+   * 체크리스트 업데이트
+   */
+  updateCheckList: async (
+    projectId: string,
+    nodeId: string,
+    payload: CheckListUpdateRequest,
+  ): Promise<CheckListResponse> => {
+    const response = await apiClient.patch(
+      `/api/v1/projects/${projectId}/nodes/${nodeId}/checkLists`,
+      payload,
+    );
+
+    const { success, message, data } = response.data;
+
+    if (success === true) {
+      return data;
+    }
+
+    throw new Error(message || '체크리스트 수정에 실패했습니다.');
   },
 };
 
