@@ -80,6 +80,15 @@ const stripHtml = (value: string) =>
         .replace(/\s+/g, " ")
         .trim();
 
+const truncatePlainText = (value: string, limit = 50) => {
+  if (!value) return "";
+  const chars = Array.from(value);
+  if (chars.length <= limit) {
+    return value;
+  }
+  return `${chars.slice(0, limit).join("")}...`;
+};
+
 const formatDateOnly = (value: string) => {
   if (!value) return "";
   const parsed = new Date(value);
@@ -249,6 +258,9 @@ export function ProjectPost2() {
                     const statusStyle = statusStyles[customer.type];
                     // 이 글에 대한 답글들 localStorage에서 바로 읽기
                     const replies = loadRepliesForPost(customer.id) ?? [];
+                    const normalizedContent = stripHtml(customer.content);
+                    const truncatedTitle = truncatePlainText(customer.title, 15);
+                    const truncatedContent = truncatePlainText(normalizedContent, 50);
 
                     return (
                         <Fragment key={customer.id}>
@@ -286,34 +298,16 @@ export function ProjectPost2() {
                             </TableCell>
 
                             {/* 제목 (말줄임표) */}
-                            <TableCell className="px-3 py-2">
-                              <div
-                                  className="block"
-                                  style={{
-                                    width: "200px",
-                                    overflow: "hidden",
-                                    textOverflow: "ellipsis",
-                                    whiteSpace: "nowrap",
-                                  }}
-                                  title={customer.title}
-                              >
-                                {customer.title}
+                            <TableCell className="px-3 py-2 whitespace-normal">
+                              <div className="w-[200px]" title={customer.title}>
+                                {truncatedTitle}
                               </div>
                             </TableCell>
 
                             {/* 내용 (말줄임표) */}
-                            <TableCell className="px-3 py-2">
-                              <div
-                                  className="block"
-                                  style={{
-                                    width: "260px",
-                                    overflow: "hidden",
-                                    textOverflow: "ellipsis",
-                                    whiteSpace: "nowrap",
-                                  }}
-                                  title={customer.content}
-                              >
-                                {customer.content}
+                            <TableCell className="px-3 py-2 whitespace-normal">
+                              <div className="w-[260px] truncate" title={normalizedContent}>
+                                {truncatedContent}
                               </div>
                             </TableCell>
 
