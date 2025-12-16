@@ -1,5 +1,5 @@
 import axios from 'axios';
-import type { ProjectApiResponse, ProjectListParams } from '@/types/project';
+import type { ProjectApiResponse, ProjectListParams, ProjectApiItem, UpdateProjectPayload, ProjectStatus } from '@/types/project';
 import type { NodeListApiResponse } from '@/types/projectNodeList';
 import { CreateNodePayload } from '@/types/projectNode';
 import type {
@@ -109,11 +109,11 @@ export const projectApi = {
   },
 
 
-    /**
-     * 프로젝트 노드 생성
-     * @param projectId 프로젝트 ID
-     * @param payload 요청 Body
-     */
+  /**
+   * 프로젝트 노드 생성
+   * @param projectId 프로젝트 ID
+   * @param payload 요청 Body
+   */
   createNode: async (projectId: string, payload: CreateNodePayload) => {
       const response = await apiClient.post(
           `/api/v1/projects/${projectId}/nodes/create`,
@@ -126,6 +126,72 @@ export const projectApi = {
           return data;
 
       throw new Error(message || '노드 생성에 실패했습니다.');
+  },
+
+  /**
+   * 프로젝트 삭제 (소프트 삭제)
+   * @param projectId - 삭제할 프로젝트 ID
+   */
+  delete: async (projectId: string | number): Promise<void> => {
+    const response = await apiClient.delete(`/api/v1/projects/${projectId}`);
+
+    const { success, message } = response.data;
+
+    if (success === true) {
+      return;
+    }
+
+    throw new Error(message || '프로젝트 삭제에 실패했습니다.');
+  },
+
+  /**
+   * 프로젝트 수정
+   * @param projectId - 수정할 프로젝트 ID
+   * @param payload - 수정 데이터
+   */
+  update: async (
+    projectId: string | number,
+    payload: UpdateProjectPayload,
+  ): Promise<ProjectApiItem> => {
+    const response = await apiClient.put(`/api/v1/projects/${projectId}`, payload);
+    const result = response.data;
+
+    if (result && typeof result === 'object' && 'success' in result) {
+      const { success, message, data } = result as {
+        success: boolean;
+        message?: string;
+        data?: ProjectApiItem;
+      };
+
+      if (success === true && data) {
+        return data;
+      }
+
+      throw new Error(message || '프로젝트 수정에 실패했습니다.');
+    }
+
+    if (result && typeof result === 'object' && 'projectId' in result) {
+      return result as ProjectApiItem;
+    }
+
+    throw new Error('프로젝트 수정에 실패했습니다.');
+  },
+
+  /**
+   * 프로젝트 상태 변경
+   * @param projectId - 프로젝트 ID
+   * @param status - 변경할 상태
+   */
+  changeStatus: async (projectId: string | number, status: ProjectStatus): Promise<void> => {
+    const response = await apiClient.patch(`/api/v1/projects/${projectId}/status`, { status });
+
+    const { success, message } = response.data ?? {};
+
+    if (success === true) {
+      return;
+    }
+
+    throw new Error(message || '프로젝트 상태 변경에 실패했습니다.');
   },
 };
 

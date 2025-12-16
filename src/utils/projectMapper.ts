@@ -5,6 +5,7 @@ export interface Project {
   id: string;
   name: string;
   brand: string;
+  companyId?: number;
   brandContact?: string;
   managers?: string[];
   developers: { id: string; name: string }[];
@@ -23,11 +24,17 @@ export interface Project {
  * API 응답 데이터를 UI에서 사용하는 Project 타입으로 변환
  */
 export function mapApiProjectToUiProject(apiProject: ProjectApiItem): Project {
+  const companyId = apiProject.company?.companyId;
+  const companyName = apiProject.company?.companyName ?? "";
+  const clientMembers = apiProject.clientMembers ?? [];
+  const devMembers = apiProject.devMembers ?? [];
+
   return {
     id: String(apiProject.projectId), // number → string 변환
     name: apiProject.projectTitle,
     description: apiProject.projectDescription,
-    brand: apiProject.company.companyName,
+    brand: companyName,
+    companyId: companyId,
     brandContact: "",
     startDate: apiProject.contractStartDate,
     endDate: apiProject.contractEndDate,
@@ -36,8 +43,10 @@ export function mapApiProjectToUiProject(apiProject: ProjectApiItem): Project {
     tasks: apiProject.workflowStep,
 
     // 배열 변환: 객체 배열 → 이름 문자열 배열
-    managers: apiProject.clientMembers.map((m) => m.clientMemberName),
-    developers: apiProject.devMembers.map((d) => ({
+    managers: clientMembers.map((m) =>
+      m.clientMemberId ? `${m.clientMemberName} (${m.clientMemberId})` : m.clientMemberName,
+    ),
+    developers: devMembers.map((d) => ({
       id: String(d.devMemberId),
       name: d.devMemberName,
     })),
