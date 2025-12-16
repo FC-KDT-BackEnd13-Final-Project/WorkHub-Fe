@@ -74,6 +74,15 @@ const normalizeHtml = (value: string) =>
     .replace(/\s+/g, " ")
     .trim();
 
+const truncatePlainText = (value: string, limit = 50) => {
+  if (!value) return "";
+  const chars = Array.from(value);
+  if (chars.length <= limit) {
+    return value;
+  }
+  return `${chars.slice(0, limit).join("")}...`;
+};
+
 const createEmptyDraft = (): RichTextDraft => ({
   title: "",
   content: "",
@@ -417,6 +426,9 @@ export function SupportPage() {
                               ? statusStyles[ticket.status]
                               : undefined;
                             const hasStatus = Boolean(ticket.status && statusLabel && statusStyle);
+                            const normalizedContent = normalizeHtml(ticket.content);
+                            const truncatedTitle = truncatePlainText(ticket.title, 15);
+                            const truncatedContent = truncatePlainText(normalizedContent, 50);
 
                             return (
                                 <TableRow
@@ -447,12 +459,16 @@ export function SupportPage() {
                                     )}
                                   </TableCell>
 
-                                  <TableCell className="px-3 py-2">
-                                    <div className="w-[200px] truncate">{ticket.title}</div>
+                                  <TableCell className="px-3 py-2 whitespace-normal">
+                                    <div className="w-[200px]" title={ticket.title}>
+                                      {truncatedTitle}
+                                    </div>
                                   </TableCell>
 
-                                  <TableCell className="px-3 py-2">
-                                    <div className="w-[260px] truncate">{ticket.content}</div>
+                                  <TableCell className="px-3 py-2 whitespace-normal">
+                                    <div className="w-[260px] truncate" title={normalizedContent}>
+                                      {truncatedContent}
+                                    </div>
                                   </TableCell>
 
                                   <TableCell className="px-3 py-2 whitespace-nowrap">

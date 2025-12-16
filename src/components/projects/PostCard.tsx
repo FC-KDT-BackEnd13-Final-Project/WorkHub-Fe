@@ -99,7 +99,7 @@ export function PostCard({ post, metaItems, headerLabel, extraMenu }: PostCardPr
         </div>
         <div className="space-y-3">
           <div
-            className="prose max-w-none text-base leading-relaxed"
+            className="prose max-w-none text-base leading-relaxed rte-content"
             dangerouslySetInnerHTML={{ __html: contentHtml }}
           />
         </div>
