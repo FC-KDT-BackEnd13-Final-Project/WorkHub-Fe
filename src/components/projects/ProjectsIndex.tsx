@@ -30,13 +30,13 @@ import {
   DropdownMenuTrigger,
 } from "../ui/dropdown-menu";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
-import { projectApi } from "../../lib/api";
-import { mapApiProjectToUiProject, type Project } from "../../utils/projectMapper";
-import type { ProjectListParams, SortOrder, UpdateProjectPayload } from "../../types/project";
+import { projectApi } from "@/lib/api";
+import { mapApiProjectToUiProject, type Project } from "@/utils/projectMapper";
+import type { ProjectListParams, SortOrder, UpdateProjectPayload } from "@/types/project";
 import { cn } from "../ui/utils";
 import { ModalShell } from "../common/ModalShell";
-import { PROFILE_STORAGE_KEY, type UserRole, normalizeUserRole } from "../../constants/profile";
-import { useLocalStorageValue } from "../../hooks/useLocalStorageValue";
+import { PROFILE_STORAGE_KEY, type UserRole, normalizeUserRole } from "@/constants/profile";
+import { useLocalStorageValue } from "@/hooks/useLocalStorageValue";
 import { getErrorMessage, localizeErrorMessage } from "@/utils/errorMessages";
 import { toast } from "sonner";
 
@@ -341,15 +341,11 @@ export function ProjectsIndex() {
       };
 
       const response = await projectApi.getList(params);
-
-      // API 응답을 UI 타입으로 변환
       const uiProjects = response.projects?.map(mapApiProjectToUiProject) ?? [];
 
       if (loadMore) {
-        // 무한 스크롤: 기존 목록에 추가
         setProjects((prev) => [...prev, ...uiProjects]);
       } else {
-        // 새로운 검색: 목록 교체
         setProjects(uiProjects);
       }
 
@@ -358,14 +354,11 @@ export function ProjectsIndex() {
     } catch (err) {
       console.error("프로젝트 목록 로드 실패:", err);
 
-      // 서버 응답 메시지 추출
       let errorMessage = "프로젝트를 불러오는데 실패했습니다.";
 
       if (err instanceof Error) {
-        // API에서 던진 에러 메시지 (api.ts의 throw new Error(message))
         errorMessage = err.message;
-      } else if (typeof err === 'object' && err !== null && 'response' in err) {
-        // axios 에러인 경우
+      } else if (typeof err === "object" && err !== null && "response" in err) {
         const axiosError = err as any;
         errorMessage = axiosError.response?.data?.message || errorMessage;
       }
@@ -818,6 +811,23 @@ export function ProjectsIndex() {
   useEffect(() => {
     projects.forEach((project) => {
       if (!project.id || fetchedProjectProgress.current.has(project.id)) return;
+
+      const totalFromApi = typeof project.tasks === "number" ? project.tasks : 0;
+      const completedFromApi =
+        typeof project.approveWorkflow === "number" ? project.approveWorkflow : 0;
+
+      // 목록 응답에 워크플로 수치가 있으면 추가 호출 없이 활용
+      if (totalFromApi > 0 || completedFromApi > 0) {
+        const progress =
+          totalFromApi === 0 ? 0 : Math.round((completedFromApi / totalFromApi) * 100);
+        setProjectProgressMap((prev) => ({
+          ...prev,
+          [project.id]: { total: totalFromApi, completed: completedFromApi, progress },
+        }));
+        fetchedProjectProgress.current.add(project.id);
+        return;
+      }
+
       fetchedProjectProgress.current.add(project.id);
 
       void (async () => {
