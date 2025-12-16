@@ -7,6 +7,10 @@ import type {
   CheckListResponse,
   CheckListUpdateRequest,
 } from '@/types/checkList';
+import type { NodeListApiResponse, NodeApiItem } from '@/types/projectNodeList';
+import { CreateNodePayload, UpdateNodePayload, type NodeStatusPayload, type UpdateNodeOrderPayload } from '@/types/projectNode';
+import type { CheckListCreateRequest, CheckListResponse } from '@/types/checkList';
+
 import type {
   CsPostListApiResponse,
   CsPostListParams,
@@ -131,6 +135,99 @@ export const projectApi = {
           return data;
 
       throw new Error(message || '노드 생성에 실패했습니다.');
+  },
+
+  /**
+   * 프로젝트 노드 삭제
+   * @param projectId 프로젝트 ID
+   * @param nodeId 노드 ID
+   */
+  deleteNode: async (projectId: string | number, nodeId: string | number): Promise<void> => {
+    const response = await apiClient.delete(`/api/v1/projects/${projectId}/nodes/${nodeId}`);
+
+    const { success, message } = response.data ?? {};
+
+    if (success === true) {
+      return;
+    }
+
+    throw new Error(message || '노드 삭제에 실패했습니다.');
+  },
+
+  /**
+   * 프로젝트 노드 수정
+   * @param projectId 프로젝트 ID
+   * @param nodeId 노드 ID
+   * @param payload 수정 데이터
+   */
+  updateNode: async (
+    projectId: string | number,
+    nodeId: string | number,
+    payload: UpdateNodePayload,
+  ): Promise<NodeApiItem> => {
+    const response = await apiClient.put(
+      `/api/v1/projects/${projectId}/nodes/${nodeId}`,
+      payload,
+    );
+
+    const { success, message, data } = response.data;
+
+    if (success === true && data) {
+      return data;
+    }
+
+    throw new Error(message || '노드 수정에 실패했습니다.');
+  },
+
+  /**
+   * 프로젝트 노드 상태 변경
+   * @param projectId 프로젝트 ID
+   * @param nodeId 노드 ID
+   * @param status 변경할 노드 상태
+   */
+  changeNodeStatus: async (
+    projectId: string | number,
+    nodeId: string | number,
+    status: NodeStatusPayload,
+  ): Promise<void> => {
+    const response = await apiClient.patch(
+      `/api/v1/projects/${projectId}/nodes/${nodeId}/status`,
+      { nodeStatus: status },
+      {
+        params: { nodeStatus: status },
+      },
+    );
+
+    const { success, message } = response.data ?? {};
+
+    if (success === true) {
+      return;
+    }
+
+    throw new Error(message || '노드 상태 변경에 실패했습니다.');
+  },
+
+  /**
+   * 프로젝트 노드 순서 변경
+   * @param projectId 프로젝트 ID
+   * @param orders 노드 순서 배열
+   */
+  updateNodeOrder: async (
+    projectId: string | number,
+    orders: UpdateNodeOrderPayload[],
+  ): Promise<void> => {
+    const response = await apiClient.patch(
+      `/api/v1/projects/${projectId}/nodes/order`,
+      orders,
+    );
+
+    const { success, message } = response.data ?? {};
+
+    if (success === true) {
+      return;
+    }
+
+    throw new Error(message || '노드 순서 변경에 실패했습니다.');
   },
 
   /**
