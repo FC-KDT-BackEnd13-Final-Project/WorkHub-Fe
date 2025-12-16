@@ -296,7 +296,10 @@ export function SupportTicketDetail() {
     }
   };
 
-  const handleDeleteInlineComment = async (commentId: string) => {
+  const handleDeleteInlineComment = async (
+    commentId: string,
+    options?: { skipRefresh?: boolean },
+  ) => {
     if (!projectId || !ticketId) {
       toast.error("프로젝트 정보가 없습니다.");
       throw new Error("Missing project information");
@@ -304,8 +307,10 @@ export function SupportTicketDetail() {
 
     try {
       await csPostApi.deleteQna(projectId, ticketId, commentId);
-      await refreshRepliesFromServer();
-      toast.success("댓글이 삭제되었습니다.");
+      if (!options?.skipRefresh) {
+        await refreshRepliesFromServer();
+        toast.success("댓글이 삭제되었습니다.");
+      }
     } catch (err) {
       const message = err instanceof Error ? err.message : "CS 댓글 삭제에 실패했습니다.";
       toast.error(message);
