@@ -244,6 +244,7 @@ export function LoginScreen({
     }
 
     const isModalVariant = variant === "modal";
+    const isResetFieldsReadOnly = isModalVariant;
 
     const handleReturnToLoginOrCancel = (options?: { resetNewPassword?: boolean }) => {
         setResetErrors({});
@@ -377,6 +378,8 @@ export function LoginScreen({
                                     placeholder="아이디를 입력하세요"
                                     value={resetId}
                                     onChange={(e) => setResetId(e.target.value)}
+                                    readOnly={isResetFieldsReadOnly}
+                                    aria-readonly={isResetFieldsReadOnly}
                                     className={`h-12 rounded-xl border-gray-200 bg-gray-50 px-4 focus:bg-white focus:border-primary transition-colors ${
                                         resetErrors.userId ? 'border-red-300 focus:border-red-500' : ''
                                     }`}
@@ -396,6 +399,8 @@ export function LoginScreen({
                                     placeholder="이메일을 입력하세요"
                                     value={resetEmail}
                                     onChange={(e) => setResetEmail(e.target.value)}
+                                    readOnly={isResetFieldsReadOnly}
+                                    aria-readonly={isResetFieldsReadOnly}
                                     className={`h-12 rounded-xl border-gray-200 bg-gray-50 px-4 focus:bg-white focus:border-primary transition-colors ${
                                         resetErrors.email ? 'border-red-300 focus:border-red-500' : ''
                                     }`}
