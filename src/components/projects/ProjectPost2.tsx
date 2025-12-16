@@ -257,7 +257,9 @@ export function ProjectPost2() {
                   {paginatedRows.map((customer, index) => {
                     const statusStyle = statusStyles[customer.type];
                     // 이 글에 대한 답글들 localStorage에서 바로 읽기
-                    const replies = loadRepliesForPost(customer.id) ?? [];
+                    const replies = (loadRepliesForPost(customer.id) ?? []).filter(
+                      (reply) => !reply.isComment,
+                    );
                     const normalizedContent = stripHtml(customer.content);
                     const truncatedTitle = truncatePlainText(customer.title, 15);
                     const truncatedContent = truncatePlainText(normalizedContent, 50);
