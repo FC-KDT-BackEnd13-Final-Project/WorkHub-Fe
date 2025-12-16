@@ -2,6 +2,7 @@ import axios from 'axios';
 import type { ProjectApiResponse, ProjectListParams, ProjectApiItem, UpdateProjectPayload, ProjectStatus } from '@/types/project';
 import type { NodeListApiResponse } from '@/types/projectNodeList';
 import { CreateNodePayload } from '@/types/projectNode';
+import type { CheckListCreateRequest, CheckListResponse } from '@/types/checkList';
 import type {
   CsPostListApiResponse,
   CsPostListParams,
@@ -192,6 +193,55 @@ export const projectApi = {
     }
 
     throw new Error(message || '프로젝트 상태 변경에 실패했습니다.');
+  },
+
+  /**
+   * 특정 노드의 체크리스트 조회
+   */
+  getCheckList: async (
+    projectId: string,
+    nodeId: string,
+  ): Promise<CheckListResponse | null> => {
+    try {
+      const response = await apiClient.get(
+        `/api/v1/projects/${projectId}/nodes/${nodeId}/checkLists`,
+      );
+      const { success, message, data } = response.data;
+      if (success === true) {
+        return data;
+      }
+      throw new Error(message || '체크리스트 조회에 실패했습니다.');
+    } catch (error) {
+      if (axios.isAxiosError(error) && error.response?.status === 404) {
+        return null;
+      }
+      if (error instanceof Error) {
+        throw error;
+      }
+      throw new Error('체크리스트 조회에 실패했습니다.');
+    }
+  },
+
+  /**
+   * 체크리스트 생성
+   */
+  createCheckList: async (
+    projectId: string,
+    nodeId: string,
+    payload: CheckListCreateRequest,
+  ): Promise<CheckListResponse> => {
+    const response = await apiClient.post(
+      `/api/v1/projects/${projectId}/nodes/${nodeId}/checkLists`,
+      payload,
+    );
+
+    const { success, message, data } = response.data;
+
+    if (success === true) {
+      return data;
+    }
+
+    throw new Error(message || '체크리스트 생성에 실패했습니다.');
   },
 };
 
