@@ -45,17 +45,6 @@ export function Navigation({ onOpenSidebar, mobileMenuContent }: NavigationProps
       <nav className="sticky top-0 z-[200] w-full border-b border-border bg-white shadow-sm">
         <div className="flex w-full items-center justify-between px-4 py-4 sm:px-6 lg:px-8">
           <div className="flex items-center gap-4">
-            {onOpenSidebar && (
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={onOpenSidebar}
-                className="md:hidden"
-                aria-label="사이드바 열기"
-              >
-                <Menu className="h-4 w-4" />
-              </Button>
-            )}
             <div className="text-xl font-medium">
               <span className="text-foreground">Work</span>
               <span style={{ color: "var(--point-color)" }}>Hub</span>
@@ -95,7 +84,7 @@ export function Navigation({ onOpenSidebar, mobileMenuContent }: NavigationProps
         </div>
 
         {isMobileMenuOpen && (
-          <div className="md:hidden border-t border-border py-4">
+          <div className="md:hidden border-t border-border py-4 px-4">
             {mobileMenuContent ? (
               mobileMenuContent
             ) : (
