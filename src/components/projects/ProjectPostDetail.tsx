@@ -12,6 +12,8 @@ import {
     loadRepliesForPost,
     saveRepliesForPost,
     type PostReplyItem,
+    POST_REPLIES_UPDATED_EVENT,
+    POST_REPLIES_STORAGE_KEY,
 } from "../../utils/postRepliesStorage";
 import { mockProjectPosts } from "../../data/mockProjectPosts";
 import { calculateTotalPages, clampPage, paginate } from "../../utils/pagination";
@@ -95,6 +97,7 @@ interface ProjectPostDetailProps {
     isInlineCommentSubmitting?: boolean;
     onUpdateInlineComment?: (payload: { content: string; commentId: string }) => Promise<PostReplyItem> | void;
     onDeleteInlineComment?: (commentId: string) => Promise<void> | void;
+    useExternalCommentSync?: boolean;
 }
 
 export function ProjectPostDetail({
@@ -115,6 +118,7 @@ export function ProjectPostDetail({
                                       isInlineCommentSubmitting = false,
                                       onUpdateInlineComment,
                                       onDeleteInlineComment,
+                                      useExternalCommentSync = false,
                                   }: ProjectPostDetailProps = {}) {
     const navigate = useNavigate();
     const { projectId, nodeId, postId } = useParams<{
@@ -243,8 +247,41 @@ export function ProjectPostDetail({
     }, [startInEditMode]);
 
     useEffect(() => {
-        const replies = loadRepliesForPost(postStorageKey);
-        setPostReplies(replies);
+        const syncReplies = () => {
+            const replies = loadRepliesForPost(postStorageKey);
+            setPostReplies(replies);
+        };
+
+        syncReplies();
+
+        if (typeof window === "undefined") {
+            return undefined;
+        }
+
+        const handleStorage = (event: StorageEvent) => {
+            if (event.key && event.key !== POST_REPLIES_STORAGE_KEY) {
+                return;
+            }
+            syncReplies();
+        };
+
+        const handleCustomUpdate = () => {
+            syncReplies();
+        };
+
+        window.addEventListener("storage", handleStorage);
+        window.addEventListener(
+            POST_REPLIES_UPDATED_EVENT,
+            handleCustomUpdate as EventListener,
+        );
+
+        return () => {
+            window.removeEventListener("storage", handleStorage);
+            window.removeEventListener(
+                POST_REPLIES_UPDATED_EVENT,
+                handleCustomUpdate as EventListener,
+            );
+        };
     }, [postStorageKey]);
 
     useEffect(() => {
@@ -804,7 +841,7 @@ export function ProjectPostDetail({
         if (onSubmitInlineComment) {
             try {
                 const created = await onSubmitInlineComment({ content: trimmed });
-                if (created) {
+                if (created && !useExternalCommentSync) {
                     const commentReply: PostReplyItem = { ...created, isComment: true };
                     setPostReplies((prev) => {
                         const updated = [...prev, commentReply];
@@ -967,7 +1004,7 @@ export function ProjectPostDetail({
             );
             try {
                 const created = await onSubmitInlineComment({ content: text, parentId: rootId });
-                if (created) {
+                if (created && !useExternalCommentSync) {
                     const commentReply: PostReplyItem = { ...created, isComment: true };
                     setPostReplies((postPrev) => {
                         const updated = [...postPrev, commentReply];

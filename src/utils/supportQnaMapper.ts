@@ -8,10 +8,11 @@ export const convertQnaToReply = (qna: CsQnaApiItem): PostReplyItem[] => {
     content: qna.qnaContent || "",
     createdAt: qna.createdAt,
     updatedAt: qna.updatedAt,
-    author: `사용자${qna.userId}`,
+    author: qna.userName ?? `사용자${qna.userId}`,
     attachments: [],
     links: [],
     parentId: qna.parentQnaId ? String(qna.parentQnaId) : null,
+    isComment: true,
   };
 
   const childReplies: PostReplyItem[] = qna.children
@@ -27,8 +28,9 @@ export const convertQnaResponseToReply = (qna: CsQnaResponse): PostReplyItem => 
   content: qna.qnaContent || "",
   createdAt: qna.createdAt,
   updatedAt: qna.updatedAt,
-  author: `사용자${qna.userId}`,
+  author: qna.userName ?? `사용자${qna.userId}`,
   attachments: [],
   links: [],
   parentId: qna.parentQnaId ? String(qna.parentQnaId) : null,
+  isComment: true,
 });

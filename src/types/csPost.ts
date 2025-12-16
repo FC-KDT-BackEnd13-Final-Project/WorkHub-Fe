@@ -85,6 +85,7 @@ export interface CsQnaApiItem {
   csQnaId: number;
   csPostId: number;
   userId: number;
+  userName?: string;
   qnaContent: string; // 댓글 내용
   createdAt: string; // ISO 8601 형식
   updatedAt: string; // ISO 8601 형식
@@ -136,6 +137,7 @@ export interface CsQnaResponse {
   csQnaId: number;
   csPostId: number;
   userId: number;
+  userName?: string;
   qnaContent: string;
   parentQnaId?: number | null;
   createdAt: string;
