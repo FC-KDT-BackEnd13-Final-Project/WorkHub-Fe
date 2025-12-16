@@ -21,7 +21,7 @@ type NotificationContextValue = {
   removeNotification: (id: string) => void;
   resolveLink: (notification: Notification) => string;
   refresh: () => Promise<void>;
-  disconnect: () => void;
+  disconnect: (options?: { resetCursor?: boolean }) => void;
 };
 
 const NotificationContext = createContext<NotificationContextValue | null>(null);
@@ -55,12 +55,27 @@ function extractNotificationsFromStream(payload: unknown): Notification[] {
     .filter(Boolean) as Notification[];
 }
 
+function getLastEventId(payload: unknown): string | null {
+  const raw = payload as any;
+  if (Array.isArray(raw) && raw.length && raw[0]?.id != null) {
+    return String(raw[0].id);
+  }
+  if (raw?.notification?.id != null) {
+    return String(raw.notification.id);
+  }
+  if (raw?.id != null) {
+    return String(raw.id);
+  }
+  return null;
+}
+
 export function NotificationProvider({ enabled, children }: { enabled: boolean; children: ReactNode }) {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const eventSourceRef = useRef<EventSource | null>(null);
   const reconnectTimerRef = useRef<number | null>(null);
+  const lastEventIdRef = useRef<string | null>(null);
   const serverUnreadCountRef = useRef<number | null>(null);
 
   const [, setStoredUnreadCount] = useLocalStorageValue<number>("workhubUnreadNotificationCount", {
@@ -109,7 +124,8 @@ export function NotificationProvider({ enabled, children }: { enabled: boolean; 
     return "/notifications";
   }, []);
 
-  const disconnect = useCallback(() => {
+  const disconnect = useCallback((options?: { resetCursor?: boolean }) => {
+    const resetCursor = options?.resetCursor ?? false;
     if (reconnectTimerRef.current) {
       window.clearTimeout(reconnectTimerRef.current);
       reconnectTimerRef.current = null;
@@ -118,23 +134,36 @@ export function NotificationProvider({ enabled, children }: { enabled: boolean; 
       eventSourceRef.current.close();
       eventSourceRef.current = null;
     }
+    if (resetCursor) {
+      lastEventIdRef.current = null;
+    }
   }, []);
 
-  const handleStreamMessage = useCallback((payload: unknown) => {
+  const handleStreamMessage = useCallback((payload: unknown, event?: MessageEvent) => {
     const incoming = extractNotificationsFromStream(payload);
     if (!incoming.length) return;
+    const lastId = event?.lastEventId ?? getLastEventId(payload);
+    if (lastId) {
+      lastEventIdRef.current = lastId;
+    }
     setNotifications((prev) => mergeNotifications(prev, incoming));
   }, []);
 
   const connectStream = useCallback(() => {
     if (!enabled || eventSourceRef.current) return;
     try {
-      eventSourceRef.current = openNotificationEventSource(handleStreamMessage, () => {
-        disconnect();
-        reconnectTimerRef.current = window.setTimeout(() => {
-          reconnectTimerRef.current = null;
-          connectStream();
-        }, 5000);
+      eventSourceRef.current = openNotificationEventSource({
+        onMessage: handleStreamMessage,
+        onError: () => {
+          if (eventSourceRef.current?.readyState === EventSource.CLOSED && !reconnectTimerRef.current) {
+            reconnectTimerRef.current = window.setTimeout(() => {
+              reconnectTimerRef.current = null;
+              disconnect();
+              connectStream();
+            }, 5000);
+          }
+        },
+        lastEventId: lastEventIdRef.current,
       });
     } catch (err) {
       console.error("Failed to open notification stream", err);
@@ -218,9 +247,10 @@ export function NotificationProvider({ enabled, children }: { enabled: boolean; 
 
   useEffect(() => {
     if (!enabled) {
-      disconnect();
+      disconnect({ resetCursor: true });
       setNotifications([]);
       serverUnreadCountRef.current = null;
+      lastEventIdRef.current = null;
       syncUnreadCount(0);
       return;
     }

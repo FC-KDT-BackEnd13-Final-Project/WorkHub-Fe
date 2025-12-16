@@ -23,6 +23,25 @@ export type NotificationDto = Partial<Notification> & {
 
 const NOTIFICATION_BASE_PATH = "/api/v1/notifications";
 const NOTIFICATION_STREAM_PATH = `${NOTIFICATION_BASE_PATH}/stream`;
+const NOTIFICATION_EVENT_TYPES: NotificationEventType[] = [
+  "REVIEW_REQUEST",
+  "REVIEW_COMPLETED",
+  "REVIEW_REJECTED",
+  "STATUS_CHANGED",
+  "PROJECT_CREATED",
+  "PROJECT_MEMBER_ADDED",
+  "PROJECT_MEMBER_REMOVED",
+  "PROJECT_INFO_UPDATED",
+  "PROJECT_NODE_CREATED",
+  "PROJECT_NODE_UPDATED",
+  "POST_CREATED",
+  "POST_UPDATED",
+  "POST_COMMENT_CREATED",
+  "CS_QNA_CREATED",
+  "CS_QNA_ANSWERED",
+  "CS_POST_CREATED",
+  "CS_POST_UPDATED",
+];
 
 export async function fetchUnreadAndRecent(): Promise<NotificationDto[]> {
   const response = await apiClient.get<ApiResponse<NotificationDto[]> | NotificationDto[]>(NOTIFICATION_BASE_PATH);
@@ -59,17 +78,30 @@ export async function markNotificationsAsRead(ids: string[]) {
   await Promise.all(ids.map((id) => markNotificationAsRead(id)));
 }
 
-export function openNotificationEventSource(onMessage: (data: unknown) => void, onError?: (error: any) => void) {
-  const streamUrl = `${apiClient.defaults.baseURL ?? ""}${NOTIFICATION_STREAM_PATH}`;
+export function openNotificationEventSource(options: {
+  onMessage: (data: unknown, event: MessageEvent) => void;
+  onError?: (error: any) => void;
+  lastEventId?: string | null;
+}) {
+  const { onMessage, onError, lastEventId } = options;
+  const baseUrl = `${apiClient.defaults.baseURL ?? ""}${NOTIFICATION_STREAM_PATH}`;
+  // Some browsers do not allow setting Last-Event-ID manually, so append as a query param for a best-effort replay.
+  const streamUrl = lastEventId ? `${baseUrl}?lastEventId=${encodeURIComponent(lastEventId)}` : baseUrl;
   const eventSource = new EventSource(streamUrl, { withCredentials: true });
-  eventSource.onmessage = (event) => {
+
+  const handleEvent = (event: MessageEvent) => {
     try {
       const parsed = JSON.parse(event.data);
-      onMessage(parsed);
+      onMessage(parsed, event);
     } catch (error) {
       console.error("Failed to parse notification SSE payload", error);
     }
   };
+
+  eventSource.onmessage = handleEvent;
+  NOTIFICATION_EVENT_TYPES.forEach((eventType) => {
+    eventSource.addEventListener(eventType, handleEvent as EventListener);
+  });
   if (onError) {
     eventSource.onerror = onError;
   }
