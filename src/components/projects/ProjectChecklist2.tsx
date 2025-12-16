@@ -1,5 +1,5 @@
 import { useForm } from "react-hook-form";
-import { useState, useMemo, useEffect, useRef, type MouseEvent } from "react";
+import { useState, useMemo, useEffect, useRef, useCallback, type MouseEvent } from "react";
 import { useParams } from "react-router-dom";
 import { toast } from "sonner";
 import { Card2, CardContent, CardHeader, CardTitle } from "../ui/card2";
@@ -11,6 +11,12 @@ import { FormQuestion2, type FormQuestionHandle } from "../ui/FormQuestion2";
 import { useLocalStorageValue } from "../../hooks/useLocalStorageValue";
 import { PROFILE_STORAGE_KEY, normalizeUserRole } from "../../constants/profile";
 import { projectApi } from "../../lib/api";
+import type {
+  CheckListItemPayload,
+  CheckListItemResponse,
+  CheckListItemUpdatePayload,
+  CheckListUpdateRequest,
+} from "../../types/checkList";
 
 // 프로젝트 기본 정보를 작성하는 체크리스트 폼
 interface ChecklistData {
@@ -54,26 +60,94 @@ export function ProjectChecklist2() {
   );
   const authorName = storedProfileSettings?.profile?.id?.trim() ?? "";
   const authorPhone = storedProfileSettings?.profile?.phone?.trim() ?? "";
-  const isClient = userRole === "CLIENT";
-  const roleLocksChecklist = userRole === "ADMIN" || userRole === "DEVELOPER";
+  const canEditChecklist = userRole === "ADMIN" || userRole === "DEVELOPER";
+  const roleLocksChecklist = canEditChecklist;
   const [isLocked, setIsLocked] = useState(false);
   const [checklistSaveSignal, setChecklistSaveSignal] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isFetching, setIsFetching] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
   const [existingChecklistId, setExistingChecklistId] = useState<number | null>(null);
+  const [serverChecklistItems, setServerChecklistItems] = useState<CheckListItemResponse[]>([]);
+  const [serverDescription, setServerDescription] = useState("");
   const authorId = authorName || "작성자";
   const hasRouteContext = Boolean(projectId && nodeId);
+
+  const buildChecklistPayloadFromResponse = useCallback(
+    (items?: CheckListItemResponse[]): CheckListItemPayload[] => {
+      if (!items || items.length === 0) {
+        return [];
+      }
+
+      return items
+        .slice()
+        .sort((a, b) => (a.itemOrder ?? 0) - (b.itemOrder ?? 0))
+        .map((item, itemIndex) => ({
+          itemTitle: item.itemTitle ?? "",
+          itemOrder: item.itemOrder ?? itemIndex,
+          templateId: item.templateId ?? null,
+          options: (item.options ?? [])
+            .slice()
+            .sort((a, b) => (a.optionOrder ?? 0) - (b.optionOrder ?? 0))
+            .map((option, optionIndex) => ({
+              optionContent: option.optionContent ?? "",
+              optionOrder: option.optionOrder ?? optionIndex,
+              fileUrls:
+                (option.files ?? [])
+                  .map((file) => file.fileUrl)
+                  .filter((url): url is string => Boolean(url)),
+            })),
+        }));
+    },
+    [],
+  );
+
+  const applyChecklistSnapshot = useCallback(
+    (description: string, items?: CheckListItemResponse[]) => {
+      const normalizedDescription = description ?? "";
+      setServerDescription(normalizedDescription);
+      setServerChecklistItems(items ?? []);
+      reset({
+        Name: authorName,
+        mobile: authorPhone,
+        request: normalizedDescription,
+      });
+
+      const payload = buildChecklistPayloadFromResponse(items);
+      if (formQuestionRef.current) {
+        if (payload.length > 0) {
+          formQuestionRef.current.setChecklistItems(payload);
+        } else {
+          formQuestionRef.current.setChecklistItems();
+        }
+      }
+    },
+    [authorName, authorPhone, buildChecklistPayloadFromResponse, reset],
+  );
+
+  const buildCreateCommands = (items: CheckListItemPayload[]): CheckListItemUpdatePayload[] =>
+    items.map((item, itemOrder) => ({
+      changeType: "CREATE",
+      itemTitle: item.itemTitle,
+      itemOrder,
+      templateId: item.templateId ?? null,
+      options: (item.options ?? []).map((option, optionOrder) => ({
+        changeType: "CREATE",
+        optionContent: option.optionContent,
+        optionOrder,
+        files: option.fileUrls.map((fileUrl, fileOrder) => ({
+          changeType: "CREATE" as const,
+          fileUrl,
+          fileOrder,
+        })),
+      })),
+    }));
   const onSubmit = async (data: ChecklistData) => {
-    if (isClient || (roleLocksChecklist && isLocked)) {
+    if (!canEditChecklist || (roleLocksChecklist && isLocked)) {
       return;
     }
     if (!hasRouteContext) {
       toast.error("프로젝트 또는 노드 정보가 없습니다.");
-      return;
-    }
-    if (existingChecklistId) {
-      toast.error("이미 등록된 체크리스트가 있습니다. 수정은 추후 지원 예정입니다.");
       return;
     }
 
@@ -91,17 +165,42 @@ export function ProjectChecklist2() {
 
     try {
       setIsSubmitting(true);
-      const response = await projectApi.createCheckList(projectId!, nodeId!, {
-        description,
-        items,
-      });
+      if (!existingChecklistId) {
+        const response = await projectApi.createCheckList(projectId!, nodeId!, {
+          description,
+          items,
+        });
 
-      toast.success("체크리스트가 생성되었습니다.");
-      setChecklistSaveSignal((prev) => prev + 1);
-      setExistingChecklistId(response.checkListId ?? null);
-      if (roleLocksChecklist) {
-        setIsLocked(true);
+        toast.success("체크리스트가 생성되었습니다.");
+        setExistingChecklistId(response.checkListId ?? null);
+        applyChecklistSnapshot(response.description ?? description, response.items ?? []);
+        if (roleLocksChecklist) {
+          setIsLocked(true);
+        }
+      } else {
+        const deleteCommands: CheckListItemUpdatePayload[] = serverChecklistItems
+          .map((item) => item.checkListItemId)
+          .filter((id): id is number => typeof id === "number")
+          .map((id) => ({
+            changeType: "DELETE" as const,
+            checkListItemId: id,
+          }));
+
+        const createCommands = buildCreateCommands(items);
+        const payload: CheckListUpdateRequest = {
+          description,
+          items: [...deleteCommands, ...createCommands],
+        };
+
+        const response = await projectApi.updateCheckList(projectId!, nodeId!, payload);
+        toast.success("체크리스트가 수정되었습니다.");
+        setExistingChecklistId(response.checkListId ?? existingChecklistId);
+        applyChecklistSnapshot(response.description ?? description, response.items ?? []);
+        if (roleLocksChecklist) {
+          setIsLocked(true);
+        }
       }
+      setChecklistSaveSignal((prev) => prev + 1);
     } catch (error) {
       const message =
         error instanceof Error ? error.message : "체크리스트 저장에 실패했습니다.";
@@ -116,8 +215,7 @@ export function ProjectChecklist2() {
       setExistingChecklistId(null);
       setApiError(null);
       setIsLocked(false);
-      setValue("Name", authorName);
-      setValue("mobile", authorPhone);
+      applyChecklistSnapshot("", []);
       return;
     }
 
@@ -132,38 +230,16 @@ export function ProjectChecklist2() {
         if (!response) {
           setExistingChecklistId(null);
           setIsLocked(false);
-          formQuestionRef.current?.setChecklistItems();
-          setValue("request", "");
+          applyChecklistSnapshot("", []);
           return;
         }
 
         setExistingChecklistId(response.checkListId ?? null);
-        setValue("request", response.description ?? "");
-        setValue("Name", authorName);
-        setValue("mobile", authorPhone);
-        const checklistItems = (response.items ?? [])
-          .slice()
-          .sort((a, b) => (a.itemOrder ?? 0) - (b.itemOrder ?? 0))
-          .map((item, index) => ({
-            itemTitle: item.itemTitle ?? "",
-            itemOrder: item.itemOrder ?? index,
-            templateId: item.templateId ?? null,
-            options: (item.options ?? [])
-              .slice()
-              .sort((a, b) => (a.optionOrder ?? 0) - (b.optionOrder ?? 0))
-              .map((option) => ({
-                optionContent: option.optionContent ?? "",
-                optionOrder: option.optionOrder ?? 0,
-                fileUrls:
-                  (option.files ?? [])
-                    .map((file) => file.fileUrl)
-                    .filter((url): url is string => Boolean(url)),
-              })),
-          }));
-
-        formQuestionRef.current?.setChecklistItems(checklistItems);
+        applyChecklistSnapshot(response.description ?? "", response.items ?? []);
         if (roleLocksChecklist) {
           setIsLocked(true);
+        } else {
+          setIsLocked(false);
         }
       } catch (error) {
         if (cancelled) return;
@@ -187,9 +263,7 @@ export function ProjectChecklist2() {
     projectId,
     nodeId,
     roleLocksChecklist,
-    setValue,
-    authorName,
-    authorPhone,
+    applyChecklistSnapshot,
   ]);
 
   useEffect(() => {
@@ -201,20 +275,28 @@ export function ProjectChecklist2() {
   const [unlockSignal, setUnlockSignal] = useState(0);
 
   const handleReset = () => {
-    if (isClient || (roleLocksChecklist && isLocked) || isSubmitting || isFetching) {
+    if (!canEditChecklist || (roleLocksChecklist && isLocked) || isSubmitting || isFetching) {
       return;
     }
-    reset();
+    if (existingChecklistId) {
+      applyChecklistSnapshot(serverDescription, serverChecklistItems);
+      if (roleLocksChecklist) {
+        setIsLocked(true);
+      }
+      return;
+    }
+    reset({ Name: authorName, mobile: authorPhone, request: "" });
+    formQuestionRef.current?.setChecklistItems();
     setQuestionResetKey((prev) => prev + 1);
   };
 
   const isFormDisabled =
-    isClient || (roleLocksChecklist && isLocked) || isSubmitting || isFetching;
-  const allowClientReview = isClient;
+    !canEditChecklist || (roleLocksChecklist && isLocked) || isSubmitting || isFetching;
+  const allowClientReview = false;
   const handleUnlock = (event: MouseEvent<HTMLButtonElement>) => {
     event.preventDefault();
     event.stopPropagation();
-    if (isSubmitting || isFetching) {
+    if (!canEditChecklist || isSubmitting || isFetching) {
       return;
     }
     setIsLocked(false);
@@ -240,7 +322,7 @@ export function ProjectChecklist2() {
             )}
             {existingChecklistId && (
               <div className="mb-4 rounded-md border border-muted-foreground/30 bg-muted/40 p-3 text-sm text-muted-foreground">
-                이미 저장된 체크리스트가 있어 새로 생성할 수 없습니다. 수정이 필요하면 담당자에게 문의해주세요.
+                체크리스트가 이미 등록되어 있습니다. "수정" 버튼을 눌러 내용을 편집하고 다시 저장할 수 있습니다.
               </div>
             )}
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
@@ -330,7 +412,7 @@ export function ProjectChecklist2() {
                   saveSignal={checklistSaveSignal}
               />
 
-              {!isClient && (
+              {canEditChecklist && (
                 <div className="flex flex-col md:flex-row gap-3 pt-6 pb-4 border-t">
                   {roleLocksChecklist && isLocked ? (
                       <Button2
@@ -345,9 +427,7 @@ export function ProjectChecklist2() {
                       <Button2
                         type="submit"
                         className="flex-1"
-                        disabled={
-                          isFormDisabled || !hasRouteContext || Boolean(existingChecklistId)
-                        }
+                        disabled={isFormDisabled || !hasRouteContext}
                       >
                         {isSubmitting ? "저장 중..." : "저장"}
                       </Button2>

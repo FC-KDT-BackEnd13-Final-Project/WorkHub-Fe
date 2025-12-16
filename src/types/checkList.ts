@@ -49,3 +49,34 @@ export interface CheckListCreateRequest {
   description: string;
   items: CheckListItemPayload[];
 }
+
+export type CheckListUpdateCommandType = "CREATE" | "UPDATE" | "DELETE";
+
+export interface CheckListOptionFileUpdatePayload {
+  changeType: CheckListUpdateCommandType;
+  checkListOptionFileId?: number;
+  fileUrl?: string;
+  fileOrder?: number;
+}
+
+export interface CheckListOptionUpdatePayload {
+  changeType: CheckListUpdateCommandType;
+  checkListOptionId?: number;
+  optionContent?: string;
+  optionOrder?: number;
+  files?: CheckListOptionFileUpdatePayload[];
+}
+
+export interface CheckListItemUpdatePayload {
+  changeType: CheckListUpdateCommandType;
+  checkListItemId?: number;
+  itemTitle?: string;
+  itemOrder?: number;
+  templateId?: number | null;
+  options?: CheckListOptionUpdatePayload[];
+}
+
+export interface CheckListUpdateRequest {
+  description?: string;
+  items?: CheckListItemUpdatePayload[];
+}
