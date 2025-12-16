@@ -52,7 +52,7 @@ interface Ticket {
 
 const convertApiItemToTicket = (item: CsPostApiItem): Ticket => ({
   id: String(item.csPostId),
-  customerName: item.customerName,
+  customerName: item.userName ?? item.customerName,
   status: item.csPostStatus ?? undefined,
   title: item.title,
   content: item.content,
