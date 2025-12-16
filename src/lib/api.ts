@@ -212,8 +212,12 @@ export const projectApi = {
       }
       throw new Error(message || '체크리스트 조회에 실패했습니다.');
     } catch (error) {
-      if (axios.isAxiosError(error) && error.response?.status === 404) {
-        return null;
+      if (axios.isAxiosError(error)) {
+        const status = error.response?.status;
+        if (status === 404 || status === 400) {
+          // 서버에서 체크리스트가 없을 때 404 또는 400을 반환할 수 있으므로 null 처리
+          return null;
+        }
       }
       if (error instanceof Error) {
         throw error;

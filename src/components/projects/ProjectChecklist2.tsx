@@ -52,6 +52,8 @@ export function ProjectChecklist2() {
     () => normalizeUserRole(storedProfileSettings?.profile?.role) ?? null,
     [storedProfileSettings?.profile?.role],
   );
+  const authorName = storedProfileSettings?.profile?.id?.trim() ?? "";
+  const authorPhone = storedProfileSettings?.profile?.phone?.trim() ?? "";
   const isClient = userRole === "CLIENT";
   const roleLocksChecklist = userRole === "ADMIN" || userRole === "DEVELOPER";
   const [isLocked, setIsLocked] = useState(false);
@@ -60,7 +62,7 @@ export function ProjectChecklist2() {
   const [isFetching, setIsFetching] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
   const [existingChecklistId, setExistingChecklistId] = useState<number | null>(null);
-  const authorId = storedProfileSettings?.profile?.id?.trim() || "작성자";
+  const authorId = authorName || "작성자";
   const hasRouteContext = Boolean(projectId && nodeId);
   const onSubmit = async (data: ChecklistData) => {
     if (isClient || (roleLocksChecklist && isLocked)) {
@@ -114,6 +116,8 @@ export function ProjectChecklist2() {
       setExistingChecklistId(null);
       setApiError(null);
       setIsLocked(false);
+      setValue("Name", authorName);
+      setValue("mobile", authorPhone);
       return;
     }
 
@@ -135,6 +139,8 @@ export function ProjectChecklist2() {
 
         setExistingChecklistId(response.checkListId ?? null);
         setValue("request", response.description ?? "");
+        setValue("Name", authorName);
+        setValue("mobile", authorPhone);
         const checklistItems = (response.items ?? [])
           .slice()
           .sort((a, b) => (a.itemOrder ?? 0) - (b.itemOrder ?? 0))
@@ -176,7 +182,20 @@ export function ProjectChecklist2() {
     return () => {
       cancelled = true;
     };
-  }, [hasRouteContext, projectId, nodeId, roleLocksChecklist, setValue]);
+  }, [
+    hasRouteContext,
+    projectId,
+    nodeId,
+    roleLocksChecklist,
+    setValue,
+    authorName,
+    authorPhone,
+  ]);
+
+  useEffect(() => {
+    setValue("Name", authorName);
+    setValue("mobile", authorPhone);
+  }, [authorName, authorPhone, setValue]);
 
   const [questionResetKey, setQuestionResetKey] = useState(0);
   const [unlockSignal, setUnlockSignal] = useState(0);
@@ -233,7 +252,8 @@ export function ProjectChecklist2() {
                   <Input2
                       id="Name"
                       placeholder="이름"
-                      disabled={isFormDisabled}
+                      disabled={true}
+                      readOnly
                       {...register("Name", {
                         required: "이름은 필수입니다."
                       })}
@@ -253,7 +273,8 @@ export function ProjectChecklist2() {
                       id="mobile"
                       type="tel"
                       placeholder="010-0000-0000"
-                      disabled={isFormDisabled}
+                      disabled={true}
+                      readOnly
                       {...register("mobile", {
                         required: "전화번호는 필수입니다.",
                         pattern: {
