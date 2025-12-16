@@ -21,11 +21,13 @@ export interface ProjectApiItem {
     devMemberId: number;
     devMemberLoginId: string;
     devMemberName: string;
+    profileImg?: string | null;
   }[];
   clientMembers: {
     clientMemberId: number;
     clientMemberLoginId: string;
     clientMemberName: string;
+    profileImg?: string | null;
   }[];
   totalMembers: number;
   approveWorkflow: number;

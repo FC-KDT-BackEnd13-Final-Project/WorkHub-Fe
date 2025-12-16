@@ -1718,7 +1718,6 @@ export function ProjectsIndex() {
                             <div className="space-y-1">
                               <p className="text-xs text-muted-foreground">고객사 · {brandDisplay}</p>
                               <CardTitle className="text-xl">{project.name}</CardTitle>
-                              <p className="text-xs text-muted-foreground">고객 담당자 · {managerDisplay}</p>
                               <p className="text-xs text-muted-foreground">담당 개발자 · {developerDisplay}</p>
                             </div>
                             <div
