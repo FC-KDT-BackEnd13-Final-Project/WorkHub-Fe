@@ -23,17 +23,17 @@ import { CornerDownRight, Search } from "lucide-react";
 import {
   loadRepliesForPost,
   type PostReplyItem,
-} from "../../utils/postRepliesStorage";
+} from "@/utils/postRepliesStorage";
 import { typeBadgeStyles } from "./PostCard";
 import {
   mockProjectPosts,
   type ProjectPostSummary,
-} from "../../data/mockProjectPosts";
+} from "@/data/mockProjectPosts";
 import {
   calculateTotalPages,
   clampPage,
   paginate,
-} from "../../utils/pagination";
+} from "@/utils/pagination";
 import { PaginationControls } from "../common/PaginationControls";
 
 type Customer = ProjectPostSummary;
@@ -73,21 +73,7 @@ const statusStyles: Record<PostType, StatusStyle> = {
   },
 };
 
-const stripHtml = (value: string) =>
-    value
-        .replace(/<[^>]*>/g, " ")
-        .replace(/&nbsp;/gi, " ")
-        .replace(/\s+/g, " ")
-        .trim();
-
-const truncatePlainText = (value: string, limit = 50) => {
-  if (!value) return "";
-  const chars = Array.from(value);
-  if (chars.length <= limit) {
-    return value;
-  }
-  return `${chars.slice(0, limit).join("")}...`;
-};
+import { stripHtml, truncatePlainText } from "@/utils/text";
 
 const formatDateOnly = (value: string) => {
   if (!value) return "";

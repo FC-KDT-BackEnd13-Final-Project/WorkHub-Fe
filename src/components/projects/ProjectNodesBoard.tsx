@@ -874,56 +874,56 @@ useEffect(() => {
                                   autoFocus
                                 />
                               </div>
-                              <div className="max-h-[13.5rem] overflow-y-auto">
-                                {hasWorkflowDeveloperSearch ? (
-                                  visibleWorkflowDeveloperOptions.length > 0 ? (
-                                    visibleWorkflowDeveloperOptions.map((developer) => {
-                                      const isSelected =
-                                        newWorkflow.developerUserId &&
-                                        Number(developer.id) === newWorkflow.developerUserId;
-                                      return (
-                                        <button
-                                          type="button"
-                                          key={developer.id}
-                                          onMouseDown={(event) => {
-                                            event.preventDefault();
-                                            setNewWorkflow((prev) => ({
-                                              ...prev,
-                                              developerUserId: Number(developer.id),
-                                              developer: developer.name,
-                                            }));
-                                            setIsWorkflowDeveloperDropdownOpen(false);
-                                            setWorkflowDeveloperSearchTerm("");
-                                          }}
-                                          className="flex w-full items-center justify-between px-3 py-1.5 text-left text-sm transition-colors hover:bg-accent/60"
-                                        >
-                                          <div className="flex items-center gap-3">
-                                            <img
-                                              src={developer.avatarUrl || "/default-profile.png"}
-                                              alt={`${developer.name} 프로필`}
-                                              className="h-6 w-6 rounded-full object-cover"
-                                            />
-                                            <div className="flex flex-col leading-tight">
-                                              <span className="text-sm font-medium">
-                                                {developer.name} ({developer.id})
-                                              </span>
-                                              <span className="text-xs text-muted-foreground">
-                                                {developer.email ?? "이메일 정보 없음"}
-                                              </span>
-                                            </div>
+                              <div
+                                className="overflow-y-auto"
+                                style={{ maxHeight: "9rem" }}
+                              >
+                                {visibleWorkflowDeveloperOptions.length > 0 ? (
+                                  visibleWorkflowDeveloperOptions.map((developer) => {
+                                    const isSelected =
+                                      newWorkflow.developerUserId &&
+                                      Number(developer.id) === newWorkflow.developerUserId;
+                                    return (
+                                      <button
+                                        type="button"
+                                        key={developer.id}
+                                        onMouseDown={(event) => {
+                                          event.preventDefault();
+                                          setNewWorkflow((prev) => ({
+                                            ...prev,
+                                            developerUserId: Number(developer.id),
+                                            developer: developer.name,
+                                          }));
+                                          setIsWorkflowDeveloperDropdownOpen(false);
+                                          setWorkflowDeveloperSearchTerm("");
+                                        }}
+                                        className={cn(
+                                          "flex w-full items-center justify-between px-3 py-1.5 text-left text-sm transition-colors",
+                                          isSelected ? "bg-primary/5 text-primary" : "hover:bg-accent/60",
+                                        )}
+                                      >
+                                        <div className="flex items-center gap-3">
+                                          <img
+                                            src={developer.avatarUrl || "/default-profile.png"}
+                                            alt={`${developer.name} 프로필`}
+                                            className="h-6 w-6 rounded-full object-cover"
+                                          />
+                                          <div className="flex flex-col leading-tight">
+                                            <span className="text-sm font-medium">
+                                              {developer.name}
+                                            </span>
+                                            <span className="text-xs text-muted-foreground">
+                                              {developer.email ?? "이메일 정보 없음"}
+                                            </span>
                                           </div>
-                                          {isSelected && <Check className="h-4 w-4 text-primary" aria-hidden="true" />}
-                                        </button>
-                                      );
-                                    })
-                                  ) : (
-                                    <p className="px-3 py-4 text-center text-sm text-muted-foreground">
-                                      검색 결과가 없습니다.
-                                    </p>
-                                  )
+                                        </div>
+                                        {isSelected && <Check className="h-4 w-4 text-primary" aria-hidden="true" />}
+                                      </button>
+                                    );
+                                  })
                                 ) : (
                                   <p className="px-3 py-4 text-center text-sm text-muted-foreground">
-                                    검색어를 입력하면 결과가 표시됩니다.
+                                    개발자 목록이 없습니다.
                                   </p>
                                 )}
                               </div>

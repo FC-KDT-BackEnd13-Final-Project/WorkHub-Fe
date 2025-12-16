@@ -1,7 +1,5 @@
 import axios from 'axios';
 import type { ProjectApiResponse, ProjectListParams, ProjectApiItem, UpdateProjectPayload, ProjectStatus } from '@/types/project';
-import type { NodeListApiResponse } from '@/types/projectNodeList';
-import { CreateNodePayload } from '@/types/projectNode';
 import type {
   CheckListCreateRequest,
   CheckListResponse,
@@ -9,7 +7,6 @@ import type {
 } from '@/types/checkList';
 import type { NodeListApiResponse, NodeApiItem } from '@/types/projectNodeList';
 import { CreateNodePayload, UpdateNodePayload, type NodeStatusPayload, type UpdateNodeOrderPayload } from '@/types/projectNode';
-import type { CheckListCreateRequest, CheckListResponse } from '@/types/checkList';
 
 import type {
   CsPostListApiResponse,

@@ -8,7 +8,7 @@ export interface Project {
   companyId?: number;
   brandContact?: string;
   managers?: string[];
-  developers: { id: string; name: string }[];
+  developers: { id: string; name: string; avatarUrl?: string }[];
   manager?: string;
   developer?: string;
   startDate: string;
@@ -53,6 +53,7 @@ export function mapApiProjectToUiProject(apiProject: ProjectApiItem): Project {
     developers: devMembers.map((d) => ({
       id: String(d.devMemberId),
       name: d.devMemberName,
+      avatarUrl: d.profileImg || undefined,
     })),
 
     // API에서 제공하지 않는 필드는 기본값 설정

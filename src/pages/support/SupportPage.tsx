@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
+import axios from "axios";
+import { stripHtml, truncatePlainText } from "@/utils/text";
 import { useNavigate, useParams } from "react-router-dom";
-import { Card2, CardContent } from "../../components/ui/card2";
+import { Card2, CardContent } from "@/components/ui/card2";
 import { Input2 } from "../../components/ui/input2";
 import { Button2 } from "../../components/ui/button2";
 import {
@@ -9,7 +11,7 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "../../components/ui/select";
+} from "@/components/ui/select";
 import {
   Table2,
   TableBody,
@@ -18,23 +20,22 @@ import {
   TableHeader,
   TableRow,
 } from "../../components/ui/table2";
-import { RichTextDemo, type RichTextDraft } from "../../components/RichTextDemo";
+import { RichTextDemo, type RichTextDraft } from "@/components/RichTextDemo";
 import {
   supportTicketStatusLabel,
   type SupportTicketStatus,
-} from "../../data/supportTickets";
-import { clampPage } from "../../utils/pagination";
-import { PageHeader } from "../../components/common/PageHeader";
-import { FilterToolbar } from "../../components/common/FilterToolbar";
-import { PaginationControls } from "../../components/common/PaginationControls";
-import { typeBadgeStyles } from "../../components/projects/PostCard";
+} from "@/data/supportTickets";
+import { clampPage } from "@/utils/pagination";
+import { PageHeader } from "@/components/common/PageHeader";
+import { FilterToolbar } from "@/components/common/FilterToolbar";
+import { PaginationControls } from "@/components/common/PaginationControls";
+import { typeBadgeStyles } from "@/components/projects/PostCard";
 import {
   loadSupportStatusMap,
   SUPPORT_STATUS_UPDATED_EVENT,
-} from "../../utils/supportTicketStatusStorage";
-import { csPostApi } from "../../lib/api";
-import type { CsPostApiItem, CsPostStatus } from "../../types/csPost";
-import { BackButton } from "../../components/common/BackButton";
+} from "@/utils/supportTicketStatusStorage";
+import { csPostApi } from "@/lib/api";
+import type { CsPostApiItem, CsPostStatus } from "@/types/csPost";
 import { toast } from "sonner";
 import { getErrorMessage } from "@/utils/errorMessages";
 
@@ -65,22 +66,6 @@ type StatusStyle = {
   background: string;
   text: string;
   border: string;
-};
-
-const normalizeHtml = (value: string) =>
-  value
-    .replace(/<[^>]*>/g, " ")
-    .replace(/&nbsp;/gi, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-
-const truncatePlainText = (value: string, limit = 50) => {
-  if (!value) return "";
-  const chars = Array.from(value);
-  if (chars.length <= limit) {
-    return value;
-  }
-  return `${chars.slice(0, limit).join("")}...`;
 };
 
 const createEmptyDraft = (): RichTextDraft => ({
@@ -164,7 +149,10 @@ export function SupportPage() {
       setTickets(convertedTickets);
       setTotalPages(response.totalPages);
     } catch (err) {
-      setError(getErrorMessage(err, "CS 게시글을 불러오는 중 오류가 발생했습니다."));
+      const message =
+        (axios.isAxiosError(err) && err.response?.data?.message) ||
+        getErrorMessage(err, "CS 게시글을 불러오는 중 오류가 발생했습니다.");
+      setError(message);
       setTickets([]);
       setTotalPages(0);
     } finally {
@@ -174,7 +162,7 @@ export function SupportPage() {
 
   // 페이지, 검색어, 필터 변경 시 데이터 다시 가져오기
   useEffect(() => {
-    fetchCsPosts();
+    void fetchCsPosts();
   }, [projectId, currentPage, searchTerm, statusFilter]);
 
   // 상태 오버라이드 로드
@@ -251,7 +239,7 @@ export function SupportPage() {
   };
 
   const canSubmitDraft = (draft: RichTextDraft) => {
-    const hasBody = normalizeHtml(draft.content).length > 0;
+    const hasBody = stripHtml(draft.content).length > 0;
     return Boolean(draft.title.trim() || hasBody);
   };
 
@@ -426,7 +414,7 @@ export function SupportPage() {
                               ? statusStyles[ticket.status]
                               : undefined;
                             const hasStatus = Boolean(ticket.status && statusLabel && statusStyle);
-                            const normalizedContent = normalizeHtml(ticket.content);
+                            const normalizedContent = stripHtml(ticket.content);
                             const truncatedTitle = truncatePlainText(ticket.title, 15);
                             const truncatedContent = truncatePlainText(normalizedContent, 50);
 
@@ -445,7 +433,7 @@ export function SupportPage() {
                                   </TableCell>
 
                                   <TableCell className="px-3 py-2 whitespace-nowrap">
-                                    {hasStatus && (
+                                    {hasStatus && statusStyle && (
                                       <span
                                           className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium border"
                                           style={{
