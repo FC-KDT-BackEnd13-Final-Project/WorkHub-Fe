@@ -1,5 +1,5 @@
 import { Routes, Route, Navigate, useNavigate, Outlet, useLocation } from "react-router-dom";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { Main } from "./components/Main";
 import { Navigation } from "./components/layout/Navigation";
 import { Footer } from "./components/layout/Footer";
@@ -35,7 +35,6 @@ export default function App() {
     parser: (value) => value === "true",
     serializer: (value) => (value ? "true" : "false"),
   });
-  const [isSidebarMobileOpen, setIsSidebarMobileOpen] = useState(false);
 
   // Landing/Login에서 인증 성공 시 호출되어 인증 상태와 라우팅을 동시에 처리한다.
   const handleLoginSuccess = () => {
@@ -45,20 +44,13 @@ export default function App() {
 
   return (
     <div className="min-h-screen w-full bg-background text-foreground flex flex-col">
-      <Navigation
-        onOpenSidebar={
-          isAuthenticated ? () => setIsSidebarMobileOpen(true) : undefined
-        }
-      />
+      <Navigation />
       <main className="flex-1 pt-[88px]">
         <Routes>
           <Route path="/" element={<LandingPage onLoginSuccess={handleLoginSuccess} />} />
           <Route
             element={
-              <SidebarLayout
-                isSidebarMobileOpen={isSidebarMobileOpen}
-                onSidebarMobileOpenChange={setIsSidebarMobileOpen}
-              />
+              <SidebarLayout />
             }
           >
             <Route
@@ -220,18 +212,10 @@ function ProjectDetailPage({ type }: { type: "form" | "report" }) {
     );
 }
 
-interface SidebarLayoutProps {
-  isSidebarMobileOpen: boolean;
-  onSidebarMobileOpenChange: (open: boolean) => void;
-}
-
-function SidebarLayout({ isSidebarMobileOpen, onSidebarMobileOpenChange }: SidebarLayoutProps) {
+function SidebarLayout() {
   return (
     <div className="flex min-h-screen bg-[#f8fafc]">
-      <Sidebar
-        isMobileOpen={isSidebarMobileOpen}
-        onMobileOpenChange={onSidebarMobileOpenChange}
-      />
+      <Sidebar />
       <main className="flex-1 overflow-auto px-4 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-7xl">
           <Outlet />
