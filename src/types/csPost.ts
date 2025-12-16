@@ -14,6 +14,8 @@ export interface CsPostApiItem {
   customerName: string;
   createdAt: string; // ISO 8601 형식
   updatedAt: string; // ISO 8601 형식
+  userId?: number;
+  userName?: string;
 }
 
 /**
@@ -72,6 +74,8 @@ export interface CsPostDetailResponse {
   customerName: string;
   createdAt: string; // ISO 8601 형식
   updatedAt: string; // ISO 8601 형식
+  userId?: number;
+  userName?: string;
 }
 
 /**

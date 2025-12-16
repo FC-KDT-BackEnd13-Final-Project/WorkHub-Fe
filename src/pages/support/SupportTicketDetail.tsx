@@ -33,7 +33,7 @@ const convertApiDetailToTicket = (data: CsPostDetailResponse): TicketDetail => {
     : undefined;
   return {
     id: String(data.csPostId),
-    customerName: data.customerName,
+    customerName: data.userName ?? data.customerName,
     status: normalizedStatus,
     title: data.title,
     content: data.content,
