@@ -48,3 +48,13 @@ export interface ProjectListParams {
   cursor?: number;
   size?: number;
 }
+
+export interface UpdateProjectPayload {
+  projectName?: string;
+  projectDescription?: string;
+  company?: number;
+  managerIds?: number[];
+  developerIds?: number[];
+  starDate?: string;
+  endDate?: string;
+}

@@ -32,12 +32,13 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
 import { projectApi } from "../../lib/api";
 import { mapApiProjectToUiProject, type Project } from "../../utils/projectMapper";
-import type { ProjectListParams, SortOrder } from "../../types/project";
+import type { ProjectListParams, SortOrder, UpdateProjectPayload } from "../../types/project";
 import { cn } from "../ui/utils";
 import { ModalShell } from "../common/ModalShell";
 import { PROFILE_STORAGE_KEY, type UserRole, normalizeUserRole } from "../../constants/profile";
 import { useLocalStorageValue } from "../../hooks/useLocalStorageValue";
-import { localizeErrorMessage } from "@/utils/errorMessages";
+import { getErrorMessage, localizeErrorMessage } from "@/utils/errorMessages";
+import { toast } from "sonner";
 
 // 상태 옵션
 const statusOptions = [
@@ -155,6 +156,7 @@ const createProjectFormState = () => ({
   name: "",
   description: "",
   brand: "",
+  companyId: null as number | null,
   managers: [] as string[],
   developers: [] as DeveloperSelection[],
   startDate: "",
@@ -232,6 +234,7 @@ export function ProjectsIndex() {
   const isClient = userRole === "CLIENT";
   const [statusModalProject, setStatusModalProject] = useState<Project | null>(null);
   const [statusModalValue, setStatusModalValue] = useState<ProjectStatus | "">("");
+  const [isChangingStatus, setIsChangingStatus] = useState(false);
 
   // 정렬: 기본값 = 최신순 (startDate 기준)
   const [sortOption, setSortOption] = useState<SortOption>("최신순");
@@ -260,10 +263,11 @@ export function ProjectsIndex() {
   const [error, setError] = useState<string | null>(null);
   const [nextCursor, setNextCursor] = useState<number | null>(null);
   const [hasMore, setHasMore] = useState(false);
+  const [deletingProjectId, setDeletingProjectId] = useState<string | null>(null);
+  const [isSavingProject, setIsSavingProject] = useState(false);
 
   // 무한 스크롤을 위한 ref
   const observerTarget = useRef<HTMLDivElement>(null);
-  const projectModalRef = useRef<HTMLDivElement>(null);
 
   const developerDirectory = useMemo(() => {
     const map = new Map<string, DeveloperSelection>();
@@ -407,6 +411,16 @@ export function ProjectsIndex() {
     return Array.from(names).sort();
   }, [companyUsers, projects]);
 
+  const companyIdMap = useMemo(() => {
+    const map = new Map<string, number>();
+    projects.forEach((project) => {
+      if (project.brand && typeof project.companyId === "number") {
+        map.set(project.brand, project.companyId);
+      }
+    });
+    return map;
+  }, [projects]);
+
   const companyContactMap = useMemo(() => {
     const map = new Map<string, CompanyContact[]>();
 
@@ -469,6 +483,7 @@ export function ProjectsIndex() {
     setNewProject((prev) => ({
       ...prev,
       brand: companyName,
+      companyId: companyIdMap.get(companyName) ?? null,
       managers: [],
     }));
   };
@@ -520,56 +535,104 @@ export function ProjectsIndex() {
     setIsProjectModalOpen(true);
   };
 
-  const handleSaveProject = () => {
-    if (!newProject.name || !newProject.brand || newProject.managers.length === 0)
-      return;
+  const handleSaveProject = async () => {
+    if (isSavingProject) return;
+    if (!newProject.name || !newProject.brand || newProject.managers.length === 0) return;
     if (!newProject.startDate || !newProject.endDate) return;
     if (new Date(newProject.endDate) <= new Date(newProject.startDate)) return;
+
+    const parseNumericId = (value?: string) => {
+      if (!value) return null;
+      const numeric = Number(value);
+      return Number.isFinite(numeric) ? numeric : null;
+    };
+
+    const managerIds = newProject.managers
+      .map((label) => parseLabelToNameAndId(label).id)
+      .map((id) => parseNumericId(id))
+      .filter((id): id is number => id !== null);
+    const managerIdPayload = managerIds.length > 0 ? managerIds : undefined;
+
+    const developerIds = newProject.developers
+      .map((developer) => parseNumericId(developer.id))
+      .filter((id): id is number => id !== null);
+    const developerIdPayload = developerIds.length > 0 ? developerIds : undefined;
 
     const managerText = newProject.managers.join(", ");
     const developerText = newProject.developers.map((dev) => formatDeveloperLabel(dev)).join(", ");
     const teamSize = newProject.managers.length + newProject.developers.length;
 
     if (editingProject) {
-      setProjects((prev) =>
-        prev.map((project) =>
-          project.id === editingProject.id
-            ? {
-                ...project,
-                name: newProject.name,
-                description: newProject.description,
-                brand: newProject.brand,
-                manager: managerText,
-                developer: developerText,
-                managers: [...newProject.managers],
-                developers: [...newProject.developers],
-                startDate: newProject.startDate,
-                endDate: newProject.endDate,
-                teamSize,
-              }
-            : project,
-        ),
-      );
-    } else {
-      const project: Project = {
-        id: crypto.randomUUID(),
-        name: newProject.name,
-        description: newProject.description,
-        brand: newProject.brand,
-        manager: managerText,
-        developer: developerText,
-        managers: [...newProject.managers],
-        developers: [...newProject.developers],
-        startDate: newProject.startDate,
-        endDate: newProject.endDate,
-        progress: 0,
-        status: "IN_PROGRESS",
-        teamSize,
-        tasks: 0,
-      };
+      const companyId = newProject.companyId ?? editingProject.companyId ?? null;
+      if (!companyId) {
+        toast.error("고객사 정보를 확인할 수 없습니다. 다시 선택해주세요.");
+        return;
+      }
 
-      setProjects((prev) => [...prev, project]);
+      setIsSavingProject(true);
+      try {
+        const payload: UpdateProjectPayload = {
+          projectName: newProject.name,
+          projectDescription: newProject.description,
+          company: companyId,
+          starDate: newProject.startDate,
+          endDate: newProject.endDate,
+        };
+        if (managerIdPayload) {
+          payload.managerIds = managerIdPayload;
+        }
+        if (developerIdPayload) {
+          payload.developerIds = developerIdPayload;
+        }
+
+        const updatedProject = await projectApi.update(editingProject.id, payload);
+        const mappedProject = mapApiProjectToUiProject(updatedProject);
+
+        setProjects((prev) =>
+          prev.map((project) =>
+            project.id === mappedProject.id
+              ? {
+                  ...project,
+                  ...mappedProject,
+                  progress: project.progress,
+                }
+              : project,
+          ),
+        );
+
+        toast.success("프로젝트가 수정되었습니다.");
+        resetCreateForm();
+        setEditingProject(null);
+        setIsProjectModalOpen(false);
+      } catch (err) {
+        const message = getErrorMessage(err, "프로젝트 수정에 실패했습니다.");
+        toast.error(message);
+        return;
+      } finally {
+        setIsSavingProject(false);
+      }
+      return;
     }
+
+    const project: Project = {
+      id: crypto.randomUUID(),
+      name: newProject.name,
+      description: newProject.description,
+      brand: newProject.brand,
+      companyId: newProject.companyId ?? undefined,
+      manager: managerText,
+      developer: developerText,
+      managers: [...newProject.managers],
+      developers: [...newProject.developers],
+      startDate: newProject.startDate,
+      endDate: newProject.endDate,
+      progress: 0,
+      status: "IN_PROGRESS",
+      teamSize,
+      tasks: 0,
+    };
+
+    setProjects((prev) => [...prev, project]);
     resetCreateForm();
     setEditingProject(null);
     setIsProjectModalOpen(false);
@@ -618,6 +681,7 @@ export function ProjectsIndex() {
       name: project.name,
       description: project.description,
       brand: project.brand,
+      companyId: project.companyId ?? null,
       managers:
           selectedContactsForBrand.length > 0
               ? selectedContactsForBrand.map((contact) => formatContactLabel(contact))
@@ -646,29 +710,61 @@ export function ProjectsIndex() {
   const closeStatusModal = () => {
     setStatusModalProject(null);
     setStatusModalValue("");
+    setIsChangingStatus(false);
   };
 
-  const handleApplyStatusChange = () => {
-    if (!statusModalProject || !statusModalValue) return;
-    setProjects((prev) =>
+  const handleApplyStatusChange = async () => {
+    if (!statusModalProject || !statusModalValue || isChangingStatus) return;
+
+    setIsChangingStatus(true);
+    try {
+      await projectApi.changeStatus(statusModalProject.id, statusModalValue);
+      setProjects((prev) =>
         prev.map((project) =>
-            project.id === statusModalProject.id
-                ? { ...project, status: statusModalValue }
-                : project,
+          project.id === statusModalProject.id ? { ...project, status: statusModalValue } : project,
         ),
-    );
-    closeStatusModal();
+      );
+      toast.success("프로젝트 상태가 변경되었습니다.");
+      closeStatusModal();
+    } catch (err) {
+      const message = getErrorMessage(err, "프로젝트 상태 변경에 실패했습니다.");
+      toast.error(message);
+    } finally {
+      setIsChangingStatus(false);
+    }
   };
 
-  const handleDeleteProject = (project: Project) => {
+  const handleDeleteProject = async (project: Project) => {
+    if (deletingProjectId) {
+      toast.info("다른 프로젝트 삭제를 처리 중입니다. 잠시 후 다시 시도해주세요.");
+      return;
+    }
+
     const message = `"${project.name}" 프로젝트를 삭제할까요? 이 작업은 되돌릴 수 없습니다.`;
-    if (window.confirm(message)) {
+    if (!window.confirm(message)) {
+      return;
+    }
+
+    setDeletingProjectId(project.id);
+
+    try {
+      await projectApi.delete(project.id);
+
       setProjects((prev) => prev.filter((item) => item.id !== project.id));
+
       if (editingProject && editingProject.id === project.id) {
         resetCreateForm();
         setEditingProject(null);
         setIsProjectModalOpen(false);
       }
+
+      toast.success("프로젝트가 삭제되었습니다.");
+    } catch (err) {
+      console.error(`프로젝트(${project.id}) 삭제 실패:`, err);
+      const message = getErrorMessage(err, "프로젝트 삭제에 실패했습니다.");
+      toast.error(message);
+    } finally {
+      setDeletingProjectId((current) => (current === project.id ? null : current));
     }
   };
 
@@ -833,8 +929,13 @@ export function ProjectsIndex() {
                   <Button type="button" variant="secondary" className="w-1/2" onClick={closeStatusModal}>
                     취소
                   </Button>
-                  <Button type="button" className="w-1/2" disabled={!statusModalValue} onClick={handleApplyStatusChange}>
-                    상태 변경
+                  <Button
+                      type="button"
+                      className="w-1/2"
+                      disabled={!statusModalValue || isChangingStatus}
+                      onClick={handleApplyStatusChange}
+                  >
+                    {isChangingStatus ? "변경 중..." : "상태 변경"}
                   </Button>
                 </div>
               </CardContent>
@@ -844,7 +945,7 @@ export function ProjectsIndex() {
 
         {isProjectModalOpen && (
           <ModalShell open onClose={closeProjectModal} maxWidth="var(--login-card-max-width, 42rem)">
-            <Card variant="modal" className="login-theme border border-border shadow-lg" ref={projectModalRef}>
+            <Card variant="modal" className="login-theme border border-border shadow-lg">
               <CardHeader className="space-y-2 pb-6">
                 <h2 className="text-xl text-center">{isEditingProjectForm ? "프로젝트 수정" : "새 프로젝트 만들기"}</h2>
                 <p className="text-sm text-muted-foreground text-center">
@@ -1314,8 +1415,12 @@ export function ProjectsIndex() {
                         >
                           취소
                         </Button>
-                        <Button className="w-1/2" onClick={handleSaveProject}>
-                          {isEditingProjectForm ? "프로젝트 수정" : "프로젝트 생성"}
+                        <Button className="w-1/2" onClick={handleSaveProject} disabled={isSavingProject}>
+                          {isSavingProject
+                            ? "저장 중..."
+                            : isEditingProjectForm
+                              ? "프로젝트 수정"
+                              : "프로젝트 생성"}
                         </Button>
                       </div>
                     </CardContent>
@@ -1520,6 +1625,7 @@ export function ProjectsIndex() {
                                       onEdit={handleEditProject}
                                       onDelete={handleDeleteProject}
                                       onChangeStatus={openStatusModal}
+                                      isDeleting={deletingProjectId === project.id}
                                   />
                               )}
                             </div>
@@ -1587,11 +1693,18 @@ export function ProjectsIndex() {
 interface ProjectActionMenuProps {
   project: Project;
   onEdit: (project: Project) => void;
-  onDelete: (project: Project) => void;
+  onDelete: (project: Project) => void | Promise<void>;
   onChangeStatus: (project: Project) => void;
+  isDeleting?: boolean;
 }
 
-function ProjectActionMenu({ project, onEdit, onDelete, onChangeStatus }: ProjectActionMenuProps) {
+function ProjectActionMenu({
+  project,
+  onEdit,
+  onDelete,
+  onChangeStatus,
+  isDeleting,
+}: ProjectActionMenuProps) {
   const stopPointer = (event: PointerEvent<HTMLButtonElement>) => {
     event.stopPropagation();
   };
@@ -1607,7 +1720,7 @@ function ProjectActionMenu({ project, onEdit, onDelete, onChangeStatus }: Projec
 
   const handleDelete = (event: Event) => {
     event.stopPropagation();
-    onDelete(project);
+    void onDelete(project);
   };
 
   const handleStatusChange = (event: Event) => {
@@ -1641,8 +1754,9 @@ function ProjectActionMenu({ project, onEdit, onDelete, onChangeStatus }: Projec
               onSelect={handleDelete}
               variant="destructive"
               className="text-destructive"
+              disabled={isDeleting}
           >
-            삭제
+            {isDeleting ? "삭제 중..." : "삭제"}
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
