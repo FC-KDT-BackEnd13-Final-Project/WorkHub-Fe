@@ -369,19 +369,19 @@ export function Dashboard() {
               <table className="w-full caption-bottom text-sm">
                 <thead className="[&_tr]:border-b">
                   <tr className="hover:bg-muted/50 border-b transition-colors">
-                    <th className="text-foreground h-10 px-2 text-left align-middle font-medium whitespace-nowrap w-2/5">
+                    <th className="text-foreground h-10 px-2 text-left align-middle font-medium w-2/5 whitespace-normal md:whitespace-nowrap">
                       활동 내용
                     </th>
-                    <th className="text-foreground h-10 px-2 align-middle font-medium whitespace-nowrap w-1/5 text-center">
+                    <th className="text-foreground h-10 px-2 align-middle font-medium w-1/5 text-center whitespace-normal md:whitespace-nowrap">
                       대상
                     </th>
-                    <th className="text-foreground h-10 px-2 align-middle font-medium whitespace-nowrap w-1/6 text-center">
+                    <th className="text-foreground h-10 px-2 align-middle font-medium w-1/6 text-center whitespace-normal md:whitespace-nowrap">
                       실행자
                     </th>
-                    <th className="text-foreground h-10 px-2 align-middle font-medium whitespace-nowrap w-1/6 text-center">
+                    <th className="text-foreground h-10 px-2 align-middle font-medium w-1/6 text-center whitespace-normal md:whitespace-nowrap">
                       작업 유형
                     </th>
-                    <th className="text-foreground h-10 px-2 align-middle font-medium whitespace-nowrap w-1/6 text-center">
+                    <th className="text-foreground h-10 px-2 align-middle font-medium w-1/6 text-center whitespace-normal md:whitespace-nowrap">
                       발생 시각
                     </th>
                   </tr>
@@ -391,9 +391,9 @@ export function Dashboard() {
                     const palette = historyPalette[event.type] ?? historyPalette.create;
                     return (
                       <tr key={event.id} className="hover:bg-muted/50 border-b transition-colors">
-                        <td className="p-2 align-middle whitespace-nowrap">
+                        <td className="p-2 align-middle whitespace-normal">
                           <div className="flex items-center gap-3">
-                            <div className="relative h-12 w-12 overflow-hidden rounded-xl border border-white/70 shadow-sm">
+                            <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-xl border border-white/70 shadow-sm">
                               {isSystemActor(event.updatedBy) ? (
                                 <img src={logoImage} alt="WorkHub 로고" className="h-full w-full object-cover" />
                               ) : event.updatedBy ? (
@@ -414,15 +414,15 @@ export function Dashboard() {
                             </div>
                           </div>
                         </td>
-                        <td className="p-2 align-middle whitespace-nowrap text-center text-sm text-muted-foreground">
+                        <td className="p-2 align-middle text-center text-sm text-muted-foreground whitespace-normal md:whitespace-nowrap">
                           {event.target ?? "—"}
                         </td>
-                        <td className="p-2 align-middle whitespace-nowrap text-center">
+                        <td className="p-2 align-middle text-center whitespace-normal md:whitespace-nowrap">
                           <span className="inline-flex items-center justify-center rounded-md border px-2 py-0.5 text-xs font-medium bg-secondary text-secondary-foreground border-transparent">
                             {event.updatedBy ?? "시스템"}
                           </span>
                         </td>
-                        <td className="p-2 align-middle whitespace-nowrap text-center">
+                        <td className="p-2 align-middle text-center whitespace-normal md:whitespace-nowrap">
                           <span
                             className="inline-flex items-center justify-center rounded-md border px-2 py-0.5 text-xs font-medium w-fit whitespace-nowrap shrink-0"
                             style={{ backgroundColor: palette.iconBg, color: palette.iconColor, borderColor: palette.iconBg }}
@@ -430,7 +430,7 @@ export function Dashboard() {
                             {event.type.toUpperCase()}
                           </span>
                         </td>
-                        <td className="p-2 align-middle whitespace-nowrap text-center text-sm text-muted-foreground">
+                        <td className="p-2 align-middle text-center text-sm text-muted-foreground whitespace-normal md:whitespace-nowrap">
                           {format(new Date(event.updatedAt), "yyyy.MM.dd HH:mm")}
                         </td>
                       </tr>
