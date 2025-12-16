@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useMemo, useRef, forwardRef, useImperativeHandle } from "react";
 import { Card2, CardContent, CardHeader } from "./card2";
 import { Label2 } from "./label2";
 import { CheckboxQuestion2 } from "./CheckboxQuestion2";
@@ -11,6 +11,7 @@ import {
     Paperclip,
 } from "lucide-react";
 import { ModalShell } from "../common/ModalShell";
+import type { CheckListItemPayload, CheckListOptionPayload } from "@/types/checkList";
 
 interface EvidenceItem {
     files: File[];
@@ -117,6 +118,11 @@ interface FormQuestionProps {
     saveSignal?: number;
 }
 
+export interface FormQuestionHandle {
+    getChecklistItems: () => CheckListItemPayload[];
+    setChecklistItems: (items?: CheckListItemPayload[]) => void;
+}
+
 const createChecklistGroup = (id: number): ChecklistGroup => ({
     id,
     title: "",
@@ -134,15 +140,18 @@ const createChecklistGroup = (id: number): ChecklistGroup => ({
     historySelectedTargetId: null,
 });
 
-export function FormQuestion2({
-                                  resetSignal,
-                                  disabled = false,
-                                  unlockSignal = 0,
-                                  allowSelectionWhenDisabled = false,
-                                  allowCommentWhenDisabled = false,
-                                  commentAuthor = "작성자",
-                                  saveSignal = 0,
-                              }: FormQuestionProps) {
+export const FormQuestion2 = forwardRef<FormQuestionHandle, FormQuestionProps>(function FormQuestion2(
+    {
+        resetSignal,
+        disabled = false,
+        unlockSignal = 0,
+        allowSelectionWhenDisabled = false,
+        allowCommentWhenDisabled = false,
+        commentAuthor = "작성자",
+        saveSignal = 0,
+    },
+    ref,
+) {
     const [groups, setGroups] = useState<ChecklistGroup[]>([
         createChecklistGroup(1),
     ]);
@@ -181,6 +190,86 @@ export function FormQuestion2({
                     new Date(a.timestamp).getTime(),
             ),
         [checklistHistoryLogs],
+    );
+
+    const buildChecklistItemsPayload = (
+        sourceGroups: ChecklistGroup[],
+    ): CheckListItemPayload[] =>
+        sourceGroups
+            .map((group, groupIndex) => {
+                const options: CheckListOptionPayload[] = group.rules
+                    .map((rule, optionIndex) => {
+                        const optionContent = rule?.trim();
+                        if (!optionContent) {
+                            return null;
+                        }
+                        const evidenceKey = `preCheck-${group.id}-${optionIndex}`;
+                        const evidenceItem = group.evidences[evidenceKey];
+                        const linkUrls =
+                            evidenceItem?.links
+                                ?.map((link) => link.trim())
+                                .filter(Boolean) ?? [];
+
+                        return {
+                            optionContent,
+                            optionOrder: optionIndex,
+                            fileUrls: linkUrls,
+                        };
+                    })
+                    .filter((option): option is CheckListOptionPayload => Boolean(option));
+
+                if (!options.length) {
+                    return null;
+                }
+
+                return {
+                    itemTitle: group.title?.trim() || `체크리스트 ${groupIndex + 1}`,
+                    itemOrder: groupIndex,
+                    templateId: null,
+                    options,
+                } as CheckListItemPayload;
+            })
+            .filter((item): item is CheckListItemPayload => Boolean(item));
+
+    const applyChecklistItemsToGroups = (items?: CheckListItemPayload[]) => {
+        if (!items || items.length === 0) {
+            setGroups([createChecklistGroup(1)]);
+        } else {
+            const sortedItems = [...items].sort(
+                (a, b) => (a.itemOrder ?? 0) - (b.itemOrder ?? 0),
+            );
+            const nextGroups = sortedItems.map((item, index) => {
+                const baseGroup = createChecklistGroup(index + 1);
+                const sortedOptions = [...(item.options ?? [])].sort(
+                    (a, b) => (a.optionOrder ?? 0) - (b.optionOrder ?? 0),
+                );
+                const nextRules = sortedOptions.length
+                    ? sortedOptions.map((option) => option.optionContent ?? "")
+                    : [""];
+
+                return {
+                    ...baseGroup,
+                    title: item.itemTitle ?? "",
+                    rules: nextRules.length ? nextRules : [""],
+                };
+            });
+            setGroups(nextGroups);
+        }
+
+        setChecklistHistoryLogs([]);
+        setChecklistHistoryOpen(false);
+        setSelectedChecklistHistoryId(null);
+        lastSavedSnapshotRef.current = new Map();
+    };
+
+    useImperativeHandle(
+        ref,
+        () => ({
+            getChecklistItems: () => buildChecklistItemsPayload(groupsRef.current),
+            setChecklistItems: (items?: CheckListItemPayload[]) =>
+                applyChecklistItemsToGroups(items),
+        }),
+        [],
     );
 
 
@@ -2777,4 +2866,4 @@ export function FormQuestion2({
 
         </>
     );
-}
+});
