@@ -72,11 +72,26 @@ export function AdminAddCompany() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="company-registration">사업자 등록번호</Label>
-              <Input
+                <Label htmlFor="company-registration">
+                    사업자 등록번호
+                </Label>
+                <Input
                 id="company-registration"
+                inputMode="numeric"
+                placeholder="000-00-00000"
+                maxLength={12}
                 value={form.registration}
-                onChange={(event) => setForm((prev) => ({ ...prev, registration: event.target.value }))}
+                onChange={(event) => {
+                    const digits = event.target.value.replace(/\D/g, "").slice(0, 10);
+                    const formatted = digits
+                        .replace(/^(\d{3})(\d{0,2})(\d{0,5}).*$/, (_, a, b, c) => {
+                            const p1 = a;
+                            const p2 = b ? `-${b}` : "";
+                            const p3 = c ? `-${c}` : "";
+                            return `${p1}${p2}${p3}`;
+                        });
+                    setForm((prev) => ({ ...prev, registration: formatted }));
+                }}
               />
             </div>
           </div>

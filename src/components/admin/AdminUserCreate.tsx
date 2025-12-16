@@ -1,41 +1,11 @@
-import { useEffect, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
-import { AdminAddMenu } from "./AdminAddMenu";
 import { AdminAddUser } from "./AdminAddUser";
-import { AdminAddCompany } from "./AdminAddCompany";
-
-type Tab = "user" | "company";
+import { PageHeader } from "../common/PageHeader";
 
 export function AdminUserCreate() {
-  const params = useParams<{ type?: string }>();
-  const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<Tab>(
-    params.type === "company" ? "company" : "user",
-  );
-
-  useEffect(() => {
-    setActiveTab(params.type === "company" ? "company" : "user");
-  }, [params.type]);
-
-  const handleTabChange = (tab: Tab) => {
-    setActiveTab(tab);
-    if (tab === "company") {
-      navigate("/admin/users/add/company", { replace: true });
-    } else {
-      navigate("/admin/users/add", { replace: true });
-    }
-  };
-
   return (
-    <div className="pt-8 pb-12">
-      <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
-        <div className="mb-6">
-          <AdminAddMenu activeTab={activeTab} onTabChange={handleTabChange} />
-        </div>
-        <div className="mx-auto max-w-4xl">
-          {activeTab === "user" ? <AdminAddUser /> : <AdminAddCompany />}
-        </div>
-      </div>
+    <div className="space-y-6 pb-12">
+      <PageHeader title="Users" description="구성원을 관리하고 권한을 지정하며 활동 현황을 확인하세요." />
+      <AdminAddUser />
     </div>
   );
 }
