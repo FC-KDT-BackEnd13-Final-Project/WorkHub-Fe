@@ -1,7 +1,7 @@
 import type { NodeApiItem, NodeStatus as ApiNodeStatus } from "../types/projectNodeList";
 
 // ProjectNodesBoard의 Node 타입
-export type NodeStatus = "NOT_STARTED" | "IN_PROGRESS" | "PENDING_REVIEW" | "ON_HOLD";
+export type NodeStatus = "NOT_STARTED" | "IN_PROGRESS" | "PENDING_REVIEW" | "ON_HOLD" | "DONE";
 export type ApprovalStatus = "PENDING" | "APPROVED" | "REJECTED";
 
 export interface Node {
@@ -29,16 +29,37 @@ function mapApiStatusToUiStatus(apiStatus: ApiNodeStatus): NodeStatus {
   switch (apiStatus) {
     case "NOT_STARTED":
       return "NOT_STARTED";
+    case "IN_PROGRESS":
+      return "IN_PROGRESS";
     case "PENDING_REVIEW":
       return "PENDING_REVIEW";
     case "ON_HOLD":
       return "ON_HOLD";
     case "DONE":
-      // DONE은 UI에서 IN_PROGRESS로 매핑 (또는 다른 상태로 변경 가능)
-      return "IN_PROGRESS";
+      return "DONE";
     case "DELETED":
       // DELETED는 ON_HOLD로 매핑 (또는 필터링 가능)
       return "ON_HOLD";
+    default:
+      return "NOT_STARTED";
+  }
+}
+
+/**
+ * UI 상태를 API 상태로 변환
+ */
+export function mapUiStatusToApiStatus(status: NodeStatus): ApiNodeStatus {
+  switch (status) {
+    case "NOT_STARTED":
+      return "NOT_STARTED";
+    case "IN_PROGRESS":
+      return "IN_PROGRESS";
+    case "PENDING_REVIEW":
+      return "PENDING_REVIEW";
+    case "ON_HOLD":
+      return "ON_HOLD";
+    case "DONE":
+      return "DONE";
     default:
       return "NOT_STARTED";
   }

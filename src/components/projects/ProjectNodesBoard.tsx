@@ -30,7 +30,7 @@ import {
   DropdownMenuTrigger,
 } from "../ui/dropdown-menu";
 import { projectApi } from "@/lib/api";
-import { mapApiNodeToUiNode, type Node, type NodeStatus, type ApprovalStatus } from "../../utils/nodeMapper";
+import { mapApiNodeToUiNode, mapUiStatusToApiStatus, type Node, type NodeStatus, type ApprovalStatus } from "../../utils/nodeMapper";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
 import { cn } from "../ui/utils";
 import { ModalShell } from "../common/ModalShell";
@@ -127,9 +127,10 @@ type StoredUser = {
   role?: string;
 };
 
-const statusOptions: NodeStatus[] = ["NOT_STARTED", "IN_PROGRESS", "PENDING_REVIEW", "ON_HOLD"];
+const statusOptions: NodeStatus[] = ["NOT_STARTED", "IN_PROGRESS", "PENDING_REVIEW", "ON_HOLD", "DONE"];
 const approvalStatusOptions: ApprovalStatus[] = ["PENDING", "APPROVED", "REJECTED"];
 const approvalFilterOptions = ["전체", ...approvalStatusOptions] as const;
+const statusesWithoutApproval: NodeStatus[] = ["NOT_STARTED", "IN_PROGRESS"];
 type ApprovalFilter = (typeof approvalFilterOptions)[number];
 type StatusBadgeStyles = {
   background: string;
@@ -158,6 +159,11 @@ const statusBadgeStyles: Record<NodeStatus, StatusBadgeStyles> = {
     text: "#B91C1C", // red-700
     border: "#FECACA", // red-200
   },
+  DONE: {
+    background: "#ECFDF5", // green-50
+    text: "#047857", // green-700
+    border: "#A7F3D0", // green-200
+  },
 };
 
 const nodeStatusLabels: Record<NodeStatus, string> = {
@@ -165,6 +171,7 @@ const nodeStatusLabels: Record<NodeStatus, string> = {
   IN_PROGRESS: "진행 중",
   PENDING_REVIEW: "검토 대기",
   ON_HOLD: "보류",
+  DONE: "완료",
 };
 
 const formatWorkflowDeveloperLabel = (developer: { id: string; name: string }) => {
@@ -224,7 +231,21 @@ export function ProjectNodesBoard() {
   const [editingNode, setEditingNode] = useState<Node | null>(null);
   const [statusModalNode, setStatusModalNode] = useState<Node | null>(null);
   const [statusModalStatus, setStatusModalStatus] = useState<NodeStatus | "">("");
-  const [statusModalApproval, setStatusModalApproval] = useState<ApprovalStatus | undefined>(undefined);
+  const [statusModalApproval, setStatusModalApproval] = useState<ApprovalStatus | "">("");
+  const [isStatusUpdating, setIsStatusUpdating] = useState(false);
+  const isApprovalRequired = useMemo(() => {
+    if (!statusModalStatus) return false;
+    return !statusesWithoutApproval.includes(statusModalStatus as NodeStatus);
+  }, [statusModalStatus]);
+  const canApplyStatusChange = useMemo(() => {
+    if (!statusModalStatus || isStatusUpdating) {
+      return false;
+    }
+    if (isApprovalRequired) {
+      return Boolean(statusModalApproval);
+    }
+    return true;
+  }, [isApprovalRequired, isStatusUpdating, statusModalApproval, statusModalStatus]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [storedSettings] = useLocalStorageValue<StoredSettings | null>(PROFILE_STORAGE_KEY, {
@@ -445,24 +466,53 @@ useEffect(() => {
     if (new Date(newWorkflow.endDate) <= new Date(newWorkflow.startDate)) return;
 
     if (editingNode) {
-      setNodes((prev) =>
-        prev.map((node) => {
-          if (node.id !== editingNode.id) return node;
-          return {
-            ...node,
+      const developerUserId =
+        newWorkflow.developerUserId ?? editingNode.developerUserId ?? undefined;
+      if (!developerUserId) {
+        setError("담당 개발자 정보를 가져올 수 없습니다. 다시 선택해주세요.");
+        return;
+      }
+
+      try {
+        setIsLoading(true);
+        const updatedNode = await projectApi.updateNode(
+          projectId,
+          editingNode.projectNodeId,
+          {
             title: newWorkflow.title,
             description: newWorkflow.description,
-            developer: newWorkflow.developer.trim(),
-            developerUserId: newWorkflow.developerUserId,
+            developerUserId,
             startDate: newWorkflow.startDate,
             endDate: newWorkflow.endDate,
-            approvalStatus: newWorkflow.approvalStatus,
-            updatedAt: new Date().toISOString(),
-          };
-        }),
-      );
-      setNewWorkflow(createWorkflowFormState());
-      closeWorkflowModal();
+          },
+        );
+
+        const mappedNode = mapApiNodeToUiNode(updatedNode);
+
+        setNodes((prev) =>
+          prev.map((node) => {
+            if (node.id !== editingNode.id) return node;
+            return {
+              ...node,
+              title: mappedNode.title,
+              description: mappedNode.description,
+              developer: mappedNode.developer,
+              developerUserId: mappedNode.developerUserId,
+              startDate: mappedNode.startDate,
+              endDate: mappedNode.endDate,
+              status: mappedNode.status,
+              updatedAt: mappedNode.updatedAt,
+            };
+          }),
+        );
+
+        setNewWorkflow(createWorkflowFormState());
+        closeWorkflowModal();
+      } catch (err) {
+        setError(getErrorMessage(err, "노드 수정에 실패했습니다."));
+      } finally {
+        setIsLoading(false);
+      }
       return;
     }
 
@@ -491,30 +541,19 @@ useEffect(() => {
   const syncNodeOrder = useCallback(
     async (orderedNodes: Node[]) => {
       if (!projectId) return;
-      const payload = {
-        orders: orderedNodes.map((node, index) => ({
-          projectNodeId: node.projectNodeId,
-          nodeOrder: index + 1,
-        })),
-      };
+      const orders = orderedNodes.map((node, index) => ({
+        projectNodeId: node.projectNodeId,
+        nodeOrder: index + 1,
+      }));
 
       try {
-        const response = await fetch(`/projects/${projectId}/nodes/order`, {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(payload),
-        });
-
-        if (!response.ok) {
-          throw new Error(`Failed to update order: ${response.status}`);
-        }
+        await projectApi.updateNodeOrder(projectId, orders);
       } catch (error) {
         console.error("노드 순서 갱신 실패:", error);
+        setError(getErrorMessage(error, "노드 순서 변경에 실패했습니다."));
       }
     },
-    [projectId],
+    [projectId, setError],
   );
 
   const handleDragEnd = useCallback(
@@ -566,41 +605,91 @@ useEffect(() => {
   );
 
   const handleDeleteNode = useCallback(
-    (node: Node) => {
+    async (node: Node) => {
+      if (!projectId) return;
       const message = `"${node.title}" 단계를 삭제할까요? 이 작업은 되돌릴 수 없습니다.`;
-      if (window.confirm(message)) {
+      if (!window.confirm(message)) {
+        return;
+      }
+
+      try {
+        setIsLoading(true);
+        await projectApi.deleteNode(projectId, node.projectNodeId);
+
         setNodes((prev) => prev.filter((item) => item.id !== node.id));
+
         if (editingNode && editingNode.id === node.id) {
           closeWorkflowModal();
         }
+      } catch (err) {
+        setError(getErrorMessage(err, "노드 삭제에 실패했습니다."));
+      } finally {
+        setIsLoading(false);
       }
     },
-    [closeWorkflowModal, editingNode],
+    [closeWorkflowModal, editingNode, projectId],
   );
 
   const openStatusModal = useCallback((node: Node) => {
     setStatusModalNode(node);
-    setStatusModalStatus(node.status);
-    setStatusModalApproval(node.approvalStatus);
+    setStatusModalStatus(node.status ?? "");
+    setStatusModalApproval(node.approvalStatus ?? "");
   }, []);
 
   const closeStatusModal = useCallback(() => {
     setStatusModalNode(null);
     setStatusModalStatus("");
-    setStatusModalApproval(undefined);
+    setStatusModalApproval("");
+    setIsStatusUpdating(false);
   }, []);
 
-  const handleApplyStatusChange = useCallback(() => {
-    if (!statusModalNode || !statusModalStatus || !statusModalApproval) return;
-    setNodes((prev) =>
-      prev.map((node) =>
-        node.id === statusModalNode.id
-          ? { ...node, status: statusModalStatus, approvalStatus: statusModalApproval }
-          : node,
-      ),
-    );
-    closeStatusModal();
-  }, [closeStatusModal, statusModalApproval, statusModalNode, statusModalStatus]);
+  useEffect(() => {
+    if (!isApprovalRequired) {
+      setStatusModalApproval("");
+    }
+  }, [isApprovalRequired]);
+
+  const handleApplyStatusChange = useCallback(async () => {
+    if (!projectId || !statusModalNode || !statusModalStatus || isStatusUpdating) {
+      return;
+    }
+    if (isApprovalRequired && !statusModalApproval) {
+      return;
+    }
+
+    setIsStatusUpdating(true);
+    try {
+      const apiStatus = mapUiStatusToApiStatus(statusModalStatus as NodeStatus);
+      await projectApi.changeNodeStatus(projectId, statusModalNode.projectNodeId, apiStatus);
+      setNodes((prev) =>
+        prev.map((node) =>
+          node.id === statusModalNode.id
+            ? {
+                ...node,
+                status: statusModalStatus as NodeStatus,
+                approvalStatus: isApprovalRequired
+                  ? (statusModalApproval as ApprovalStatus)
+                  : undefined,
+              }
+            : node,
+        ),
+      );
+      closeStatusModal();
+    } catch (err) {
+      setError(getErrorMessage(err, "노드 상태 변경에 실패했습니다."));
+    } finally {
+      setIsStatusUpdating(false);
+    }
+  }, [
+    closeStatusModal,
+    isApprovalRequired,
+    isStatusUpdating,
+    projectId,
+    setError,
+    statusModalApproval,
+    statusModalNode,
+    statusModalStatus,
+  ]);
 
   useEffect(() => {
     if (!statusModalNode) return;
@@ -904,7 +993,7 @@ useEffect(() => {
               <div className="space-y-2">
                 <Label>상태</Label>
                 <Select
-                  value={statusModalStatus || undefined}
+                  value={statusModalStatus}
                   onValueChange={(value) => setStatusModalStatus(value as NodeStatus)}
                 >
                   <SelectTrigger className="h-10 w-full">
@@ -922,8 +1011,9 @@ useEffect(() => {
               <div className="space-y-2">
                 <Label>승인 상태</Label>
                 <Select
-                  value={statusModalApproval || undefined}
+                  value={statusModalApproval}
                   onValueChange={(value) => setStatusModalApproval(value as ApprovalStatus)}
+                  disabled={!isApprovalRequired}
                 >
                   <SelectTrigger className="h-10 w-full">
                     <SelectValue placeholder="승인 상태 선택" />
@@ -936,6 +1026,11 @@ useEffect(() => {
                       ))}
                     </SelectContent>
                   </Select>
+                {!isApprovalRequired && (
+                  <p className="text-xs text-muted-foreground">
+                    시작 전 또는 진행 중 상태에서는 승인 단계를 선택할 수 없습니다.
+                  </p>
+                )}
               </div>
               <div className="flex gap-2">
                 <Button
@@ -949,10 +1044,10 @@ useEffect(() => {
                 <Button
                   type="button"
                   className="w-1/2"
-                  disabled={!statusModalStatus || !statusModalApproval}
+                  disabled={!canApplyStatusChange || isStatusUpdating}
                   onClick={handleApplyStatusChange}
                 >
-                  적용
+                  {isStatusUpdating ? "변경 중..." : "적용"}
                 </Button>
               </div>
             </CardContent>
