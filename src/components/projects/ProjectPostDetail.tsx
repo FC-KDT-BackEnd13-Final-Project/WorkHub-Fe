@@ -96,7 +96,7 @@ interface ProjectPostDetailProps {
     onSubmitInlineComment?: (payload: { content: string; parentId?: string | null }) => Promise<PostReplyItem> | void;
     isInlineCommentSubmitting?: boolean;
     onUpdateInlineComment?: (payload: { content: string; commentId: string }) => Promise<PostReplyItem> | void;
-    onDeleteInlineComment?: (commentId: string) => Promise<void> | void;
+    onDeleteInlineComment?: (commentId: string, options?: { skipRefresh?: boolean }) => Promise<void> | void;
     useExternalCommentSync?: boolean;
 }
 
@@ -884,19 +884,37 @@ export function ProjectPostDetail({
         setCommentPage(nextPage);
     };
 
+    const collectDescendantCommentIds = (targetId: string, list: CommentItem[]): string[] => {
+        const children = list.filter((comment) => comment.parentId === targetId);
+        return children.flatMap((child) => [
+            ...collectDescendantCommentIds(child.id, list),
+            child.id,
+        ]);
+    };
+
     const handleDeleteComment = async (id: string) => {
+        const cascadeIds = collectDescendantCommentIds(id, comments);
+        const idsToRemove = [...cascadeIds, id];
+
         if (!onDeleteInlineComment) {
-            setComments((prev) => prev.filter((comment) => comment.id !== id));
+            setComments((prev) => prev.filter((comment) => !idsToRemove.includes(comment.id)));
             return;
         }
 
         try {
+            for (const targetId of cascadeIds) {
+                await onDeleteInlineComment(targetId, { skipRefresh: true });
+            }
             await onDeleteInlineComment(id);
-            setPostReplies((prev) => {
-                const updated = prev.filter((reply) => reply.id !== id && reply.parentId !== id);
-                saveRepliesForPost(postStorageKey, updated);
-                return updated;
-            });
+
+            if (!useExternalCommentSync) {
+                setPostReplies((prev) => {
+                    const removalSet = new Set(idsToRemove);
+                    const updated = prev.filter((reply) => !removalSet.has(reply.id));
+                    saveRepliesForPost(postStorageKey, updated);
+                    return updated;
+                });
+            }
         } catch {
             // swallow
         }
