@@ -30,12 +30,19 @@ import {
   DropdownMenuTrigger,
 } from "../ui/dropdown-menu";
 import { projectApi } from "@/lib/api";
-import { mapApiNodeToUiNode, mapUiStatusToApiStatus, type Node, type NodeStatus, type ApprovalStatus } from "../../utils/nodeMapper";
+import {
+  mapApiNodeToUiNode,
+  mapConfirmStatusToApprovalStatus,
+  mapUiStatusToApiStatus,
+  type Node,
+  type NodeStatus,
+  type ApprovalStatus,
+} from "@/utils/nodeMapper";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
 import { cn } from "../ui/utils";
 import { ModalShell } from "../common/ModalShell";
-import { PROFILE_STORAGE_KEY, type UserRole, normalizeUserRole } from "../../constants/profile";
-import { useLocalStorageValue } from "../../hooks/useLocalStorageValue";
+import { PROFILE_STORAGE_KEY, type UserRole, normalizeUserRole } from "@/constants/profile";
+import { useLocalStorageValue } from "@/hooks/useLocalStorageValue";
 import { getErrorMessage, localizeErrorMessage } from "@/utils/errorMessages";
 
 // 프로젝트 내 노드(작업 카드)와 워크플로우를 관리하는 보드 화면
@@ -387,10 +394,20 @@ export function ProjectNodesBoard() {
     try {
       const response = await projectApi.getNodes(projectId);
 
-      // API 응답을 UI 타입으로 변환
-      // response가 배열인지, response.projectNodes가 배열인지 확인
-      const nodeArray = Array.isArray(response) ? response : (response.projectNodes ?? []);
-      const uiNodes = nodeArray.map(mapApiNodeToUiNode);
+      // API 응답을 UI 타입으로 변환 (신규: data 배열, 구형: projectNodes 필드)
+      const nodeArray = Array.isArray(response) ? response : response?.projectNodes ?? [];
+      const uiNodes = nodeArray.map((apiNode) => {
+        const mapped = mapApiNodeToUiNode(apiNode);
+        // 확인 상태를 그대로 approvalStatus/label에 반영 (매퍼 안전망)
+        const approvalStatus =
+          mapConfirmStatusToApprovalStatus(apiNode.confirmStatus) ??
+          mapped.approvalStatus ??
+          undefined;
+        return {
+          ...mapped,
+          approvalStatus,
+        };
+      });
 
       setNodes(uiNodes);
 
@@ -502,6 +519,8 @@ useEffect(() => {
               endDate: mappedNode.endDate,
               status: mappedNode.status,
               updatedAt: mappedNode.updatedAt,
+              approvalStatus: mappedNode.approvalStatus,
+              approvalStatusLabel: mappedNode.approvalStatusLabel,
             };
           }),
         );
@@ -670,6 +689,10 @@ useEffect(() => {
                 approvalStatus: isApprovalRequired
                   ? (statusModalApproval as ApprovalStatus)
                   : undefined,
+                approvalStatusLabel:
+                  isApprovalRequired && statusModalApproval
+                    ? approvalStatusLabels[statusModalApproval as ApprovalStatus]
+                    : undefined,
               }
             : node,
         ),
