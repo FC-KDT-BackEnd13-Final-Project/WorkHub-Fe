@@ -391,7 +391,7 @@ export function Dashboard() {
                           <p className="text-sm font-medium text-foreground">{event.message}</p>
                         </div>
                       </div>
-                      <div className="mt-3 space-y-1 text-xs text-muted-foreground">
+                      <div className="mt-4 space-y-1 text-xs text-muted-foreground">
                         <div className="flex flex-wrap gap-3">
                           <div className="flex min-w-[45%] flex-1 items-center gap-2">
                             <span className="w-12 shrink-0 font-semibold text-foreground">대상</span>
