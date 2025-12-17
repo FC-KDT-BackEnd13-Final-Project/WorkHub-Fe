@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { format } from "date-fns";
 import { Card, CardContent } from "../../components/ui/card";
 import { Input } from "../../components/ui/input";
@@ -110,9 +110,11 @@ export function UserHistoryPage() {
     }
   }, [currentPage, totalPages]);
 
-  const renderSortSelect = (className?: string) => (
+  const renderSortSelect = (className?: string, inline?: boolean) => (
     <Select value={sortOrder} onValueChange={(value: "desc" | "asc") => setSortOrder(value)}>
-      <SelectTrigger className={`w-full min-w-[160px] md:w-44 ${className ?? ""}`}>
+      <SelectTrigger
+        className={`${inline ? "text-xs md:text-sm md:min-w-[110px]" : "w-full md:w-44 md:min-w-[160px]"} min-w-0 ${className ?? ""}`}
+      >
         <SelectValue placeholder="정렬 기준" />
       </SelectTrigger>
       <SelectContent>
@@ -212,7 +214,7 @@ export function UserHistoryPage() {
   };
 
   return (
-    <div className="space-y-6 pb-12">
+    <div className="space-y-6 pb-10 pt-2 md:px-0 md:pb-12">
       <PageHeader title="History" description="사용자 활동 로그를 한눈에 확인하세요." />
 
       <FilterToolbar
@@ -227,17 +229,18 @@ export function UserHistoryPage() {
             ].map((tab) => {
               const Icon = tab.icon;
               const isActive = activeTab === tab.id;
+              const paddingClass = tab.id === "user" ? "px-4 md:px-6" : "px-2 md:px-4";
               return (
                 <Button
                   key={tab.id}
                   variant={isActive ? "default" : "outline"}
-                  className="flex items-center gap-2"
+                  className={`flex flex-1 min-w-0 items-center justify-center gap-1 ${paddingClass} py-2 text-xs md:flex-none md:min-w-[140px] md:gap-2 md:text-sm`}
                   onClick={() => {
                     setActiveTab(tab.id as typeof activeTab);
                     setCategoryFilter(tab.category as CategoryFilter);
                   }}
                 >
-                  <Icon className="h-4 w-4" />
+                  <Icon className="h-3.5 w-3.5 md:h-4 md:w-4" />
                   {tab.label}
                 </Button>
               );
@@ -249,8 +252,64 @@ export function UserHistoryPage() {
       </FilterToolbar>
 
       <Card className="rounded-2xl border border-white/70 bg-white/90 shadow-sm backdrop-blur">
-        <CardContent className="px-6 pt-6 pb-6">
-          <div className="relative w-full overflow-x-auto">
+        <CardContent className="px-4 pt-6 pb-5 md:px-6 md:pt-6 md:pb-6">
+          <div className="space-y-4 md:hidden">
+            {paginatedEvents.map((event) => {
+              const palette = historyPalette[event.type];
+              return (
+                <div key={event.id} className="rounded-xl border border-white/70 bg-white/95 p-4 shadow-sm">
+                  <div className="flex items-center gap-3">
+                    <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-xl border border-white/70 shadow-sm">
+                      {isSystemActor(event.updatedBy) ? (
+                        <img src={logoImage} alt="WorkHub 로고" className="h-full w-full object-cover" />
+                      ) : event.updatedBy ? (
+                        <img src={getAvatarUrl(event.updatedBy)} alt={event.updatedBy} className="h-full w-full object-cover" />
+                      ) : (
+                        <div className="flex h-full w-full items-center justify-center bg-slate-100 text-sm font-semibold text-foreground">
+                          {getInitials(event.updatedBy)}
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex-1 space-y-1">
+                      <p className="text-sm font-medium text-foreground">{event.message}</p>
+                    </div>
+                  </div>
+                  <div className="mt-4 space-y-2 text-xs text-muted-foreground">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-[11px] text-slate-400">대상</span>
+                      <span className="font-medium text-foreground text-right">{event.target ?? "—"}</span>
+                    </div>
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-[11px] text-slate-400">실행자</span>
+                      <span className="inline-flex items-center justify-center rounded-md border border-transparent bg-secondary px-2 py-0.5 text-[11px] font-medium text-secondary-foreground">
+                        {event.updatedBy ?? "시스템"}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-[11px] text-slate-400">작업 유형</span>
+                      <span
+                        className="inline-flex items-center justify-center rounded-md border px-2 py-0.5 text-[11px] font-medium"
+                        style={{ backgroundColor: palette.iconBg, color: palette.iconColor, borderColor: palette.iconBg }}
+                      >
+                        {historyTypeLabels[event.type]}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-[11px] text-slate-400">발생 시각</span>
+                      <span>{format(new Date(event.updatedAt), "yyyy.MM.dd HH:mm")}</span>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+            {paginatedEvents.length === 0 && (
+              <div className="rounded-xl border border-dashed border-muted px-4 py-6 text-center text-sm text-muted-foreground">
+                조건에 맞는 히스토리가 없습니다. 필터를 조정해 다시 시도해 주세요.
+              </div>
+            )}
+          </div>
+
+          <div className="relative hidden w-full overflow-x-auto md:block">
             <table className="w-full caption-bottom text-sm">
               <thead className="[&_tr]:border-b">
                 <tr className="hover:bg-muted/50 border-b transition-colors">
