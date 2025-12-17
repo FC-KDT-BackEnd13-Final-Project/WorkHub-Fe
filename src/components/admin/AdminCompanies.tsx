@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent } from "../ui/card";
 import { Button } from "../ui/button";
@@ -11,17 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "../ui/select";
-import { Badge } from "../ui/badge";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "../ui/table";
 import { PageHeader } from "../common/PageHeader";
-import { FilterToolbar } from "../common/FilterToolbar";
 import { PaginationControls } from "../common/PaginationControls";
 import { calculateTotalPages, clampPage, paginate } from "../../utils/pagination";
 import { useAdminUsersList } from "../../hooks/useAdminUsers";
@@ -38,8 +28,11 @@ type CompanySummary = {
   joined: string;
 };
 
-const statusStyles: Record<CompanyStatus, { label: string; bg: string; color: string; border: string }> = {
-  ACTIVE: {
+const statusStyles: Record<
+    CompanyStatus,
+    { label: string; bg: string; color: string; border: string }
+> = {
+    ACTIVE: {
     label: "활성",
     bg: "#ECFDF5",
     color: "#15803D",
@@ -59,19 +52,6 @@ const statusStyles: Record<CompanyStatus, { label: string; bg: string; color: st
   },
 };
 
-const PROJECT_RANGE_OPTIONS = [
-  { value: "All", label: "전체 프로젝트" },
-  { value: "0", label: "진행 중 0건" },
-  { value: "1-2", label: "1-2건 진행" },
-  { value: "3+", label: "3건 이상" },
-] as const;
-
-const CLIENT_RANGE_OPTIONS = [
-  { value: "All", label: "전체 고객 수" },
-  { value: "1", label: "1명" },
-  { value: "2-4", label: "2-4명" },
-  { value: "5+", label: "5명 이상" },
-] as const;
 
 const PAGE_SIZE = 10;
 
@@ -208,10 +188,19 @@ export function AdminCompanies() {
     });
   }, [companySummaries, searchTerm, statusFilter, projectRange, clientRange, joinStartDate, joinEndDate]);
 
-  const totalPages = calculateTotalPages(filteredCompanies.length, PAGE_SIZE);
-  const paginatedCompanies = paginate(filteredCompanies, currentPage, PAGE_SIZE);
+    const rawTotalPages = calculateTotalPages(filteredCompanies.length, PAGE_SIZE);
+    const totalPages = Math.max(1, rawTotalPages);
+    const paginatedCompanies = paginate(filteredCompanies, currentPage, PAGE_SIZE);
 
-  const handleStatusFilterChange = (value: string) => {
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [searchTerm, statusFilter, projectRange, clientRange, joinStartDate, joinEndDate]);
+
+    useEffect(() => {
+        setCurrentPage((prev) => clampPage(prev, totalPages));
+    }, [totalPages]);
+
+    const handleStatusFilterChange = (value: string) => {
     if (value === "All" || value === "ACTIVE" || value === "INACTIVE" || value === "SUSPENDED") {
       setStatusFilter(value);
       return;
@@ -265,7 +254,7 @@ export function AdminCompanies() {
           <div className="flex items-center gap-2">
             <Button
               className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive bg-primary text-primary-foreground hover:bg-primary/90 h-9 px-4 py-2 has-[>svg]:px-3 md:w-auto"
-              onClick={() => navigate("/admin/companies/add")}
+              onClick={() => navigate("/admin/users/companies/add")}
             >
               + 추가
             </Button>
@@ -282,52 +271,52 @@ export function AdminCompanies() {
 
       <Card className="rounded-2xl bg-white shadow-sm">
         <CardContent className="px-6 pt-6 pb-6 space-y-3">
-          <div data-slot="table-container" class="relative w-full overflow-x-auto">
-            <table data-slot="table" class="w-full caption-bottom text-sm">
-              <thead data-slot="table-header" class="[&_tr]:border-b">
-                <tr data-slot="table-row" class="hover:bg-muted/50 data-[state=selected]:bg-muted border-b transition-colors">
-                  <th data-slot="table-head" class="text-foreground h-10 px-2 text-left align-middle font-medium whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] w-1/3">회사명</th>
-                  <th data-slot="table-head" class="text-foreground h-10 px-2 align-middle font-medium whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] w-1/6 text-center">상태</th>
-                  <th data-slot="table-head" class="text-foreground h-10 px-2 align-middle font-medium whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] w-1/6 text-center">총 프로젝트 수</th>
-                  <th data-slot="table-head" class="text-foreground h-10 px-2 align-middle font-medium whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] w-1/6 text-center">진행중인 프로젝트 수</th>
-                  <th data-slot="table-head" class="text-foreground h-10 px-2 align-middle font-medium whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] w-1/6 text-center">연동된 고객 수</th>
-                  <th data-slot="table-head" class="text-foreground h-10 px-2 align-middle font-medium whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] w-1/6 text-center">가입일</th>
-                </tr>
+            <div data-slot="table-container" className="relative w-full overflow-x-auto">
+                <table data-slot="table" className="w-full caption-bottom text-sm">
+                    <thead data-slot="table-header" className="[&_tr]:border-b">
+                    <tr data-slot="table-row" className="hover:bg-muted/50 data-[state=selected]:bg-muted border-b transition-colors">
+                        <th data-slot="table-head" className="text-foreground h-10 px-2 text-left align-middle font-medium whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] w-1/3">회사명</th>
+                        <th data-slot="table-head" className="text-foreground h-10 px-2 align-middle font-medium whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] w-1/6 text-center">상태</th>
+                        <th data-slot="table-head" className="text-foreground h-10 px-2 align-middle font-medium whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] w-1/6 text-center">총 프로젝트 수</th>
+                        <th data-slot="table-head" className="text-foreground h-10 px-2 align-middle font-medium whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] w-1/6 text-center">진행중인 프로젝트 수</th>
+                        <th data-slot="table-head" className="text-foreground h-10 px-2 align-middle font-medium whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] w-1/6 text-center">연동된 고객 수</th>
+                        <th data-slot="table-head" className="text-foreground h-10 px-2 align-middle font-medium whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] w-1/6 text-center">가입일</th>
+                    </tr>
               </thead>
-              <tbody data-slot="table-body" class="[&_tr:last-child]:border-0">
-                {isLoading ? (
-                  <tr data-slot="table-row" class="hover:bg-muted/50 data-[state=selected]:bg-muted border-b transition-colors">
-                    <td data-slot="table-cell" class="p-2 align-middle whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] text-center text-sm text-muted-foreground" colSpan={6}>
-                      고객사 목록을 불러오는 중입니다...
+                    <tbody data-slot="table-body" className="[&_tr:last-child]:border-0">
+                    {isLoading ? (
+                        <tr data-slot="table-row" className="hover:bg-muted/50 data-[state=selected]:bg-muted border-b transition-colors">
+                            <td data-slot="table-cell" className="p-2 align-middle whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] text-center text-sm text-muted-foreground" colSpan={6}>
+                                고객사 목록을 불러오는 중입니다...
                     </td>
                   </tr>
                 ) : error ? (
-                  <tr data-slot="table-row" class="hover:bg-muted/50 data-[state=selected]:bg-muted border-b transition-colors">
-                    <td data-slot="table-cell" class="p-2 align-middle whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] text-center text-sm text-red-600" colSpan={6}>
-                      데이터를 불러오는 중 오류가 발생했습니다: {error}
+                        <tr data-slot="table-row" className="hover:bg-muted/50 data-[state=selected]:bg-muted border-b transition-colors">
+                            <td data-slot="table-cell" className="p-2 align-middle whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] text-center text-sm text-red-600" colSpan={6}>
+                                데이터를 불러오는 중 오류가 발생했습니다: {error}
                     </td>
                   </tr>
                 ) : paginatedCompanies.length === 0 ? (
-                  <tr data-slot="table-row" class="hover:bg-muted/50 data-[state=selected]:bg-muted border-b transition-colors">
-                    <td data-slot="table-cell" class="p-2 align-middle whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] text-center text-sm text-muted-foreground" colSpan={6}>
-                      조건에 맞는 고객사가 없습니다.
+                        <tr data-slot="table-row" className="hover:bg-muted/50 data-[state=selected]:bg-muted border-b transition-colors">
+                            <td data-slot="table-cell" className="p-2 align-middle whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] text-center text-sm text-muted-foreground" colSpan={6}>
+                                조건에 맞는 고객사가 없습니다.
                     </td>
                   </tr>
                 ) : (
                   paginatedCompanies.map((company) => (
-                    <tr key={company.id} data-slot="table-row" class="hover:bg-muted/50 data-[state=selected]:bg-muted border-b transition-colors group">
-                      <td data-slot="table-cell" class="p-2 align-middle whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]">
-                        <div>
-                          <p class="font-medium">{company.name}</p>
-                          <p class="text-xs text-muted-foreground">
-                            최근 업데이트: {company.activeProjectCount > 0 ? "활성 프로젝트 진행 중" : "활성 프로젝트 없음"}
-                          </p>
-                        </div>
-                      </td>
-                      <td data-slot="table-cell" class="p-2 align-middle whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] text-center">
-                        <span
+                      <tr key={company.id} data-slot="table-row" className="hover:bg-muted/50 data-[state=selected]:bg-muted border-b transition-colors group">
+                          <td data-slot="table-cell" className="p-2 align-middle whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]">
+                              <div>
+                                  <p className="font-medium">{company.name}</p>
+                                  <p className="text-xs text-muted-foreground">
+                                     최근 업데이트: {company.activeProjectCount > 0 ? "활성 프로젝트 진행 중" : "활성 프로젝트 없음"}
+                                  </p>
+                              </div>
+                          </td>
+                          <td data-slot="table-cell" className="p-2 align-middle whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] text-center">
+                              <span
                           data-slot="badge"
-                          class="inline-flex items-center justify-center rounded-md border px-2 py-0.5 text-xs font-medium w-fit whitespace-nowrap shrink-0 [&>svg]:size-3 gap-1 [&>svg]:pointer-events-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive transition-[color,box-shadow] overflow-hidden text-foreground [a&]:hover:bg-accent [a&]:hover:text-accent-foreground"
+                          className="inline-flex items-center justify-center rounded-md border px-2 py-0.5 text-xs font-medium w-fit whitespace-nowrap shrink-0 [&>svg]:size-3 gap-1 [&>svg]:pointer-events-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive transition-[color,box-shadow] overflow-hidden text-foreground [a&]:hover:bg-accent [a&]:hover:text-accent-foreground"
                           style={{
                             backgroundColor: statusStyles[company.status].bg,
                             color: statusStyles[company.status].color,
@@ -337,10 +326,10 @@ export function AdminCompanies() {
                           {statusStyles[company.status].label}
                         </span>
                       </td>
-                      <td data-slot="table-cell" class="p-2 align-middle whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] text-center font-semibold">{company.totalProjectCount}</td>
-                      <td data-slot="table-cell" class="p-2 align-middle whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] text-center font-semibold">{company.activeProjectCount}</td>
-                      <td data-slot="table-cell" class="p-2 align-middle whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] text-center font-semibold">{company.clientCount}</td>
-                      <td data-slot="table-cell" class="p-2 align-middle whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] text-center text-sm text-muted-foreground">
+                      <td data-slot="table-cell" className="p-2 align-middle whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] text-center font-semibold">{company.totalProjectCount}</td>
+                      <td data-slot="table-cell" className="p-2 align-middle whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] text-center font-semibold">{company.activeProjectCount}</td>
+                      <td data-slot="table-cell" className="p-2 align-middle whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] text-center font-semibold">{company.clientCount}</td>
+                      <td data-slot="table-cell" className="p-2 align-middle whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] text-center text-sm text-muted-foreground">
                         {formatDate(company.joined)}
                       </td>
                     </tr>
