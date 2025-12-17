@@ -91,11 +91,11 @@ export default function App() {
                 element={isAuthenticated ? <AdminUsers /> : <Navigate to="/" replace />}
               />
               <Route
-                path="/admin/companies"
+                path="/admin/users/companies"
                 element={isAuthenticated ? <AdminCompanies /> : <Navigate to="/" replace />}
               />
               <Route
-                path="/admin/companies/add"
+                path="/admin/users/companies/add"
                 element={isAuthenticated ? <AdminCompanyCreate /> : <Navigate to="/" replace />}
               />
               <Route

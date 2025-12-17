@@ -57,7 +57,7 @@ export function AdminCompanyCreate() {
         // TODO: API 호출하여 회사 등록
         console.log("회사 등록:", formData);
         // 성공 시 회사 목록으로 이동
-        navigate("/admin/companies");
+        navigate("/admin/users/companies");
     };
 
     const handleReset = () => {
