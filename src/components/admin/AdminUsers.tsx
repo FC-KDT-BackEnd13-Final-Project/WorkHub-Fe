@@ -11,7 +11,6 @@ import {
     SelectTrigger,
     SelectValue,
 } from "../ui/select";
-import { PageHeader } from "../common/PageHeader";
 import { PaginationControls } from "../common/PaginationControls";
 import { calculateTotalPages, clampPage, paginate } from "../../utils/pagination";
 import { useAdminUsersList } from "../../hooks/useAdminUsers";
@@ -95,6 +94,20 @@ export function AdminUsers() {
     const safeTotalPages = Math.max(1, totalPages);
     const paginatedUsers = paginate(filteredUsers, currentPage, PAGE_SIZE);
 
+    const getStatusStyle = (status?: string) => {
+        const normalized = (status ?? "INACTIVE") as keyof typeof statusStyles;
+        return statusStyles[normalized] ?? statusStyles.INACTIVE;
+    };
+
+    const formatJoinedDate = (value?: string) => {
+        if (!value) return "-";
+        const parsed = new Date(value);
+        return Number.isNaN(parsed.getTime()) ? value : parsed.toLocaleDateString("ko-KR");
+    };
+
+    const getUserSubLabel = (user: (typeof paginatedUsers)[number]) =>
+        user.loginId ?? user.email ?? "-";
+
     useEffect(() => {
         setCurrentPage(1);
     }, [search, roleFilter, companyFilter, statusFilter]);
@@ -104,81 +117,167 @@ export function AdminUsers() {
     }, [safeTotalPages]);
 
     return (
-        <div className="space-y-6 pb-12">
-            <PageHeader
-                title="Users"
-                description="구성원을 관리하고 권한을 지정하며 활동 현황을 확인하세요."
-            />
+        <div className="space-y-4 pb-12">
+            <div className="rounded-2xl bg-white p-6 shadow-sm flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                <div>
+                    <h1 className="text-3xl font-semibold tracking-tight">Users</h1>
+                    <p className="mt-2 text-muted-foreground">구성원을 관리하고 권한을 지정하며 활동 현황을 확인하세요.</p>
+                </div>
+            </div>
 
-            {/* ✅ AdminCompanies와 동일한 필터 박스 래퍼 */}
-            <div className="rounded-2xl bg-white p-6 shadow-sm space-y-4">
-                <div className="flex flex-col gap-3 md:flex-row md:flex-nowrap md:items-center md:justify-between">
-                    <Input
-                        placeholder="회원을 검색하세요"
-                        value={search}
-                        onChange={(event) => setSearch(event.target.value)}
-                        className="md:flex-1"
-                    />
+            <div className="flex flex-col gap-4 rounded-2xl bg-white p-4 shadow-sm md:flex-row md:items-center">
+                <Input
+                    placeholder="회원을 검색하세요"
+                    value={search}
+                    onChange={(event) => setSearch(event.target.value)}
+                    className="w-full md:flex-1"
+                />
 
-                    <Select
-                        value={roleFilter}
-                        onValueChange={(value) => setRoleFilter(value as (typeof roles)[number])}
-                    >
-                        <SelectTrigger className="md:w-48">
-                            <SelectValue placeholder="전체 역할" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            {roles.map((role) => (
-                                <SelectItem key={role} value={role}>
-                                    {roleDisplayMap[role] ?? role}
-                                </SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
-
-                    <Select value={companyFilter} onValueChange={setCompanyFilter}>
-                        <SelectTrigger className="md:w-48">
-                            <SelectValue placeholder="전체 회사" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="All">전체 회사</SelectItem>
-                            {companies.map((company) => (
-                                <SelectItem key={company} value={company}>
-                                    {company}
-                                </SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
-
-                    <Select
-                        value={statusFilter}
-                        onValueChange={(value) =>
-                            setStatusFilter(value as (typeof statusOptions)[number])
-                        }
-                    >
-                        <SelectTrigger className="md:w-48">
-                            <SelectValue placeholder="전체 상태" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="All">전체 상태</SelectItem>
-                            <SelectItem value="ACTIVE">활성</SelectItem>
-                            <SelectItem value="INACTIVE">비활성</SelectItem>
-                            <SelectItem value="SUSPENDED">정지</SelectItem>
-                        </SelectContent>
-                    </Select>
-
-                    <div className="flex items-center gap-2">
-                        <Button onClick={() => navigate("/admin/users/add")}>+ 추가</Button>
-                        <Button variant="outline" onClick={() => navigate("/admin/users/companies")}>
-                            고객사 목록
-                        </Button>
+                <div className="flex w-full gap-2 overflow-x-auto pb-1 md:overflow-visible md:flex-row">
+                    <div className="min-w-[160px] flex-1 md:flex-none">
+                        <Select value={roleFilter} onValueChange={(value) => setRoleFilter(value as (typeof roles)[number])}>
+                            <SelectTrigger className="w-full md:w-52">
+                                <SelectValue placeholder="전체 역할" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {roles.map((role) => (
+                                    <SelectItem key={role} value={role}>
+                                        {roleDisplayMap[role] ?? role}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
                     </div>
+
+                    <div className="min-w-[160px] flex-1 md:flex-none">
+                        <Select value={companyFilter} onValueChange={setCompanyFilter}>
+                            <SelectTrigger className="w-full md:w-52">
+                                <SelectValue placeholder="전체 회사" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="All">전체 회사</SelectItem>
+                                {companies.map((company) => (
+                                    <SelectItem key={company} value={company}>
+                                        {company}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+
+                    <div className="min-w-[160px] flex-1 md:flex-none">
+                        <Select
+                            value={statusFilter}
+                            onValueChange={(value) =>
+                                setStatusFilter(value as (typeof statusOptions)[number])
+                            }
+                        >
+                            <SelectTrigger className="w-full md:w-48">
+                                <SelectValue placeholder="전체 상태" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="All">전체 상태</SelectItem>
+                                <SelectItem value="ACTIVE">활성</SelectItem>
+                                <SelectItem value="INACTIVE">비활성</SelectItem>
+                                <SelectItem value="SUSPENDED">정지</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                    <Button className="h-9 px-4 text-sm" onClick={() => navigate("/admin/users/add")}>
+                        + 추가
+                    </Button>
+                    <Button className="h-9 px-4 text-sm" variant="outline" onClick={() => navigate("/admin/users/companies")}>
+                        고객사 목록
+                    </Button>
                 </div>
             </div>
 
             <Card className="rounded-2xl bg-white shadow-sm">
                 <CardContent className="px-6 pt-6 pb-6 space-y-3">
-                    <div data-slot="table-container" className="relative w-full overflow-x-auto">
+                    <div className="md:hidden">
+                        <div className="relative w-full pr-1">
+                            {isLoading ? (
+                                <div className="rounded-xl border border-white/70 bg-white/90 p-4 text-center text-sm text-muted-foreground shadow-sm">
+                                    회원 목록을 불러오는 중입니다...
+                                </div>
+                            ) : error ? (
+                                <div className="rounded-xl border border-red-100 bg-red-50 p-4 text-center text-sm text-red-600">
+                                    데이터를 불러오는 중 오류가 발생했습니다: {error}
+                                </div>
+                            ) : paginatedUsers.length === 0 ? (
+                                <div className="rounded-xl border border-white/70 bg-white/90 p-4 text-center text-sm text-muted-foreground shadow-sm">
+                                    조건에 맞는 회원이 없습니다.
+                                </div>
+                            ) : (
+                                <div className="space-y-4">
+                                    {paginatedUsers.map((user) => {
+                                        const statusStyle = getStatusStyle(user.status);
+                                        const subLabel = getUserSubLabel(user);
+                                        const companyLabel = user.company || "소속 미지정";
+                                        return (
+                                            <div
+                                                key={user.id}
+                                                className="rounded-xl border border-white/70 bg-white/90 p-4 shadow-sm cursor-pointer"
+                                                onClick={() => navigate(`/admin/users/${user.id}`)}
+                                            >
+                                                <div className="flex items-center gap-3">
+                                                    <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-xl border border-white/70 shadow-sm">
+                                                        <img
+                                                            src={user.avatarUrl || "/default-profile.png"}
+                                                            alt={user.name}
+                                                            className="h-full w-full object-cover"
+                                                        />
+                                                    </div>
+                                                    <div>
+                                                        <p className="text-sm font-medium text-foreground">{user.name}</p>
+                                                        <p className="text-xs text-muted-foreground">{subLabel}</p>
+                                                    </div>
+                                                </div>
+                                                <div className="mt-4 space-y-2 text-xs text-muted-foreground">
+                                                    <div className="flex items-center justify-between gap-2">
+                                                        <span className="text-[11px] text-slate-400">회사</span>
+                                                        <span className="inline-flex items-center justify-center rounded-md border border-transparent bg-secondary px-2 py-0.5 text-[11px] font-medium text-secondary-foreground">
+                                                            {companyLabel}
+                                                        </span>
+                                                    </div>
+                                                    <div className="flex items-center justify-between gap-2">
+                                                        <span className="text-[11px] text-slate-400">역할</span>
+                                                        <span className="font-medium text-foreground">{roleDisplayMap[user.role] ?? user.role}</span>
+                                                    </div>
+                                                    <div className="flex items-center justify-between gap-2">
+                                                        <span className="text-[11px] text-slate-400">상태</span>
+                                                        <span
+                                                            className="inline-flex items-center justify-center rounded-md border px-2 py-0.5 text-[11px] font-medium w-fit whitespace-nowrap shrink-0"
+                                                            style={{
+                                                                backgroundColor: statusStyle.bg,
+                                                                color: statusStyle.color,
+                                                                border: `1px solid ${statusStyle.border}`,
+                                                            }}
+                                                        >
+                                                            {statusStyle.label}
+                                                        </span>
+                                                    </div>
+                                                    <div className="flex items-center justify-between gap-2">
+                                                        <span className="text-[11px] text-slate-400">프로젝트</span>
+                                                        <span className="font-semibold text-foreground">{user.projectCount ?? 0}</span>
+                                                    </div>
+                                                    <div className="flex items-center justify-between gap-2">
+                                                        <span className="text-[11px] text-slate-400">가입일</span>
+                                                        <span>{formatJoinedDate(user.joined)}</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
+                    <div data-slot="table-container" className="relative w-full overflow-x-auto hidden md:block">
                         <table data-slot="table" className="w-full caption-bottom text-sm">
                             <thead data-slot="table-header" className="[&_tr]:border-b">
                             <tr
@@ -265,90 +364,89 @@ export function AdminUsers() {
                                     </td>
                                 </tr>
                             ) : (
-                                paginatedUsers.map((user) => (
-                                    <tr
-                                        key={user.id}
-                                        data-slot="table-row"
-                                        className="hover:bg-muted/50 data-[state=selected]:bg-muted border-b transition-colors cursor-pointer"
-                                        onClick={() => navigate(`/admin/users/${user.id}`)}
-                                    >
-                                        <td data-slot="table-cell" className="p-2 align-middle whitespace-nowrap">
-                                            <div className="flex items-center gap-3">
-                                                <div className="relative h-12 w-12 overflow-hidden rounded-xl border border-white/70 shadow-sm">
-                                                    {user.avatarUrl ? (
-                                                        <img
-                                                            src={user.avatarUrl}
-                                                            alt={user.name}
-                                                            className="h-full w-full object-cover"
-                                                        />
-                                                    ) : (
-                                                        <div className="flex h-full w-full items-center justify-center bg-slate-100 text-sm font-semibold text-muted-foreground">
-                                                            {user.name
-                                                                .split(" ")
-                                                                .map((part) => part[0])
-                                                                .join("")
-                                                                .slice(0, 2)}
-                                                        </div>
-                                                    )}
+                                paginatedUsers.map((user) => {
+                                    const statusStyle = getStatusStyle(user.status);
+                                    const companyLabel = user.company || "소속 미지정";
+                                    return (
+                                        <tr
+                                            key={user.id}
+                                            data-slot="table-row"
+                                            className="hover:bg-muted/50 data-[state=selected]:bg-muted border-b transition-colors cursor-pointer"
+                                            onClick={() => navigate(`/admin/users/${user.id}`)}
+                                        >
+                                            <td data-slot="table-cell" className="p-2 align-middle whitespace-nowrap">
+                                                <div className="flex items-center gap-3">
+                                                    <div className="relative h-12 w-12 overflow-hidden rounded-xl border border-white/70 shadow-sm">
+                                                        {user.avatarUrl ? (
+                                                            <img
+                                                                src={user.avatarUrl}
+                                                                alt={user.name}
+                                                                className="h-full w-full object-cover"
+                                                            />
+                                                        ) : (
+                                                            <div className="flex h-full w-full items-center justify-center bg-slate-100 text-sm font-semibold text-muted-foreground">
+                                                                {user.name
+                                                                    .split(" ")
+                                                                    .map((part) => part[0])
+                                                                    .join("")
+                                                                    .slice(0, 2)}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                    <div>
+                                                        <p className="font-medium">{user.name}</p>
+                                                        <p className="text-xs text-muted-foreground">{user.email}</p>
+                                                    </div>
                                                 </div>
-                                                <div>
-                                                    <p className="font-medium">{user.name}</p>
-                                                    <p className="text-xs text-muted-foreground">{user.email}</p>
-                                                </div>
-                                            </div>
-                                        </td>
+                                            </td>
 
-                                        <td
-                                            data-slot="table-cell"
-                                            className="p-2 align-middle whitespace-nowrap text-center"
-                                        >
-                                            <Badge variant="secondary">{user.company || "소속 미지정"}</Badge>
-                                        </td>
+                                            <td
+                                                data-slot="table-cell"
+                                                className="p-2 align-middle whitespace-nowrap text-center"
+                                            >
+                                                <Badge variant="secondary">{companyLabel}</Badge>
+                                            </td>
 
-                                        <td
-                                            data-slot="table-cell"
-                                            className="p-2 align-middle whitespace-nowrap text-center text-sm text-muted-foreground"
-                                        >
-                                            {roleDisplayMap[user.role] ?? user.role}
-                                        </td>
+                                            <td
+                                                data-slot="table-cell"
+                                                className="p-2 align-middle whitespace-nowrap text-center text-sm text-muted-foreground"
+                                            >
+                                                {roleDisplayMap[user.role] ?? user.role}
+                                            </td>
 
-                                        <td
-                                            data-slot="table-cell"
-                                            className="p-2 align-middle whitespace-nowrap text-center"
-                                        >
-                        <span
-                            data-slot="badge"
-                            className="inline-flex items-center justify-center rounded-md border px-2 py-0.5 text-xs font-medium w-fit whitespace-nowrap shrink-0"
-                            style={{
-                                backgroundColor:
-                                    statusStyles[user.status]?.bg ?? statusStyles.INACTIVE.bg,
-                                color:
-                                    statusStyles[user.status]?.color ?? statusStyles.INACTIVE.color,
-                                border: `1px solid ${
-                                    statusStyles[user.status]?.border ??
-                                    statusStyles.INACTIVE.border
-                                }`,
-                            }}
-                        >
-                          {statusStyles[user.status]?.label ?? statusStyles.INACTIVE.label}
-                        </span>
-                                        </td>
+                                            <td
+                                                data-slot="table-cell"
+                                                className="p-2 align-middle whitespace-nowrap text-center"
+                                            >
+                                                <span
+                                                    data-slot="badge"
+                                                    className="inline-flex items-center justify-center rounded-md border px-2 py-0.5 text-xs font-medium w-fit whitespace-nowrap shrink-0"
+                                                    style={{
+                                                        backgroundColor: statusStyle.bg,
+                                                        color: statusStyle.color,
+                                                        border: `1px solid ${statusStyle.border}`,
+                                                    }}
+                                                >
+                                                    {statusStyle.label}
+                                                </span>
+                                            </td>
 
-                                        <td
-                                            data-slot="table-cell"
-                                            className="p-2 align-middle whitespace-nowrap text-center font-semibold"
-                                        >
-                                            {user.projectCount ?? 0}
-                                        </td>
+                                            <td
+                                                data-slot="table-cell"
+                                                className="p-2 align-middle whitespace-nowrap text-center font-semibold"
+                                            >
+                                                {user.projectCount ?? 0}
+                                            </td>
 
-                                        <td
-                                            data-slot="table-cell"
-                                            className="p-2 align-middle whitespace-nowrap text-center text-sm text-muted-foreground"
-                                        >
-                                            {user.joined ? new Date(user.joined).toLocaleDateString("ko-KR") : "-"}
-                                        </td>
-                                    </tr>
-                                ))
+                                            <td
+                                                data-slot="table-cell"
+                                                className="p-2 align-middle whitespace-nowrap text-center text-sm text-muted-foreground"
+                                            >
+                                                {formatJoinedDate(user.joined)}
+                                            </td>
+                                        </tr>
+                                    );
+                                })
                             )}
                             </tbody>
                         </table>

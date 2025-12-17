@@ -11,7 +11,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "../ui/select";
-import { PageHeader } from "../common/PageHeader";
 import { PaginationControls } from "../common/PaginationControls";
 import { calculateTotalPages, clampPage, paginate } from "../../utils/pagination";
 import { useAdminUsersList } from "../../hooks/useAdminUsers";
@@ -76,6 +75,17 @@ function formatDate(date?: string) {
     return date;
   }
   return parsed.toLocaleDateString("ko-KR");
+}
+
+function getCompanyInitials(name: string) {
+  const trimmed = name.trim();
+  if (!trimmed) return "-";
+  return trimmed
+    .split(/\s+/)
+    .map((part) => part[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
 }
 
 function normalizeCompanyStatus(status?: string): CompanyStatus {
@@ -209,112 +219,193 @@ export function AdminCompanies() {
   };
 
   return (
-    <div className="space-y-6 pb-12">
-      <PageHeader title="Companies" description="고객사 파트너십을 확인하고 진행 현황을 살펴보세요." />
+    <div className="space-y-4 pb-12">
+      <div className="rounded-2xl bg-white p-6 shadow-sm flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <div>
+          <h1 className="text-3xl font-semibold tracking-tight">Companies</h1>
+          <p className="mt-2 text-muted-foreground">고객사 파트너십을 확인하고 진행 현황을 살펴보세요.</p>
+        </div>
+      </div>
 
-      <div className="rounded-2xl bg-white p-6 shadow-sm space-y-4">
-        <div className="flex flex-col gap-3 md:flex-row md:flex-nowrap md:items-center md:justify-between">
-          <Input
-            placeholder="고객사를 검색하세요"
-            value={searchTerm}
-            onChange={(event) => setSearchTerm(event.target.value)}
-            className="file:text-foreground placeholder:text-muted-foreground selection:bg-primary selection:text-primary-foreground dark:bg-input/30 border-input flex h-9 w-full min-w-0 rounded-md border px-3 py-1 text-base bg-input-background transition-[color,box-shadow] outline-none file:inline-flex file:h-7 file:border-0 file:bg-transparent file:text-sm file:font-medium disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 md:text-sm focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive md:flex-1"
-          />
-          <Select value={statusFilter} onValueChange={handleStatusFilterChange}>
-            <SelectTrigger className="border-input data-[placeholder]:text-muted-foreground [&_svg:not([class*='text-'])]:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive dark:bg-input/30 dark:hover:bg-input/50 flex w-full items-center justify-between gap-2 rounded-md border bg-input-background px-3 py-2 text-sm whitespace-nowrap transition-[color,box-shadow] outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50 data-[size=default]:h-9 data-[size=sm]:h-8 *:data-[slot=select-value]:line-clamp-1 *:data-[slot=select-value]:flex *:data-[slot=select-value]:items-center *:data-[slot=select-value]:gap-2 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 md:w-48">
-              <SelectValue placeholder="전체 상태" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="All">전체 상태</SelectItem>
-              <SelectItem value="ACTIVE">활성</SelectItem>
-              <SelectItem value="INACTIVE">비활성</SelectItem>
-              <SelectItem value="SUSPENDED">정지</SelectItem>
-            </SelectContent>
-          </Select>
-          <div className="flex items-center gap-2">
-            <Label className="flex items-center gap-2 font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50 whitespace-nowrap text-xs md:text-sm">
-              가입기간
-            </Label>
+      <div className="flex flex-col gap-4 rounded-2xl bg-white p-4 shadow-sm md:flex-row md:items-center">
+        <Input
+          placeholder="고객사를 검색하세요"
+          value={searchTerm}
+          onChange={(event) => setSearchTerm(event.target.value)}
+          className="md:flex-1"
+        />
+        <div className="flex w-full gap-2 overflow-x-auto pb-1 md:overflow-visible">
+          <div className="min-w-[160px] flex-1 md:flex-none">
+            <Select value={statusFilter} onValueChange={handleStatusFilterChange}>
+              <SelectTrigger className="w-full md:w-52">
+                <SelectValue placeholder="전체 상태" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="All">전체 상태</SelectItem>
+                <SelectItem value="ACTIVE">활성</SelectItem>
+                <SelectItem value="INACTIVE">비활성</SelectItem>
+                <SelectItem value="SUSPENDED">정지</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="flex min-w-[220px] items-center gap-2">
+            <Label className="hidden whitespace-nowrap text-xs font-medium md:inline-block">가입기간</Label>
             <div className="flex items-center gap-1">
               <Input
                 type="date"
                 value={joinStartDate}
-                onChange={(e) => setJoinStartDate(e.target.value)}
-                className="file:text-foreground placeholder:text-muted-foreground selection:bg-primary selection:text-primary-foreground dark:bg-input/30 flex min-w-0 text-base transition-[color,box-shadow] outline-none file:inline-flex file:h-7 file:border-0 file:bg-transparent file:text-sm file:font-medium disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 md:text-sm focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive h-9 w-[140px] rounded-md border border-border bg-input-background px-3 py-1"
+                onChange={(event) => setJoinStartDate(event.target.value)}
+                className="h-9 w-[140px] rounded-md border border-border bg-input-background px-3 py-1 text-sm"
               />
               <span className="px-1 text-sm text-muted-foreground">~</span>
               <Input
                 type="date"
                 value={joinEndDate}
-                onChange={(e) => setJoinEndDate(e.target.value)}
-                className="file:text-foreground placeholder:text-muted-foreground selection:bg-primary selection:text-primary-foreground dark:bg-input/30 flex min-w-0 text-base transition-[color,box-shadow] outline-none file:inline-flex file:h-7 file:border-0 file:bg-transparent file:text-sm file:font-medium disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 md:text-sm focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive h-9 w-[140px] rounded-md border border-border bg-input-background px-3 py-1"
+                onChange={(event) => setJoinEndDate(event.target.value)}
+                className="h-9 w-[140px] rounded-md border border-border bg-input-background px-3 py-1 text-sm"
               />
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            <Button
-              className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive bg-primary text-primary-foreground hover:bg-primary/90 h-9 px-4 py-2 has-[>svg]:px-3 md:w-auto"
-              onClick={() => navigate("/admin/users/companies/add")}
-            >
-              + 추가
-            </Button>
-            <Button
-              variant="outline"
-              className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive border bg-background text-foreground hover:bg-accent hover:text-accent-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50 h-9 px-4 py-2 has-[>svg]:px-3 md:w-auto"
-              onClick={() => navigate("/admin/users")}
-            >
-              회원 목록
-            </Button>
-          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button className="h-9 px-4 text-sm" onClick={() => navigate("/admin/users/companies/add")}>
+            + 추가
+          </Button>
+          <Button className="h-9 px-4 text-sm" variant="outline" onClick={() => navigate("/admin/users")}>
+            회원 목록
+          </Button>
         </div>
       </div>
 
+
       <Card className="rounded-2xl bg-white shadow-sm">
-        <CardContent className="px-6 pt-6 pb-6 space-y-3">
-            <div data-slot="table-container" className="relative w-full overflow-x-auto">
-                <table data-slot="table" className="w-full caption-bottom text-sm">
-                    <thead data-slot="table-header" className="[&_tr]:border-b">
-                    <tr data-slot="table-row" className="hover:bg-muted/50 data-[state=selected]:bg-muted border-b transition-colors">
-                        <th data-slot="table-head" className="text-foreground h-10 px-2 text-left align-middle font-medium whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] w-1/3">회사명</th>
-                        <th data-slot="table-head" className="text-foreground h-10 px-2 align-middle font-medium whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] w-1/6 text-center">상태</th>
-                        <th data-slot="table-head" className="text-foreground h-10 px-2 align-middle font-medium whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] w-1/6 text-center">총 프로젝트 수</th>
-                        <th data-slot="table-head" className="text-foreground h-10 px-2 align-middle font-medium whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] w-1/6 text-center">진행중인 프로젝트 수</th>
-                        <th data-slot="table-head" className="text-foreground h-10 px-2 align-middle font-medium whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] w-1/6 text-center">연동된 고객 수</th>
-                        <th data-slot="table-head" className="text-foreground h-10 px-2 align-middle font-medium whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] w-1/6 text-center">가입일</th>
-                    </tr>
+        <CardContent className="px-6 pt-6 pb-6 space-y-4">
+          <div className="md:hidden">
+            {isLoading ? (
+              <div className="rounded-xl border border-white/70 bg-white/90 p-4 text-center text-sm text-muted-foreground shadow-sm">
+                고객사 목록을 불러오는 중입니다...
+              </div>
+            ) : error ? (
+              <div className="rounded-xl border border-red-100 bg-red-50 p-4 text-center text-sm text-red-600">
+                데이터를 불러오는 중 오류가 발생했습니다: {error}
+              </div>
+            ) : paginatedCompanies.length === 0 ? (
+              <div className="rounded-xl border border-white/70 bg-white/90 p-4 text-center text-sm text-muted-foreground shadow-sm">
+                조건에 맞는 고객사가 없습니다.
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {paginatedCompanies.map((company) => {
+                  const palette = statusStyles[company.status];
+                  return (
+                    <div key={company.id} className="rounded-xl border border-white/70 bg-white/90 p-4 shadow-sm">
+                      <div className="flex items-center gap-3">
+                        <div className="flex-1 space-y-1">
+                          <p className="text-sm font-medium text-foreground">{company.name}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {company.activeProjectCount > 0 ? "활성 프로젝트 진행 중" : "활성 프로젝트 없음"}
+                          </p>
+                        </div>
+                        <span
+                          className="inline-flex items-center justify-center rounded-md border px-2 py-0.5 text-xs font-medium w-fit whitespace-nowrap shrink-0"
+                          style={{ backgroundColor: palette.bg, color: palette.color, border: `1px solid ${palette.border}` }}
+                        >
+                          {palette.label}
+                        </span>
+                      </div>
+                      <div className="mt-4 space-y-2 text-xs text-muted-foreground">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-[11px] text-slate-400">총 프로젝트</span>
+                          <span className="font-semibold text-foreground">{company.totalProjectCount}</span>
+                        </div>
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-[11px] text-slate-400">진행중</span>
+                          <span className="font-semibold text-foreground">{company.activeProjectCount}</span>
+                        </div>
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-[11px] text-slate-400">연동 고객</span>
+                          <span className="font-semibold text-foreground">{company.clientCount}</span>
+                        </div>
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-[11px] text-slate-400">가입일</span>
+                          <span>{formatDate(company.joined)}</span>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          <div data-slot="table-container" className="relative hidden w-full overflow-x-auto md:block">
+            <table data-slot="table" className="w-full caption-bottom text-sm">
+              <thead data-slot="table-header" className="[&_tr]:border-b">
+                <tr data-slot="table-row" className="hover:bg-muted/50 data-[state=selected]:bg-muted border-b transition-colors">
+                  <th data-slot="table-head" className="text-foreground h-10 px-2 text-left align-middle font-medium whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] w-1/3">
+                    회사명
+                  </th>
+                  <th data-slot="table-head" className="text-foreground h-10 px-2 align-middle font-medium whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] w-1/6 text-center">
+                    상태
+                  </th>
+                  <th data-slot="table-head" className="text-foreground h-10 px-2 align-middle font-medium whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] w-1/6 text-center">
+                    총 프로젝트 수
+                  </th>
+                  <th data-slot="table-head" className="text-foreground h-10 px-2 align-middle font-medium whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] w-1/6 text-center">
+                    진행중인 프로젝트 수
+                  </th>
+                  <th data-slot="table-head" className="text-foreground h-10 px-2 align-middle font-medium whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] w-1/6 text-center">
+                    연동된 고객 수
+                  </th>
+                  <th data-slot="table-head" className="text-foreground h-10 px-2 align-middle font-medium whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] w-1/6 text-center">
+                    가입일
+                  </th>
+                </tr>
               </thead>
-                    <tbody data-slot="table-body" className="[&_tr:last-child]:border-0">
-                    {isLoading ? (
-                        <tr data-slot="table-row" className="hover:bg-muted/50 data-[state=selected]:bg-muted border-b transition-colors">
-                            <td data-slot="table-cell" className="p-2 align-middle whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] text-center text-sm text-muted-foreground" colSpan={6}>
-                                고객사 목록을 불러오는 중입니다...
+              <tbody data-slot="table-body" className="[&_tr:last-child]:border-0">
+                {isLoading ? (
+                  <tr data-slot="table-row" className="hover:bg-muted/50 data-[state=selected]:bg-muted border-b transition-colors">
+                    <td
+                      data-slot="table-cell"
+                      className="p-2 align-middle whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] text-center text-sm text-muted-foreground"
+                      colSpan={6}
+                    >
+                      고객사 목록을 불러오는 중입니다...
                     </td>
                   </tr>
                 ) : error ? (
-                        <tr data-slot="table-row" className="hover:bg-muted/50 data-[state=selected]:bg-muted border-b transition-colors">
-                            <td data-slot="table-cell" className="p-2 align-middle whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] text-center text-sm text-red-600" colSpan={6}>
-                                데이터를 불러오는 중 오류가 발생했습니다: {error}
+                  <tr data-slot="table-row" className="hover:bg-muted/50 data-[state=selected]:bg-muted border-b transition-colors">
+                    <td
+                      data-slot="table-cell"
+                      className="p-2 align-middle whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] text-center text-sm text-red-600"
+                      colSpan={6}
+                    >
+                      데이터를 불러오는 중 오류가 발생했습니다: {error}
                     </td>
                   </tr>
                 ) : paginatedCompanies.length === 0 ? (
-                        <tr data-slot="table-row" className="hover:bg-muted/50 data-[state=selected]:bg-muted border-b transition-colors">
-                            <td data-slot="table-cell" className="p-2 align-middle whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] text-center text-sm text-muted-foreground" colSpan={6}>
-                                조건에 맞는 고객사가 없습니다.
+                  <tr data-slot="table-row" className="hover:bg-muted/50 data-[state=selected]:bg-muted border-b transition-colors">
+                    <td
+                      data-slot="table-cell"
+                      className="p-2 align-middle whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] text-center text-sm text-muted-foreground"
+                      colSpan={6}
+                    >
+                      조건에 맞는 고객사가 없습니다.
                     </td>
                   </tr>
                 ) : (
                   paginatedCompanies.map((company) => (
-                      <tr key={company.id} data-slot="table-row" className="hover:bg-muted/50 data-[state=selected]:bg-muted border-b transition-colors group">
-                          <td data-slot="table-cell" className="p-2 align-middle whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]">
-                              <div>
-                                  <p className="font-medium">{company.name}</p>
-                                  <p className="text-xs text-muted-foreground">
-                                     최근 업데이트: {company.activeProjectCount > 0 ? "활성 프로젝트 진행 중" : "활성 프로젝트 없음"}
-                                  </p>
-                              </div>
-                          </td>
-                          <td data-slot="table-cell" className="p-2 align-middle whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] text-center">
-                              <span
+                    <tr key={company.id} data-slot="table-row" className="hover:bg-muted/50 data-[state=selected]:bg-muted border-b transition-colors group">
+                      <td data-slot="table-cell" className="p-2 align-middle whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]">
+                        <div>
+                          <p className="font-medium">{company.name}</p>
+                          <p className="text-xs text-muted-foreground">
+                            최근 업데이트: {company.activeProjectCount > 0 ? "활성 프로젝트 진행 중" : "활성 프로젝트 없음"}
+                          </p>
+                        </div>
+                      </td>
+                      <td data-slot="table-cell" className="p-2 align-middle whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] text-center">
+                        <span
                           data-slot="badge"
                           className="inline-flex items-center justify-center rounded-md border px-2 py-0.5 text-xs font-medium w-fit whitespace-nowrap shrink-0 [&>svg]:size-3 gap-1 [&>svg]:pointer-events-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive transition-[color,box-shadow] overflow-hidden text-foreground [a&]:hover:bg-accent [a&]:hover:text-accent-foreground"
                           style={{
@@ -326,9 +417,15 @@ export function AdminCompanies() {
                           {statusStyles[company.status].label}
                         </span>
                       </td>
-                      <td data-slot="table-cell" className="p-2 align-middle whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] text-center font-semibold">{company.totalProjectCount}</td>
-                      <td data-slot="table-cell" className="p-2 align-middle whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] text-center font-semibold">{company.activeProjectCount}</td>
-                      <td data-slot="table-cell" className="p-2 align-middle whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] text-center font-semibold">{company.clientCount}</td>
+                      <td data-slot="table-cell" className="p-2 align-middle whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] text-center font-semibold">
+                        {company.totalProjectCount}
+                      </td>
+                      <td data-slot="table-cell" className="p-2 align-middle whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] text-center font-semibold">
+                        {company.activeProjectCount}
+                      </td>
+                      <td data-slot="table-cell" className="p-2 align-middle whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] text-center font-semibold">
+                        {company.clientCount}
+                      </td>
                       <td data-slot="table-cell" className="p-2 align-middle whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] text-center text-sm text-muted-foreground">
                         {formatDate(company.joined)}
                       </td>
