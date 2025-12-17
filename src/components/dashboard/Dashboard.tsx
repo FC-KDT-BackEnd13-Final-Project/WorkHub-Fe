@@ -366,88 +366,150 @@ export function Dashboard() {
               ref={scrollContainerRef}
               className={`relative w-full pr-1 ${enableHistoryScroll ? "max-h-96 overflow-y-auto" : ""}`}
             >
-              <table className="w-full caption-bottom text-sm">
-                <thead className="[&_tr]:border-b">
-                  <tr className="hover:bg-muted/50 border-b transition-colors">
-                    <th className="text-foreground h-10 px-2 text-left align-middle font-medium w-2/5 whitespace-normal md:whitespace-nowrap">
-                      활동 내용
-                    </th>
-                    <th className="text-foreground h-10 px-2 align-middle font-medium w-1/5 text-center whitespace-normal md:whitespace-nowrap">
-                      대상
-                    </th>
-                    <th className="text-foreground h-10 px-2 align-middle font-medium w-1/6 text-center whitespace-normal md:whitespace-nowrap">
-                      실행자
-                    </th>
-                    <th className="text-foreground h-10 px-2 align-middle font-medium w-1/6 text-center whitespace-normal md:whitespace-nowrap">
-                      작업 유형
-                    </th>
-                    <th className="text-foreground h-10 px-2 align-middle font-medium w-1/6 text-center whitespace-normal md:whitespace-nowrap">
-                      발생 시각
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="[&_tr:last-child]:border-0">
-                  {visibleHistoryEvents.map((event) => {
-                    const palette = historyPalette[event.type] ?? historyPalette.create;
-                    return (
-                      <tr key={event.id} className="hover:bg-muted/50 border-b transition-colors">
-                        <td className="p-2 align-middle whitespace-normal">
-                          <div className="flex items-center gap-3">
-                            <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-xl border border-white/70 shadow-sm">
-                              {isSystemActor(event.updatedBy) ? (
-                                <img src={logoImage} alt="WorkHub 로고" className="h-full w-full object-cover" />
-                              ) : event.updatedBy ? (
-                                <img
-                                  src={getAvatarUrl(event.updatedBy)}
-                                  alt={event.updatedBy}
-                                  className="h-full w-full object-cover"
-                                />
-                              ) : (
-                                <div className="flex h-full w-full items-center justify-center bg-slate-100 text-sm font-semibold text-foreground">
-                                  {getInitials(event.updatedBy)}
-                                </div>
-                              )}
+              <div className="space-y-4 md:hidden">
+                {visibleHistoryEvents.map((event) => {
+                  const palette = historyPalette[event.type] ?? historyPalette.create;
+                  return (
+                    <div key={event.id} className="rounded-xl border border-white/70 bg-white/90 p-4 shadow-sm">
+                      <div className="flex items-center gap-3">
+                        <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-xl border border-white/70 shadow-sm">
+                          {isSystemActor(event.updatedBy) ? (
+                            <img src={logoImage} alt="WorkHub 로고" className="h-full w-full object-cover" />
+                          ) : event.updatedBy ? (
+                            <img
+                              src={getAvatarUrl(event.updatedBy)}
+                              alt={event.updatedBy}
+                              className="h-full w-full object-cover"
+                            />
+                          ) : (
+                            <div className="flex h-full w-full items-center justify-center bg-slate-100 text-sm font-semibold text-foreground">
+                              {getInitials(event.updatedBy)}
                             </div>
-                            <div className="space-y-1">
-                              <p className="text-sm font-medium text-foreground">{event.message}</p>
-                              <p className="text-xs text-muted-foreground">{event.timestamp}</p>
-                            </div>
+                          )}
+                        </div>
+                        <div className="flex-1 space-y-1">
+                          <p className="text-sm font-medium text-foreground">{event.message}</p>
+                        </div>
+                      </div>
+                      <div className="mt-3 space-y-1 text-xs text-muted-foreground">
+                        <div className="flex flex-wrap gap-3">
+                          <div className="flex min-w-[45%] flex-1 items-center gap-2">
+                            <span className="w-12 shrink-0 font-semibold text-foreground">대상</span>
+                            <span className="flex-1 whitespace-normal break-words">{event.target ?? "—"}</span>
                           </div>
-                        </td>
-                        <td className="p-2 align-middle text-center text-sm text-muted-foreground whitespace-normal md:whitespace-nowrap">
-                          {event.target ?? "—"}
-                        </td>
-                        <td className="p-2 align-middle text-center whitespace-normal md:whitespace-nowrap">
-                          <span className="inline-flex items-center justify-center rounded-md border px-2 py-0.5 text-xs font-medium bg-secondary text-secondary-foreground border-transparent">
-                            {event.updatedBy ?? "시스템"}
-                          </span>
-                        </td>
-                        <td className="p-2 align-middle text-center whitespace-normal md:whitespace-nowrap">
-                          <span
-                            className="inline-flex items-center justify-center rounded-md border px-2 py-0.5 text-xs font-medium w-fit whitespace-nowrap shrink-0"
-                            style={{ backgroundColor: palette.iconBg, color: palette.iconColor, borderColor: palette.iconBg }}
-                          >
-                            {event.type.toUpperCase()}
-                          </span>
-                        </td>
-                        <td className="p-2 align-middle text-center text-sm text-muted-foreground whitespace-normal md:whitespace-nowrap">
-                          {format(new Date(event.updatedAt), "yyyy.MM.dd HH:mm")}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                  <tr ref={sentinelRef}>
-                    <td colSpan={5} />
-                  </tr>
-                  {visibleHistoryEvents.length === 0 && (
-                    <tr>
-                      <td colSpan={5} className="p-8 text-center text-sm text-muted-foreground">
-                        오늘 업데이트된 히스토리가 없습니다.
-                      </td>
+                          <div className="flex min-w-[45%] flex-1 items-center gap-2">
+                            <span className="w-12 shrink-0 font-semibold text-foreground">실행자</span>
+                            <span className="flex-1">
+                              <span className="inline-flex items-center justify-center rounded-md border px-2 py-0.5 text-[11px] font-medium bg-secondary text-secondary-foreground border-transparent">
+                                {event.updatedBy ?? "시스템"}
+                              </span>
+                            </span>
+                          </div>
+                        </div>
+                        <div className="flex flex-wrap gap-3">
+                          <div className="flex min-w-[45%] flex-1 items-center gap-2">
+                            <span className="w-12 shrink-0 font-semibold text-foreground">작업 유형</span>
+                            <span className="flex-1">
+                              <span
+                                className="inline-flex items-center justify-center rounded-md border px-2 py-0.5 text-[11px] font-medium w-fit whitespace-nowrap shrink-0"
+                                style={{ backgroundColor: palette.iconBg, color: palette.iconColor, borderColor: palette.iconBg }}
+                              >
+                                {event.type.toUpperCase()}
+                              </span>
+                            </span>
+                          </div>
+                          <div className="flex min-w-[45%] flex-1 items-center gap-2">
+                            <span className="w-12 shrink-0 font-semibold text-foreground">발생 시각</span>
+                            <span className="flex-1 whitespace-normal break-words">{event.timestamp}</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              <div className="hidden md:block">
+                <table className="w-full caption-bottom text-sm">
+                  <thead className="[&_tr]:border-b">
+                    <tr className="hover:bg-muted/50 border-b transition-colors">
+                      <th className="text-foreground h-10 px-2 text-left align-middle font-medium w-auto md:w-2/5 whitespace-normal md:whitespace-nowrap">
+                        활동 내용
+                      </th>
+                      <th className="text-foreground h-10 px-2 align-middle font-medium w-auto md:w-1/5 text-center whitespace-normal md:whitespace-nowrap">
+                        대상
+                      </th>
+                      <th className="text-foreground h-10 px-2 align-middle font-medium w-auto md:w-1/6 text-center whitespace-normal md:whitespace-nowrap">
+                        실행자
+                      </th>
+                      <th className="text-foreground h-10 px-2 align-middle font-medium w-auto md:w-1/6 text-center whitespace-normal md:whitespace-nowrap">
+                        작업 유형
+                      </th>
+                      <th className="text-foreground h-10 px-2 align-middle font-medium w-auto md:w-1/6 text-center whitespace-normal md:whitespace-nowrap">
+                        발생 시각
+                      </th>
                     </tr>
-                  )}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody className="[&_tr:last-child]:border-0">
+                    {visibleHistoryEvents.map((event) => {
+                      const palette = historyPalette[event.type] ?? historyPalette.create;
+                      return (
+                        <tr key={event.id} className="hover:bg-muted/50 border-b transition-colors">
+                          <td className="p-2 align-middle whitespace-normal">
+                            <div className="flex items-center gap-3">
+                              <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-xl border border-white/70 shadow-sm">
+                                {isSystemActor(event.updatedBy) ? (
+                                  <img src={logoImage} alt="WorkHub 로고" className="h-full w-full object-cover" />
+                                ) : event.updatedBy ? (
+                                  <img
+                                    src={getAvatarUrl(event.updatedBy)}
+                                    alt={event.updatedBy}
+                                    className="h-full w-full object-cover"
+                                  />
+                                ) : (
+                                  <div className="flex h-full w-full items-center justify-center bg-slate-100 text-sm font-semibold text-foreground">
+                                    {getInitials(event.updatedBy)}
+                                  </div>
+                                )}
+                              </div>
+                              <div className="space-y-1">
+                                <p className="text-sm font-medium text-foreground">{event.message}</p>
+                                <p className="text-xs text-muted-foreground">{event.timestamp}</p>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="p-2 align-middle text-center text-sm text-muted-foreground whitespace-normal md:whitespace-nowrap">
+                            {event.target ?? "—"}
+                          </td>
+                          <td className="p-2 align-middle text-center whitespace-normal md:whitespace-nowrap">
+                            <span className="inline-flex items-center justify-center rounded-md border px-2 py-0.5 text-xs font-medium bg-secondary text-secondary-foreground border-transparent">
+                              {event.updatedBy ?? "시스템"}
+                            </span>
+                          </td>
+                          <td className="p-2 align-middle text-center whitespace-normal md:whitespace-nowrap">
+                            <span
+                              className="inline-flex items-center justify-center rounded-md border px-2 py-0.5 text-xs font-medium w-fit whitespace-nowrap shrink-0"
+                              style={{ backgroundColor: palette.iconBg, color: palette.iconColor, borderColor: palette.iconBg }}
+                            >
+                              {event.type.toUpperCase()}
+                            </span>
+                          </td>
+                          <td className="p-2 align-middle text-center text-sm text-muted-foreground whitespace-normal md:whitespace-nowrap">
+                            {format(new Date(event.updatedAt), "yyyy.MM.dd HH:mm")}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+
+              <div ref={sentinelRef} className="h-4" />
+              {visibleHistoryEvents.length === 0 && (
+                <div className="p-8 text-center text-sm text-muted-foreground">
+                  오늘 업데이트된 히스토리가 없습니다.
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>
