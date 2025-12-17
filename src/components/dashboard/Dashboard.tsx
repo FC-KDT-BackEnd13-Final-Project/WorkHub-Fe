@@ -391,37 +391,29 @@ export function Dashboard() {
                           <p className="text-sm font-medium text-foreground">{event.message}</p>
                         </div>
                       </div>
-                      <div className="mt-4 space-y-1 text-xs text-muted-foreground">
-                        <div className="flex flex-wrap gap-3">
-                          <div className="flex min-w-[45%] flex-1 items-center gap-2">
-                            <span className="w-12 shrink-0 font-semibold text-foreground">대상</span>
-                            <span className="flex-1 whitespace-normal break-words">{event.target ?? "—"}</span>
-                          </div>
-                          <div className="flex min-w-[45%] flex-1 items-center gap-2">
-                            <span className="w-12 shrink-0 font-semibold text-foreground">실행자</span>
-                            <span className="flex-1">
-                              <span className="inline-flex items-center justify-center rounded-md border px-2 py-0.5 text-[11px] font-medium bg-secondary text-secondary-foreground border-transparent">
-                                {event.updatedBy ?? "시스템"}
-                              </span>
-                            </span>
-                          </div>
+                      <div className="mt-4 space-y-2 text-xs text-muted-foreground">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-[11px] text-slate-400">대상</span>
+                          <span className="font-medium text-foreground text-right">{event.target ?? "—"}</span>
                         </div>
-                        <div className="flex flex-wrap gap-3">
-                          <div className="flex min-w-[45%] flex-1 items-center gap-2">
-                            <span className="w-12 shrink-0 font-semibold text-foreground">작업 유형</span>
-                            <span className="flex-1">
-                              <span
-                                className="inline-flex items-center justify-center rounded-md border px-2 py-0.5 text-[11px] font-medium w-fit whitespace-nowrap shrink-0"
-                                style={{ backgroundColor: palette.iconBg, color: palette.iconColor, borderColor: palette.iconBg }}
-                              >
-                                {event.type.toUpperCase()}
-                              </span>
-                            </span>
-                          </div>
-                          <div className="flex min-w-[45%] flex-1 items-center gap-2">
-                            <span className="w-12 shrink-0 font-semibold text-foreground">발생 시각</span>
-                            <span className="flex-1 whitespace-normal break-words">{event.timestamp}</span>
-                          </div>
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-[11px] text-slate-400">실행자</span>
+                          <span className="inline-flex items-center justify-center rounded-md border border-transparent bg-secondary px-2 py-0.5 text-[11px] font-medium text-secondary-foreground">
+                            {event.updatedBy ?? "시스템"}
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-[11px] text-slate-400">작업 유형</span>
+                          <span
+                            className="inline-flex items-center justify-center rounded-md border px-2 py-0.5 text-[11px] font-medium"
+                            style={{ backgroundColor: palette.iconBg, color: palette.iconColor, borderColor: palette.iconBg }}
+                          >
+                            {event.type.toUpperCase()}
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-[11px] text-slate-400">발생 시각</span>
+                          <span>{event.timestamp}</span>
                         </div>
                       </div>
                     </div>
