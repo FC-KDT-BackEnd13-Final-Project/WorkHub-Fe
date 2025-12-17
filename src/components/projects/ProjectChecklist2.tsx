@@ -306,15 +306,8 @@ export function ProjectChecklist2() {
     return () => {
       cancelled = true;
     };
-  }, [
-    hasRouteContext,
-    projectId,
-    nodeId,
-    roleLocksChecklist,
-    applyChecklistSnapshot,
-    localAuthor,
-    deriveAuthorFields,
-  ]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hasRouteContext, projectId, nodeId, roleLocksChecklist]);
 
   useEffect(() => {
     if (existingChecklistId) {
