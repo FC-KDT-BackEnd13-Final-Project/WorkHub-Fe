@@ -78,6 +78,17 @@ export async function markNotificationsAsRead(ids: string[]) {
   await Promise.all(ids.map((id) => markNotificationAsRead(id)));
 }
 
+function parseNotificationDate(dateLike?: string): string {
+  if (!dateLike) {
+    return new Date().toISOString();
+  }
+  // 백엔드(LocalDateTime 직렬화)가 타임존을 포함하지 않는 경우를 대비해, Z/오프셋이 없으면 UTC로 간주해 파싱한다.
+  const hasTimezone = /[zZ]|([+-]\d{2}:?\d{2})$/.test(dateLike);
+  const normalized = hasTimezone ? dateLike : `${dateLike}Z`;
+  const parsed = new Date(normalized);
+  return Number.isNaN(parsed.getTime()) ? new Date().toISOString() : parsed.toISOString();
+}
+
 export function openNotificationEventSource(options: {
   onMessage: (data: unknown, event: MessageEvent) => void;
   onError?: (error: any) => void;
@@ -130,13 +141,15 @@ export function formatRelativeTime(isoDate: string) {
 }
 
 export function normalizeNotification(dto: NotificationDto): Notification {
-  const createdAt = dto.createdAt ? new Date(dto.createdAt).toISOString() : new Date().toISOString();
+  const createdAt = parseNotificationDate(dto.createdAt);
   const eventType = (dto.eventType ?? dto.type ?? "STATUS_CHANGED") as NotificationEventType;
   const projectNodeId = dto.projectNodeId ?? dto.nodeId;
   const postId = dto.postId ?? dto.csPostId;
   const csPostId = dto.csPostId ? String(dto.csPostId) : undefined;
   const csQnaId = dto.csQnaId ? String(dto.csQnaId) : undefined;
   const commentId = dto.commentId ? String(dto.commentId) : undefined;
+  const linkCandidate = dto.link ?? dto.relatedUrl ?? dto.externalUrl;
+  const link = linkCandidate && linkCandidate.startsWith("/api/") ? undefined : linkCandidate;
 
   return {
     id: String(dto.id),
@@ -152,7 +165,7 @@ export function normalizeNotification(dto: NotificationDto): Notification {
     avatarUrl: dto.avatarUrl,
     actorName: dto.actorName,
     actorType: dto.actorType,
-    link: dto.link ?? dto.relatedUrl ?? dto.externalUrl,
+    link,
     projectId: dto.projectId ? String(dto.projectId) : undefined,
     nodeId: projectNodeId ? String(projectNodeId) : undefined,
     projectNodeId: projectNodeId ? String(projectNodeId) : undefined,

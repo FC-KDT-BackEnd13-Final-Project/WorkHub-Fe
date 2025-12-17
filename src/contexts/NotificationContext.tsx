@@ -99,7 +99,12 @@ export function NotificationProvider({ enabled, children }: { enabled: boolean; 
 
   const resolveLink = useCallback((notification: Notification) => {
     const { link, externalUrl, projectId, csPostId, csQnaId, ticketId, postId, projectNodeId, nodeId } = notification;
-    if (link) return link;
+    if (link) {
+      if (projectId && link === `/projects/${projectId}`) {
+        return `/projects/${projectId}/nodes`;
+      }
+      return link;
+    }
     if (externalUrl) return externalUrl;
 
     const supportTicketId = ticketId ?? csPostId ?? csQnaId;
