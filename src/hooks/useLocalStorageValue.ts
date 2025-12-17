@@ -59,6 +59,7 @@ export function useLocalStorageValue<T>(
   }, [key, resolveDefault]);
 
   const [value, setValue] = useState<T>(() => readValue());
+  const valueRef = useRef(value);
 
   const broadcastChange = useCallback(
     (next: T) => {
@@ -74,18 +75,17 @@ export function useLocalStorageValue<T>(
 
   const setStoredValue = useCallback(
     (updater: T | ((previous: T) => T)) => {
-      setValue((previous) => {
-        const nextValue = typeof updater === "function" ? (updater as (prev: T) => T)(previous) : updater;
-        if (typeof window !== "undefined" && sync) {
-          try {
-            window.localStorage.setItem(key, serializerRef.current(nextValue));
-            broadcastChange(nextValue);
-          } catch (error) {
-            console.error(`Failed to store key "${key}" in localStorage`, error);
-          }
+      const nextValue = typeof updater === "function" ? (updater as (prev: T) => T)(valueRef.current) : updater;
+      valueRef.current = nextValue;
+      setValue(nextValue);
+      if (typeof window !== "undefined" && sync) {
+        try {
+          window.localStorage.setItem(key, serializerRef.current(nextValue));
+          broadcastChange(nextValue);
+        } catch (error) {
+          console.error(`Failed to store key "${key}" in localStorage`, error);
         }
-        return nextValue;
-      });
+      }
     },
     [broadcastChange, key, serializerRef, sync],
   );
@@ -95,23 +95,33 @@ export function useLocalStorageValue<T>(
       window.localStorage.removeItem(key);
       broadcastChange(resolveDefault());
     }
+    valueRef.current = resolveDefault();
     setValue(resolveDefault());
   }, [broadcastChange, key, resolveDefault]);
 
   useEffect(() => {
-    setValue(readValue());
+    const nextValue = readValue();
+    valueRef.current = nextValue;
+    setValue(nextValue);
   }, [key, readValue, resolveDefault]);
+
+  useEffect(() => {
+    valueRef.current = value;
+  }, [value]);
 
   useEffect(() => {
     if (!listen || typeof window === "undefined") return;
     const handleStorage = (event: StorageEvent) => {
       if (event.key === key) {
-        setValue(event.newValue === null ? resolveDefault() : parserRef.current(event.newValue));
+        const nextValue = event.newValue === null ? resolveDefault() : parserRef.current(event.newValue);
+        valueRef.current = nextValue;
+        setValue(nextValue);
       }
     };
     const handleCustomStorage = (event: Event) => {
       const customEvent = event as CustomEvent<StorageEventDetail<T>>;
       if (customEvent.detail?.key === key) {
+        valueRef.current = customEvent.detail.value;
         setValue(customEvent.detail.value);
       }
     };

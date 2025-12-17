@@ -1,5 +1,6 @@
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { useEffect, useState } from "react";
+import { toast } from "sonner";
 import { Card2, CardContent, CardFooter, CardHeader } from "../ui/card2";
 import { Badge2 } from "../ui/badge2";
 import { Button2 } from "../ui/button2";
@@ -23,12 +24,27 @@ import {
 } from "../../data/supportTickets";
 import { removeSupportStatus, saveSupportStatus } from "../../utils/supportTicketStatusStorage";
 import { ModalShell } from "../common/ModalShell";
+import {
+    createComment,
+    createPost,
+    deleteComment,
+    deletePost,
+    fetchComments,
+    fetchPost,
+    fetchPostThreads,
+    flattenPostReplies,
+    mapLabelToPostType,
+    mapPostTypeToLabel,
+    updateComment,
+    updatePost,
+} from "../../lib/posts";
+import type { CommentResponse, PostResponse, PostThreadResponse } from "../../types/post";
 
 export interface ReplyDraftPayload {
     title: string;
     content: string;
     attachments: AttachmentDraft[];
-    links: { url: string; description: string }[];
+    links: { url: string; description: string; linkId?: number }[];
 }
 
 const COMMENTS_PER_PAGE = 5;
@@ -37,6 +53,8 @@ const SUPPORT_STATUS_OPTIONS: SupportTicketStatus[] = [
     "IN_PROGRESS",
     "COMPLETED",
 ];
+
+const DEFAULT_POST_IP = "0.0.0.0";
 
 // 단일 CS 문의/포스트를 상세 뷰 및 편집 모드로 보여줌
 interface PostPayload {
@@ -127,8 +145,14 @@ export function ProjectPostDetail({
         postId?: string;
     }>();
     const location = useLocation();
-    const stateData = location.state as { post?: PostPayload; reply?: PostReplyItem } | undefined;
+    const stateData = location.state as { post?: PostPayload; reply?: PostReplyItem; replyId?: string } | undefined;
     const statePost = stateData?.post;
+    const replyIdFromState = stateData?.replyId;
+    const useProjectApi = Boolean(projectId && nodeId && !initialPost && !useExternalCommentSync);
+
+    const [fetchedPost, setFetchedPost] = useState<PostPayload | null>(null);
+    const [commentTotalPages, setCommentTotalPages] = useState(1);
+    const [mainPostId, setMainPostId] = useState<string | null>(postId ?? null);
 
     const fallbackPost =
         !statePost && !initialPost && postId
@@ -136,6 +160,7 @@ export function ProjectPostDetail({
             : undefined;
 
     const post: PostPayload =
+        fetchedPost ||
         statePost ||
         initialPost ||
         (fallbackPost
@@ -171,7 +196,7 @@ export function ProjectPostDetail({
         post.ticketStatus,
     );
     const [postAttachments, setPostAttachments] = useState<AttachmentDraft[]>([]);
-    const [postLinks, setPostLinks] = useState<{ url: string; description: string }[]>([]);
+    const [postLinks, setPostLinks] = useState<{ url: string; description: string; linkId?: number }[]>([]);
     const [isPostEditing, setIsPostEditing] = useState(startInEditMode);
     const [postEditorKey, setPostEditorKey] = useState(0);
     const [postEditDraft, setPostEditDraft] = useState<RichTextDraft>({
@@ -208,10 +233,83 @@ export function ProjectPostDetail({
 
     const postStorageKey = post.id || "default-post";
 
-    const [postReplies, setPostReplies] = useState<PostReplyItem[]>(() => {
-        const replies = loadRepliesForPost(postStorageKey);
-        return replies;
+    const [postReplies, setPostReplies] = useState<PostReplyItem[]>([]);
+
+    const normalizePostLinks = (links: PostResponse["links"] | undefined) =>
+        (links ?? []).map((link) => ({
+            url: link.referenceLink,
+            description: link.linkDescription,
+            linkId: link.linkId,
+        }));
+
+    const normalizePostFiles = (files: PostResponse["files"] | undefined) =>
+        (files ?? []).map((file) => ({
+            id: `file-${file.postFileId}`,
+            name: file.fileName,
+            size: 0,
+            dataUrl: "",
+        }));
+
+    const toPostPayload = (response: PostResponse, createdAt?: string): PostPayload => ({
+        id: String(response.postId),
+        customerName: "알 수 없음",
+        type: mapPostTypeToLabel(response.postType),
+        title: response.title,
+        content: response.content,
+        createdDate: createdAt ?? "",
+        updatedDate: createdAt ?? "",
+        hashtag: "",
+        isOwner: true,
+        parentId: response.parentPostId ? String(response.parentPostId) : null,
+        ticketStatus: undefined,
     });
+
+    const toReplyItemFromPost = (response: PostResponse, createdAt?: string): PostReplyItem => ({
+        id: String(response.postId),
+        title: response.title,
+        content: response.content,
+        createdAt: createdAt ?? new Date().toISOString(),
+        author: "알 수 없음",
+        attachments: normalizePostFiles(response.files),
+        links: normalizePostLinks(response.links),
+        updatedAt: undefined,
+        parentId: response.parentPostId ? String(response.parentPostId) : null,
+        isComment: false,
+    });
+
+    const toReplyItemFromThread = (reply: PostThreadResponse): PostReplyItem => ({
+        id: String(reply.postId),
+        title: reply.title,
+        content: reply.contentPreview,
+        createdAt: reply.createdAt,
+        author: "알 수 없음",
+        attachments: [],
+        links: [],
+        updatedAt: undefined,
+        parentId: reply.parentPostId ? String(reply.parentPostId) : null,
+        isComment: false,
+    });
+
+    const flattenComments = (items: CommentResponse[]): PostReplyItem[] => {
+        const result: PostReplyItem[] = [];
+        const walk = (comment: CommentResponse) => {
+            result.push({
+                id: String(comment.commentId),
+                title: "",
+                content: comment.commentContent,
+                createdAt: comment.createAt,
+                updatedAt: comment.updateAt,
+                author: `사용자 ${comment.userId}`,
+                attachments: [],
+                links: [],
+                parentId: comment.parentCommentId ? String(comment.parentCommentId) : null,
+                isComment: true,
+            });
+            (comment.children ?? []).forEach(walk);
+        };
+        items.forEach(walk);
+        return result;
+    };
 
     const replyFromState = stateData?.reply;
     const [focusedReply, setFocusedReply] = useState<PostReplyItem | null>(
@@ -247,6 +345,7 @@ export function ProjectPostDetail({
     }, [startInEditMode]);
 
     useEffect(() => {
+        if (!useExternalCommentSync) return;
         const syncReplies = () => {
             const replies = loadRepliesForPost(postStorageKey);
             setPostReplies(replies);
@@ -282,7 +381,155 @@ export function ProjectPostDetail({
                 handleCustomUpdate as EventListener,
             );
         };
-    }, [postStorageKey]);
+    }, [postStorageKey, useExternalCommentSync]);
+
+    useEffect(() => {
+        if (!useProjectApi || !projectId || !nodeId || !postId) return;
+        let cancelled = false;
+
+        const findThread = (
+            threads: PostThreadResponse[],
+            targetId: string,
+        ): { parent: PostThreadResponse | null; reply: PostThreadResponse | null } => {
+            for (const parent of threads) {
+                if (String(parent.postId) === targetId) {
+                    return { parent, reply: null };
+                }
+                const stack = [...(parent.replies ?? [])];
+                while (stack.length > 0) {
+                    const current = stack.pop();
+                    if (!current) continue;
+                    if (String(current.postId) === targetId) {
+                        return { parent, reply: current };
+                    }
+                    stack.push(...(current.replies ?? []));
+                }
+            }
+            return { parent: null, reply: null };
+        };
+
+        const loadPostDetail = async () => {
+            try {
+                const threadResponse = await fetchPostThreads({
+                    projectId,
+                    nodeId,
+                    page: 0,
+                    size: 50,
+                });
+                if (cancelled) return;
+                const threads = threadResponse.posts ?? [];
+
+                const { parent: matchedParent, reply: matchedReply } = findThread(threads, postId);
+                const parentCreatedAt = matchedParent?.createdAt;
+
+                const rawPost = await fetchPost({ projectId, nodeId, postId });
+                if (cancelled) return;
+
+                let mainPost = rawPost;
+                let replyPost: PostResponse | null = null;
+                let replyCreatedAt: string | undefined;
+
+                if (rawPost.parentPostId) {
+                    replyPost = rawPost;
+                    replyCreatedAt = matchedReply?.createdAt;
+                    mainPost = await fetchPost({
+                        projectId,
+                        nodeId,
+                        postId: String(rawPost.parentPostId),
+                    });
+                    if (cancelled) return;
+                }
+
+                const payload = toPostPayload(mainPost, parentCreatedAt ?? "");
+                setFetchedPost(payload);
+                setMainPostId(String(mainPost.postId));
+
+                const attachments = normalizePostFiles(mainPost.files);
+                const links = normalizePostLinks(mainPost.links);
+                setPostAttachments(attachments);
+                setPostLinks(links);
+                setPostEditDraft({
+                    title: payload.title,
+                    content: payload.content,
+                    attachments,
+                    links,
+                    type: payload.type,
+                });
+
+                const replyItems = matchedParent
+                    ? flattenPostReplies(matchedParent.replies ?? []).map(toReplyItemFromThread)
+                    : [];
+                setPostReplies((prev) => {
+                    const commentsOnly = prev.filter((item) => item.isComment);
+                    return [...replyItems, ...commentsOnly];
+                });
+
+                if (replyPost) {
+                    setFocusedReply(toReplyItemFromPost(replyPost, replyCreatedAt));
+                } else if (replyIdFromState) {
+                    const found = replyItems.find((item) => item.id === replyIdFromState);
+                    if (found) {
+                        setFocusedReply(found);
+                    } else {
+                        const replyDetail = await fetchPost({
+                            projectId,
+                            nodeId,
+                            postId: replyIdFromState,
+                        });
+                        if (cancelled) return;
+                        setFocusedReply(toReplyItemFromPost(replyDetail));
+                    }
+                }
+            } catch (error) {
+                const message =
+                    error instanceof Error ? error.message : "게시글 상세를 불러오는 중 오류가 발생했습니다.";
+                toast.error(message);
+            }
+        };
+
+        void loadPostDetail();
+        return () => {
+            cancelled = true;
+        };
+    }, [nodeId, postId, projectId, replyIdFromState, useProjectApi]);
+
+    useEffect(() => {
+        if (!useProjectApi) return;
+        setCommentPage(1);
+    }, [mainPostId, useProjectApi]);
+
+    useEffect(() => {
+        if (!useProjectApi || !projectId || !nodeId || !mainPostId) return;
+        let cancelled = false;
+
+        const loadComments = async () => {
+            try {
+                const commentResponse = await fetchComments({
+                    projectId,
+                    nodeId,
+                    postId: mainPostId,
+                    page: commentPage - 1,
+                    size: COMMENTS_PER_PAGE,
+                });
+                if (cancelled) return;
+                const commentItems = flattenComments(commentResponse.content ?? []);
+                setCommentTotalPages(Math.max(commentResponse.totalPages ?? 1, 1));
+                setPostReplies((prev) => {
+                    const repliesOnly = prev.filter((item) => !item.isComment);
+                    return [...repliesOnly, ...commentItems];
+                });
+            } catch (error) {
+                const message =
+                    error instanceof Error ? error.message : "댓글을 불러오는 중 오류가 발생했습니다.";
+                toast.error(message);
+            }
+        };
+
+        void loadComments();
+        return () => {
+            cancelled = true;
+        };
+    }, [commentPage, mainPostId, nodeId, projectId, useProjectApi]);
 
     useEffect(() => {
         setFocusedReply(replyFromState ?? null);
@@ -325,8 +572,11 @@ export function ProjectPostDetail({
     const deletedComments = comments.filter((comment) => comment.status === "deleted");
     const topLevelComments = activeComments.filter((c) => (c.parentId ?? null) === null);
 
-    const totalCommentPages = calculateTotalPages(topLevelComments.length, COMMENTS_PER_PAGE);
-    const paginatedTopLevel = paginate(topLevelComments, commentPage, COMMENTS_PER_PAGE);
+    const fallbackCommentPages = calculateTotalPages(topLevelComments.length, COMMENTS_PER_PAGE);
+    const totalCommentPages = useProjectApi ? Math.max(commentTotalPages, 1) : fallbackCommentPages;
+    const paginatedTopLevel = useProjectApi
+        ? topLevelComments
+        : paginate(topLevelComments, commentPage, COMMENTS_PER_PAGE);
 
     useEffect(() => {
         setCommentPage((prev) => clampPage(prev, totalCommentPages));
@@ -482,12 +732,56 @@ export function ProjectPostDetail({
                 return;
             }
             setIsPostSaving(false);
+        } else if (useProjectApi && projectId && nodeId && mainPostId) {
+            try {
+                setIsPostSaving(true);
+                const updated = await updatePost({
+                    projectId,
+                    nodeId,
+                    postId: mainPostId,
+                    payload: {
+                        title: trimmedTitle,
+                        content: postEditDraft.content,
+                        postType: mapLabelToPostType(postEditDraft.type),
+                        postIp: DEFAULT_POST_IP,
+                        links: postEditDraft.links?.map((link) => ({
+                            url: link.url,
+                            description: link.description,
+                            linkId: link.linkId,
+                        })),
+                    },
+                });
+                const attachments = normalizePostFiles(updated.files);
+                const links = normalizePostLinks(updated.links);
+                setPostAttachments(attachments);
+                setPostLinks(links);
+                setFetchedPost((prev) =>
+                    prev
+                        ? {
+                            ...prev,
+                            title: trimmedTitle,
+                            content: updated.content,
+                            type: mapPostTypeToLabel(updated.postType),
+                        }
+                        : prev,
+                );
+            } catch (error) {
+                const message =
+                    error instanceof Error ? error.message : "게시글 수정에 실패했습니다.";
+                toast.error(message);
+                setIsPostSaving(false);
+                return;
+            }
+            setIsPostSaving(false);
         }
 
+        const shouldApplyDraft = !useProjectApi || Boolean(onSubmitPostEdit);
         setPostTitleState(trimmedTitle);
         setPostContentState(postEditDraft.content);
-        setPostAttachments(postEditDraft.attachments);
-        setPostLinks(postEditDraft.links);
+        if (shouldApplyDraft) {
+            setPostAttachments(postEditDraft.attachments);
+            setPostLinks(postEditDraft.links);
+        }
         setPostTypeState(postEditDraft.type);
         post.title = trimmedTitle;
         post.content = postEditDraft.content;
@@ -502,6 +796,21 @@ export function ProjectPostDetail({
             .replace(/&nbsp;/gi, " ")
             .replace(/\s+/g, " ")
             .trim();
+
+    const draftAttachmentsToFiles = (attachments: AttachmentDraft[]) =>
+        attachments
+            .filter((file) => file.dataUrl)
+            .map((file) => {
+                const [header, encoded] = file.dataUrl.split(",");
+                const mimeMatch = /data:(.*?);base64/.exec(header ?? "");
+                const mime = mimeMatch?.[1] ?? "application/octet-stream";
+                const binary = atob(encoded ?? "");
+                const bytes = new Uint8Array(binary.length);
+                for (let i = 0; i < binary.length; i += 1) {
+                    bytes[i] = binary.charCodeAt(i);
+                }
+                return new File([bytes], file.name, { type: mime });
+            });
 
     const handleSubmitReplyDraft = async () => {
         const hasBody = normalizeHtml(replyDraft.content).length > 0;
@@ -522,6 +831,45 @@ export function ProjectPostDetail({
         };
 
         if (editingReply) {
+            if (useProjectApi && projectId && nodeId) {
+                try {
+                    const updated = await updatePost({
+                        projectId,
+                        nodeId,
+                        postId: editingReply.id,
+                        payload: {
+                            title: normalized.title,
+                            content: normalized.content,
+                            postType: mapLabelToPostType(
+                                postTypeState as "공지" | "질문" | "일반",
+                            ),
+                            postIp: DEFAULT_POST_IP,
+                            links: normalized.links?.map((link) => ({
+                                url: link.url,
+                                description: link.description,
+                                linkId: link.linkId,
+                            })),
+                        },
+                    });
+                    const updatedReply = toReplyItemFromPost(updated);
+                    setPostReplies((prev) => {
+                        const updatedList = prev.map((reply) =>
+                            reply.id === editingReply.id ? updatedReply : reply,
+                        );
+                        saveRepliesForPost(postStorageKey, updatedList);
+                        return updatedList;
+                    });
+                    setFocusedReply(updatedReply);
+                    exitReplyEditor();
+                    return;
+                } catch (error) {
+                    const message =
+                        error instanceof Error ? error.message : "답글 수정에 실패했습니다.";
+                    toast.error(message);
+                    return;
+                }
+            }
+
             const updatedReply: PostReplyItem = {
                 ...editingReply,
                 ...normalized,
@@ -557,6 +905,43 @@ export function ProjectPostDetail({
             }
         }
 
+        if (useProjectApi && projectId && nodeId && mainPostId) {
+            try {
+                const created = await createPost({
+                    projectId,
+                    nodeId,
+                    payload: {
+                        title: normalized.title,
+                        content: normalized.content,
+                        postType: mapLabelToPostType(
+                            postTypeState as "공지" | "질문" | "일반",
+                        ),
+                        postIp: DEFAULT_POST_IP,
+                        parentPostId: Number(mainPostId),
+                        links: normalized.links?.map((link) => ({
+                            url: link.url,
+                            description: link.description,
+                        })),
+                    },
+                    files: draftAttachmentsToFiles(replyDraft.attachments),
+                });
+                const createdReply = toReplyItemFromPost(created);
+                setPostReplies((prev) => {
+                    const updated = [createdReply, ...prev];
+                    saveRepliesForPost(postStorageKey, updated);
+                    return updated;
+                });
+                setFocusedReply(createdReply);
+                exitReplyEditor();
+                return;
+            } catch (error) {
+                const message =
+                    error instanceof Error ? error.message : "답글 등록에 실패했습니다.";
+                toast.error(message);
+                return;
+            }
+        }
+
         const now = new Date();
         const newReply: PostReplyItem = {
             id: `reply-${Date.now()}`,
@@ -577,6 +962,27 @@ export function ProjectPostDetail({
 
     const deleteFocusedReply = () => {
         if (!focusedReply) return;
+        if (useProjectApi && projectId && nodeId) {
+            deletePost({ projectId, nodeId, postId: focusedReply.id })
+                .then(() => {
+                    setPostReplies((prev) => {
+                        const updated = prev.filter((reply) => reply.id !== focusedReply.id);
+                        saveRepliesForPost(postStorageKey, updated);
+                        return updated;
+                    });
+                    setFocusedReply(null);
+                    setFocusedReplyMenuOpen(false);
+                    if (editingReply && editingReply.id === focusedReply.id) {
+                        exitReplyEditor();
+                    }
+                })
+                .catch((error) => {
+                    const message =
+                        error instanceof Error ? error.message : "답글 삭제에 실패했습니다.";
+                    toast.error(message);
+                });
+            return;
+        }
         setPostReplies((prev) => {
             const updated = prev.filter((reply) => reply.id !== focusedReply.id);
             saveRepliesForPost(postStorageKey, updated);
@@ -586,6 +992,30 @@ export function ProjectPostDetail({
         setFocusedReplyMenuOpen(false);
         if (editingReply && editingReply.id === focusedReply.id) {
             exitReplyEditor();
+        }
+    };
+
+    const refreshCommentsPage = async (pageOverride?: number) => {
+        if (!useProjectApi || !projectId || !nodeId || !mainPostId) return;
+        const targetPage = pageOverride ?? commentPage;
+        try {
+            const commentResponse = await fetchComments({
+                projectId,
+                nodeId,
+                postId: mainPostId,
+                page: targetPage - 1,
+                size: COMMENTS_PER_PAGE,
+            });
+            const commentItems = flattenComments(commentResponse.content ?? []);
+            setCommentTotalPages(Math.max(commentResponse.totalPages ?? 1, 1));
+            setPostReplies((prev) => {
+                const repliesOnly = prev.filter((item) => !item.isComment);
+                return [...repliesOnly, ...commentItems];
+            });
+        } catch (error) {
+            const message =
+                error instanceof Error ? error.message : "댓글을 불러오는 중 오류가 발생했습니다.";
+            toast.error(message);
         }
     };
 
@@ -639,6 +1069,19 @@ export function ProjectPostDetail({
     const handleDeletePost = async () => {
         if (onDeletePost) {
             await onDeletePost();
+            return;
+        }
+        if (useProjectApi && projectId && nodeId && mainPostId) {
+            try {
+                await deletePost({ projectId, nodeId, postId: mainPostId });
+                navigateBackToList();
+                return;
+            } catch (error) {
+                const message =
+                    error instanceof Error ? error.message : "게시글 삭제에 실패했습니다.";
+                toast.error(message);
+                return;
+            }
         } else {
             navigate(-1);
         }
@@ -857,6 +1300,26 @@ export function ProjectPostDetail({
             }
         }
 
+        if (useProjectApi && projectId && nodeId && mainPostId) {
+            try {
+                await createComment({
+                    projectId,
+                    nodeId,
+                    postId: mainPostId,
+                    payload: { content: trimmed },
+                });
+                setNewComment("");
+                setCommentPage(1);
+                await refreshCommentsPage(1);
+                return;
+            } catch (error) {
+                const message =
+                    error instanceof Error ? error.message : "댓글 등록에 실패했습니다.";
+                toast.error(message);
+                return;
+            }
+        }
+
         const createdAt = new Date().toLocaleString("ko-KR");
         const now = Date.now();
         const newCommentId = `c-${now}`;
@@ -896,24 +1359,45 @@ export function ProjectPostDetail({
         const cascadeIds = collectDescendantCommentIds(id, comments);
         const idsToRemove = [...cascadeIds, id];
 
-        if (!onDeleteInlineComment) {
+        if (!onDeleteInlineComment && !(useProjectApi && projectId && nodeId && mainPostId)) {
             setComments((prev) => prev.filter((comment) => !idsToRemove.includes(comment.id)));
             return;
         }
 
         try {
-            for (const targetId of cascadeIds) {
-                await onDeleteInlineComment(targetId, { skipRefresh: true });
-            }
-            await onDeleteInlineComment(id);
+            if (onDeleteInlineComment) {
+                for (const targetId of cascadeIds) {
+                    await onDeleteInlineComment(targetId, { skipRefresh: true });
+                }
+                await onDeleteInlineComment(id);
 
-            if (!useExternalCommentSync) {
-                setPostReplies((prev) => {
-                    const removalSet = new Set(idsToRemove);
-                    const updated = prev.filter((reply) => !removalSet.has(reply.id));
-                    saveRepliesForPost(postStorageKey, updated);
-                    return updated;
+                if (!useExternalCommentSync) {
+                    setPostReplies((prev) => {
+                        const removalSet = new Set(idsToRemove);
+                        const updated = prev.filter((reply) => !removalSet.has(reply.id));
+                        saveRepliesForPost(postStorageKey, updated);
+                        return updated;
+                    });
+                }
+                return;
+            }
+
+            if (useProjectApi && projectId && nodeId && mainPostId) {
+                for (const targetId of cascadeIds) {
+                    await deleteComment({
+                        projectId,
+                        nodeId,
+                        postId: mainPostId,
+                        commentId: targetId,
+                    });
+                }
+                await deleteComment({
+                    projectId,
+                    nodeId,
+                    postId: mainPostId,
+                    commentId: id,
                 });
+                await refreshCommentsPage();
             }
         } catch {
             // swallow
@@ -943,7 +1427,7 @@ export function ProjectPostDetail({
     };
 
     const handleUpdateComment = async (id: string, content: string) => {
-        if (!onUpdateInlineComment) {
+        if (!onUpdateInlineComment && !(useProjectApi && projectId && nodeId && mainPostId)) {
             const updatedAt = new Date().toLocaleString("ko-KR");
             setComments((prev) =>
                 prev.map((comment) =>
@@ -964,16 +1448,30 @@ export function ProjectPostDetail({
         const previous = comments.find((comment) => comment.id === id)?.content;
 
         try {
-            const updated = await onUpdateInlineComment({ commentId: id, content });
-            if (updated) {
-                const normalizedUpdated: PostReplyItem = { ...updated, isComment: true };
-                setPostReplies((prev) => {
-                    const next = prev.map((reply) =>
-                        reply.id === id ? normalizedUpdated : reply,
-                    );
-                    saveRepliesForPost(postStorageKey, next);
-                    return next;
+            if (onUpdateInlineComment) {
+                const updated = await onUpdateInlineComment({ commentId: id, content });
+                if (updated) {
+                    const normalizedUpdated: PostReplyItem = { ...updated, isComment: true };
+                    setPostReplies((prev) => {
+                        const next = prev.map((reply) =>
+                            reply.id === id ? normalizedUpdated : reply,
+                        );
+                        saveRepliesForPost(postStorageKey, next);
+                        return next;
+                    });
+                }
+                return;
+            }
+
+            if (useProjectApi && projectId && nodeId && mainPostId) {
+                await updateComment({
+                    projectId,
+                    nodeId,
+                    postId: mainPostId,
+                    commentId: id,
+                    payload: { commentContext: content },
                 });
+                await refreshCommentsPage();
             }
         } catch {
             setComments((prev) =>
@@ -1031,6 +1529,33 @@ export function ProjectPostDetail({
                     });
                 }
             } catch {
+                setComments((prev) =>
+                    prev.map((c) =>
+                        c.id === targetId ? { ...c, showReply: true, replyContent: text } : c,
+                    ),
+                );
+            }
+            return;
+        }
+
+        if (useProjectApi && projectId && nodeId && mainPostId) {
+            setComments((prev) =>
+                prev.map((c) =>
+                    c.id === targetId ? { ...c, showReply: false, replyContent: "" } : c,
+                ),
+            );
+            try {
+                await createComment({
+                    projectId,
+                    nodeId,
+                    postId: mainPostId,
+                    payload: { content: text, parentCommentId: Number(rootId) },
+                });
+                await refreshCommentsPage();
+            } catch (error) {
+                const message =
+                    error instanceof Error ? error.message : "댓글 답글 등록에 실패했습니다.";
+                toast.error(message);
                 setComments((prev) =>
                     prev.map((c) =>
                         c.id === targetId ? { ...c, showReply: true, replyContent: text } : c,

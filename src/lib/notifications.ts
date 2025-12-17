@@ -82,10 +82,35 @@ function parseNotificationDate(dateLike?: string): string {
   if (!dateLike) {
     return new Date().toISOString();
   }
-  // 백엔드(LocalDateTime 직렬화)가 타임존을 포함하지 않는 경우를 대비해, Z/오프셋이 없으면 UTC로 간주해 파싱한다.
-  const hasTimezone = /[zZ]|([+-]\d{2}:?\d{2})$/.test(dateLike);
-  const normalized = hasTimezone ? dateLike : `${dateLike}Z`;
-  const parsed = new Date(normalized);
+  // 백엔드(LocalDateTime 직렬화)가 타임존을 포함하지 않는 경우, 로컬 타임으로 해석한다.
+  let normalized = dateLike.trim();
+  if (!normalized.includes("T") && normalized.includes(" ")) {
+    normalized = normalized.replace(" ", "T");
+  }
+  normalized = normalized.replace(/(\.\d{3})\d+/, "$1");
+  const hasTimezone = /[zZ]|([+-]\d{2}:?\d{2})$/.test(normalized);
+  if (hasTimezone) {
+    const parsed = new Date(normalized);
+    return Number.isNaN(parsed.getTime()) ? new Date().toISOString() : parsed.toISOString();
+  }
+  const match = normalized.match(
+    /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2})(\.\d{1,3})?)?$/,
+  );
+  if (!match) {
+    const parsed = new Date(normalized);
+    return Number.isNaN(parsed.getTime()) ? new Date().toISOString() : parsed.toISOString();
+  }
+  const [, year, month, day, hour, minute, second = "0", fraction = ""] = match;
+  const ms = fraction ? Number(`${fraction}000`.slice(1, 4)) : 0;
+  const parsed = new Date(
+    Number(year),
+    Number(month) - 1,
+    Number(day),
+    Number(hour),
+    Number(minute),
+    Number(second),
+    ms,
+  );
   return Number.isNaN(parsed.getTime()) ? new Date().toISOString() : parsed.toISOString();
 }
 

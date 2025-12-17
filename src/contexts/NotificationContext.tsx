@@ -4,6 +4,7 @@ import type { Notification } from "../components/notifications/NotificationItem"
 import {
   fetchUnreadAndRecent,
   fetchUnreadCount,
+  formatRelativeTime,
   markNotificationAsRead,
   markNotificationsAsRead,
   normalizeNotification,
@@ -100,6 +101,9 @@ export function NotificationProvider({ enabled, children }: { enabled: boolean; 
   const resolveLink = useCallback((notification: Notification) => {
     const { link, externalUrl, projectId, csPostId, csQnaId, ticketId, postId, projectNodeId, nodeId } = notification;
     if (link) {
+      if (link.endsWith("/comments")) {
+        return link.replace(/\/comments$/, "");
+      }
       if (projectId && link === `/projects/${projectId}`) {
         return `/projects/${projectId}/nodes`;
       }
@@ -272,6 +276,19 @@ export function NotificationProvider({ enabled, children }: { enabled: boolean; 
     window.addEventListener("beforeunload", handleBeforeUnload);
     return () => window.removeEventListener("beforeunload", handleBeforeUnload);
   }, [disconnect, enabled]);
+
+  useEffect(() => {
+    if (!enabled) return;
+    const intervalId = window.setInterval(() => {
+      setNotifications((prev) =>
+        prev.map((notification) => ({
+          ...notification,
+          timeAgo: formatRelativeTime(notification.createdAt),
+        })),
+      );
+    }, 60000);
+    return () => window.clearInterval(intervalId);
+  }, [enabled]);
 
   const value = useMemo<NotificationContextValue>(
     () => ({

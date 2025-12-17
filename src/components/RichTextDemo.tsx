@@ -15,7 +15,7 @@ export interface RichTextDraft {
     title: string;
     content: string;
     attachments: AttachmentDraft[];
-    links: { url: string; description: string }[];
+    links: { url: string; description: string; linkId?: number }[];
     type: "공지" | "질문" | "일반";
 }
 
