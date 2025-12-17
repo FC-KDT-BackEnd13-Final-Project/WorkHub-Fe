@@ -33,11 +33,53 @@ const typeStyles: Partial<
     color: "#1D4ED8",
     border: "#BFDBFE",
   },
+  PROJECT_CREATED: {
+    label: "프로젝트 생성",
+    bg: "#F0F9FF",
+    color: "#0369A1",
+    border: "#BAE6FD",
+  },
+  PROJECT_MEMBER_ADDED: {
+    label: "멤버 추가",
+    bg: "#ECFDF3",
+    color: "#15803D",
+    border: "#BBF7D0",
+  },
+  PROJECT_MEMBER_REMOVED: {
+    label: "멤버 제거",
+    bg: "#FFF7ED",
+    color: "#C2410C",
+    border: "#FED7AA",
+  },
+  PROJECT_INFO_UPDATED: {
+    label: "프로젝트 정보 수정",
+    bg: "#EEF2FF",
+    color: "#4338CA",
+    border: "#C7D2FE",
+  },
+  PROJECT_NODE_CREATED: {
+    label: "노드 생성",
+    bg: "#F5F3FF",
+    color: "#6B21A8",
+    border: "#DDD6FE",
+  },
+  PROJECT_NODE_UPDATED: {
+    label: "노드 수정",
+    bg: "#F3F4F6",
+    color: "#111827",
+    border: "#E5E7EB",
+  },
   POST_CREATED: {
     label: "게시글 등록",
     bg: "#F0FDFA",
     color: "#0F766E",
     border: "#99F6E4",
+  },
+  POST_UPDATED: {
+    label: "게시글 수정",
+    bg: "#ECFEFF",
+    color: "#0EA5E9",
+    border: "#BAE6FD",
   },
   POST_COMMENT_CREATED: {
     label: "게시글 댓글 등록",
@@ -56,6 +98,18 @@ const typeStyles: Partial<
     bg: "#ECFDF5",
     color: "#15803D",
     border: "#A7F3D0",
+  },
+  CS_POST_CREATED: {
+    label: "CS 게시글 등록",
+    bg: "#FDF2F8",
+    color: "#BE185D",
+    border: "#FBCFE8",
+  },
+  CS_POST_UPDATED: {
+    label: "CS 게시글 수정",
+    bg: "#FAFAF5",
+    color: "#365314",
+    border: "#E3EAD7",
   },
 };
 
