@@ -15,6 +15,7 @@ import type {
   CheckListItemPayload,
   CheckListItemResponse,
   CheckListItemUpdatePayload,
+  CheckListResponse,
   CheckListUpdateRequest,
 } from "../../types/checkList";
 
@@ -27,10 +28,16 @@ interface ChecklistData {
   request: string;
 }
 
+type AuthorFields = {
+  name: string;
+  phone: string;
+};
+
 type StoredProfileSettings = {
   profile?: {
     id?: string | null;
     role?: string | null;
+    phone?: string | null;
   } | null;
 };
 
@@ -60,6 +67,13 @@ export function ProjectChecklist2() {
   );
   const authorName = storedProfileSettings?.profile?.id?.trim() ?? "";
   const authorPhone = storedProfileSettings?.profile?.phone?.trim() ?? "";
+  const localAuthor = useMemo<AuthorFields>(
+    () => ({
+      name: authorName,
+      phone: authorPhone,
+    }),
+    [authorName, authorPhone],
+  );
   const canEditChecklist = userRole === "ADMIN" || userRole === "DEVELOPER";
   const roleLocksChecklist = canEditChecklist;
   const [isLocked, setIsLocked] = useState(false);
@@ -70,8 +84,37 @@ export function ProjectChecklist2() {
   const [existingChecklistId, setExistingChecklistId] = useState<number | null>(null);
   const [serverChecklistItems, setServerChecklistItems] = useState<CheckListItemResponse[]>([]);
   const [serverDescription, setServerDescription] = useState("");
-  const authorId = authorName || "작성자";
+  const [appliedAuthor, setAppliedAuthor] = useState<AuthorFields>(localAuthor);
+  const authorId = localAuthor.name || "작성자";
   const hasRouteContext = Boolean(projectId && nodeId);
+
+  const deriveAuthorFields = useCallback(
+    (response?: CheckListResponse | null): AuthorFields => {
+      const safeTrim = (value?: string | null) => (typeof value === "string" ? value.trim() : "");
+      if (!response) {
+        return localAuthor;
+      }
+      const userSummary = response.user ?? null;
+      const resolvedName =
+        safeTrim(response.userName) ||
+        safeTrim(response.userLoginId) ||
+        safeTrim(userSummary?.userName) ||
+        safeTrim(userSummary?.loginId) ||
+        (typeof response.userId === "number" && response.userId > 0
+          ? `사용자 #${response.userId}`
+          : localAuthor.name);
+      const resolvedPhone =
+        safeTrim(response.userPhone) ||
+        safeTrim(userSummary?.phone) ||
+        safeTrim(userSummary?.mobile) ||
+        localAuthor.phone;
+      return {
+        name: resolvedName || localAuthor.name,
+        phone: resolvedPhone || localAuthor.phone,
+      };
+    },
+    [localAuthor],
+  );
 
   const buildChecklistPayloadFromResponse = useCallback(
     (items?: CheckListItemResponse[]): CheckListItemPayload[] => {
@@ -103,13 +146,15 @@ export function ProjectChecklist2() {
   );
 
   const applyChecklistSnapshot = useCallback(
-    (description: string, items?: CheckListItemResponse[]) => {
+    (description: string, items?: CheckListItemResponse[], authorFields?: AuthorFields) => {
       const normalizedDescription = description ?? "";
+      const resolvedAuthor = authorFields ?? appliedAuthor;
       setServerDescription(normalizedDescription);
       setServerChecklistItems(items ?? []);
+      setAppliedAuthor(resolvedAuthor);
       reset({
-        Name: authorName,
-        mobile: authorPhone,
+        Name: resolvedAuthor.name,
+        mobile: resolvedAuthor.phone,
         request: normalizedDescription,
       });
 
@@ -122,7 +167,7 @@ export function ProjectChecklist2() {
         }
       }
     },
-    [authorName, authorPhone, buildChecklistPayloadFromResponse, reset],
+    [appliedAuthor, buildChecklistPayloadFromResponse, reset],
   );
 
   const buildCreateCommands = (items: CheckListItemPayload[]): CheckListItemUpdatePayload[] =>
@@ -173,7 +218,8 @@ export function ProjectChecklist2() {
 
         toast.success("체크리스트가 생성되었습니다.");
         setExistingChecklistId(response.checkListId ?? null);
-        applyChecklistSnapshot(response.description ?? description, response.items ?? []);
+        const createdAuthor = deriveAuthorFields(response);
+        applyChecklistSnapshot(response.description ?? description, response.items ?? [], createdAuthor);
         if (roleLocksChecklist) {
           setIsLocked(true);
         }
@@ -195,7 +241,8 @@ export function ProjectChecklist2() {
         const response = await projectApi.updateCheckList(projectId!, nodeId!, payload);
         toast.success("체크리스트가 수정되었습니다.");
         setExistingChecklistId(response.checkListId ?? existingChecklistId);
-        applyChecklistSnapshot(response.description ?? description, response.items ?? []);
+        const updatedAuthor = deriveAuthorFields(response);
+        applyChecklistSnapshot(response.description ?? description, response.items ?? [], updatedAuthor);
         if (roleLocksChecklist) {
           setIsLocked(true);
         }
@@ -215,7 +262,7 @@ export function ProjectChecklist2() {
       setExistingChecklistId(null);
       setApiError(null);
       setIsLocked(false);
-      applyChecklistSnapshot("", []);
+      applyChecklistSnapshot("", [], localAuthor);
       return;
     }
 
@@ -230,12 +277,13 @@ export function ProjectChecklist2() {
         if (!response) {
           setExistingChecklistId(null);
           setIsLocked(false);
-          applyChecklistSnapshot("", []);
+          applyChecklistSnapshot("", [], localAuthor);
           return;
         }
 
         setExistingChecklistId(response.checkListId ?? null);
-        applyChecklistSnapshot(response.description ?? "", response.items ?? []);
+        const fetchedAuthor = deriveAuthorFields(response);
+        applyChecklistSnapshot(response.description ?? "", response.items ?? [], fetchedAuthor);
         if (roleLocksChecklist) {
           setIsLocked(true);
         } else {
@@ -264,12 +312,18 @@ export function ProjectChecklist2() {
     nodeId,
     roleLocksChecklist,
     applyChecklistSnapshot,
+    localAuthor,
+    deriveAuthorFields,
   ]);
 
   useEffect(() => {
-    setValue("Name", authorName);
-    setValue("mobile", authorPhone);
-  }, [authorName, authorPhone, setValue]);
+    if (existingChecklistId) {
+      return;
+    }
+    setAppliedAuthor(localAuthor);
+    setValue("Name", localAuthor.name);
+    setValue("mobile", localAuthor.phone);
+  }, [existingChecklistId, localAuthor, setValue]);
 
   const [questionResetKey, setQuestionResetKey] = useState(0);
   const [unlockSignal, setUnlockSignal] = useState(0);
@@ -279,13 +333,13 @@ export function ProjectChecklist2() {
       return;
     }
     if (existingChecklistId) {
-      applyChecklistSnapshot(serverDescription, serverChecklistItems);
+      applyChecklistSnapshot(serverDescription, serverChecklistItems, appliedAuthor);
       if (roleLocksChecklist) {
         setIsLocked(true);
       }
       return;
     }
-    reset({ Name: authorName, mobile: authorPhone, request: "" });
+    applyChecklistSnapshot("", [], localAuthor);
     formQuestionRef.current?.setChecklistItems();
     setQuestionResetKey((prev) => prev + 1);
   };
