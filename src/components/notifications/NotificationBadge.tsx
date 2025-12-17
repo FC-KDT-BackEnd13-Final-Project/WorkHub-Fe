@@ -6,9 +6,8 @@ interface NotificationBadgeProps {
   className?: string;
 }
 
-const typeStyles: Record<
-  NotificationEventType,
-  { label: string; bg: string; color: string; border: string }
+const typeStyles: Partial<
+  Record<NotificationEventType, { label: string; bg: string; color: string; border: string }>
 > = {
   REVIEW_REQUEST: {
     label: "검토 요청",

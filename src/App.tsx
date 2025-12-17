@@ -28,6 +28,7 @@ import { SupportTicketDetail } from "./pages/support/SupportTicketDetail";
 import { SettingsPage } from "./pages/settings/SettingsPage";
 import { UserHistoryPage } from "./pages/history/UserHistoryPage";
 import { useLocalStorageValue } from "./hooks/useLocalStorageValue";
+import { NotificationProvider } from "./contexts/NotificationContext";
 
 // 애플리케이션 전역 라우팅과 레이아웃을 담당하는 최상위 컴포넌트
 export default function App() {
@@ -45,144 +46,146 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen w-full bg-background text-foreground flex flex-col">
-      <Navigation />
-      <main className="flex-1 pt-[88px]">
-        <Routes>
-          <Route path="/" element={<LandingPage onLoginSuccess={handleLoginSuccess} />} />
-          <Route
-            element={
-              <SidebarLayout />
-            }
-          >
+    <NotificationProvider enabled={isAuthenticated}>
+      <div className="min-h-screen w-full bg-background text-foreground flex flex-col">
+        <Navigation />
+        <main className="flex-1 pt-[88px]">
+          <Routes>
+            <Route path="/" element={<LandingPage onLoginSuccess={handleLoginSuccess} />} />
             <Route
-              path="/dashboard"
-              element={isAuthenticated ? <Dashboard /> : <Navigate to="/" replace />}
-            />
-            <Route
-              path="/notifications"
-              element={isAuthenticated ? <NotificationsPage /> : <Navigate to="/" replace />}
-            />
-            <Route
-              path="/projects"
-              element={isAuthenticated ? <ProjectsIndex /> : <Navigate to="/" replace />}
-            />
-            <Route
-              path="/projects/:projectId/nodes"
-              element={isAuthenticated ? <ProjectNodesBoard /> : <Navigate to="/" replace />}
-            />
-            <Route
-              path="/projects/:projectId/nodes/new"
-              element={isAuthenticated ? <ProjectNodesBoard /> : <Navigate to="/" replace />}
-            />
+              element={
+                <SidebarLayout />
+              }
+            >
+              <Route
+                path="/dashboard"
+                element={isAuthenticated ? <Dashboard /> : <Navigate to="/" replace />}
+              />
+              <Route
+                path="/notifications"
+                element={isAuthenticated ? <NotificationsPage /> : <Navigate to="/" replace />}
+              />
+              <Route
+                path="/projects"
+                element={isAuthenticated ? <ProjectsIndex /> : <Navigate to="/" replace />}
+              />
+              <Route
+                path="/projects/:projectId/nodes"
+                element={isAuthenticated ? <ProjectNodesBoard /> : <Navigate to="/" replace />}
+              />
+              <Route
+                path="/projects/:projectId/nodes/new"
+                element={isAuthenticated ? <ProjectNodesBoard /> : <Navigate to="/" replace />}
+              />
 
-            <Route
-              path="/projects/:projectId/nodes/:nodeId"
-              element={isAuthenticated ? <ProjectNodeDetail /> : <Navigate to="/" replace />}
-            />
-            <Route
-              path="/projects/:projectId/nodes/:nodeId/posts"
-              element={isAuthenticated ? <ProjectNodeDetail /> : <Navigate to="/" replace />}
-            />
-            <Route
-              path="/admin/users"
-              element={isAuthenticated ? <AdminUsers /> : <Navigate to="/" replace />}
-            />
-            <Route
-              path="/admin/companies"
-              element={isAuthenticated ? <AdminCompanies /> : <Navigate to="/" replace />}
-            />
-            <Route
-              path="/admin/companies/add"
-              element={isAuthenticated ? <AdminCompanyCreate /> : <Navigate to="/" replace />}
-            />
-            <Route
-              path="/admin/users/add"
-              element={isAuthenticated ? <AdminUserCreate /> : <Navigate to="/" replace />}
-            />
-            <Route
-              path="/admin/users/add/:type"
-              element={isAuthenticated ? <AdminUserCreate /> : <Navigate to="/" replace />}
-            />
-            <Route
-              path="/admin/users/add/success"
-              element={isAuthenticated ? <AdminUserSuccess /> : <Navigate to="/" replace />}
-            />
-            <Route
-              path="/admin/users/:userId"
-              element={isAuthenticated ? <AdminUserDetail /> : <Navigate to="/" replace />}
-            />
-            <Route
-              path="/admin/users/:userId/change-role"
-              element={isAuthenticated ? <AdminUserDetail /> : <Navigate to="/" replace />}
-            />
-            <Route
-              path="/admin/users/:userId/init-password"
-              element={isAuthenticated ? <AdminUserDetail /> : <Navigate to="/" replace />}
-            />
-            <Route
-              path="/admin/users/:userId/remove-user"
-              element={isAuthenticated ? <AdminUserDetail /> : <Navigate to="/" replace />}
-            />
-            <Route
-              path="/admin/users/:userId/history"
-              element={isAuthenticated ? <AdminUserHistory /> : <Navigate to="/" replace />}
-            />
-            <Route
-              path="/admin/users/:userId/projects"
-              element={isAuthenticated ? <AdminUserProjects /> : <Navigate to="/" replace />}
-            />
-            <Route
-              path="/projects/:projectId/nodes/support"
-              element={isAuthenticated ? <SupportPage /> : <Navigate to="/" replace />}
-            />
-            <Route
-              path="/projects/:projectId/nodes/support/:ticketId"
-              element={isAuthenticated ? <SupportTicketDetail /> : <Navigate to="/" replace />}
-            />
-            <Route
-              path="/settings"
-              element={isAuthenticated ? <SettingsPage /> : <Navigate to="/" replace />}
-            />
-            <Route
-              path="/history"
-              element={isAuthenticated ? <UserHistoryPage /> : <Navigate to="/" replace />}
-            />
-            <Route
-              path="/admin/password"
-              element={isAuthenticated ? <AdminPasswordReset /> : <Navigate to="/" replace />}
-            />
-            <Route
-              path="/projectdetail"
-              element={isAuthenticated ? <ProjectDetailPage type="report" /> : <Navigate to="/" replace />}
-            />
-            <Route
-              path="/projectdetail/:projectId"
-              element={isAuthenticated ? <ProjectDetailPage type="report" /> : <Navigate to="/" replace />}
-            />
-            <Route
-              path="/projectdetail/new"
-              element={isAuthenticated ? <ProjectDetailPage type="form" /> : <Navigate to="/" replace />}
-            />
-            <Route
-              path="/projectdetail/post"
-              element={isAuthenticated ? <ProjectDetailPage type="report" /> : <Navigate to="/" replace />}
-            />
-            <Route
-              path="/projectpost/:postId"
-              element={isAuthenticated ? <ProjectPostDetail /> : <Navigate to="/" replace />}
-            />
-            <Route
-              path="/projects/:projectId/nodes/:nodeId/posts/:postId"
-              element={isAuthenticated ? <ProjectPostDetail /> : <Navigate to="/" replace />}
-            />
-          </Route>
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </main>
-      <Footer />
-      <Toaster />
-    </div>
+              <Route
+                path="/projects/:projectId/nodes/:nodeId"
+                element={isAuthenticated ? <ProjectNodeDetail /> : <Navigate to="/" replace />}
+              />
+              <Route
+                path="/projects/:projectId/nodes/:nodeId/posts"
+                element={isAuthenticated ? <ProjectNodeDetail /> : <Navigate to="/" replace />}
+              />
+              <Route
+                path="/admin/users"
+                element={isAuthenticated ? <AdminUsers /> : <Navigate to="/" replace />}
+              />
+              <Route
+                path="/admin/companies"
+                element={isAuthenticated ? <AdminCompanies /> : <Navigate to="/" replace />}
+              />
+              <Route
+                path="/admin/companies/add"
+                element={isAuthenticated ? <AdminCompanyCreate /> : <Navigate to="/" replace />}
+              />
+              <Route
+                path="/admin/users/add"
+                element={isAuthenticated ? <AdminUserCreate /> : <Navigate to="/" replace />}
+              />
+              <Route
+                path="/admin/users/add/:type"
+                element={isAuthenticated ? <AdminUserCreate /> : <Navigate to="/" replace />}
+              />
+              <Route
+                path="/admin/users/add/success"
+                element={isAuthenticated ? <AdminUserSuccess /> : <Navigate to="/" replace />}
+              />
+              <Route
+                path="/admin/users/:userId"
+                element={isAuthenticated ? <AdminUserDetail /> : <Navigate to="/" replace />}
+              />
+              <Route
+                path="/admin/users/:userId/change-role"
+                element={isAuthenticated ? <AdminUserDetail /> : <Navigate to="/" replace />}
+              />
+              <Route
+                path="/admin/users/:userId/init-password"
+                element={isAuthenticated ? <AdminUserDetail /> : <Navigate to="/" replace />}
+              />
+              <Route
+                path="/admin/users/:userId/remove-user"
+                element={isAuthenticated ? <AdminUserDetail /> : <Navigate to="/" replace />}
+              />
+              <Route
+                path="/admin/users/:userId/history"
+                element={isAuthenticated ? <AdminUserHistory /> : <Navigate to="/" replace />}
+              />
+              <Route
+                path="/admin/users/:userId/projects"
+                element={isAuthenticated ? <AdminUserProjects /> : <Navigate to="/" replace />}
+              />
+              <Route
+                path="/projects/:projectId/nodes/support"
+                element={isAuthenticated ? <SupportPage /> : <Navigate to="/" replace />}
+              />
+              <Route
+                path="/projects/:projectId/nodes/support/:ticketId"
+                element={isAuthenticated ? <SupportTicketDetail /> : <Navigate to="/" replace />}
+              />
+              <Route
+                path="/settings"
+                element={isAuthenticated ? <SettingsPage /> : <Navigate to="/" replace />}
+              />
+              <Route
+                path="/history"
+                element={isAuthenticated ? <UserHistoryPage /> : <Navigate to="/" replace />}
+              />
+              <Route
+                path="/admin/password"
+                element={isAuthenticated ? <AdminPasswordReset /> : <Navigate to="/" replace />}
+              />
+              <Route
+                path="/projectdetail"
+                element={isAuthenticated ? <ProjectDetailPage type="report" /> : <Navigate to="/" replace />}
+              />
+              <Route
+                path="/projectdetail/:projectId"
+                element={isAuthenticated ? <ProjectDetailPage type="report" /> : <Navigate to="/" replace />}
+              />
+              <Route
+                path="/projectdetail/new"
+                element={isAuthenticated ? <ProjectDetailPage type="form" /> : <Navigate to="/" replace />}
+              />
+              <Route
+                path="/projectdetail/post"
+                element={isAuthenticated ? <ProjectDetailPage type="report" /> : <Navigate to="/" replace />}
+              />
+              <Route
+                path="/projectpost/:postId"
+                element={isAuthenticated ? <ProjectPostDetail /> : <Navigate to="/" replace />}
+              />
+              <Route
+                path="/projects/:projectId/nodes/:nodeId/posts/:postId"
+                element={isAuthenticated ? <ProjectPostDetail /> : <Navigate to="/" replace />}
+              />
+            </Route>
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </main>
+        <Footer />
+        <Toaster />
+      </div>
+    </NotificationProvider>
   );
 }
 

@@ -8,10 +8,19 @@ export type NotificationEventType =
   | "REVIEW_COMPLETED"
   | "REVIEW_REJECTED"
   | "STATUS_CHANGED"
+  | "PROJECT_CREATED"
+  | "PROJECT_MEMBER_ADDED"
+  | "PROJECT_MEMBER_REMOVED"
+  | "PROJECT_INFO_UPDATED"
+  | "PROJECT_NODE_CREATED"
+  | "PROJECT_NODE_UPDATED"
   | "POST_CREATED"
+  | "POST_UPDATED"
   | "POST_COMMENT_CREATED"
   | "CS_QNA_CREATED"
-  | "CS_QNA_ANSWERED";
+  | "CS_QNA_ANSWERED"
+  | "CS_POST_CREATED"
+  | "CS_POST_UPDATED";
 
 export interface Notification {
   id: string;
@@ -27,15 +36,26 @@ export interface Notification {
   avatarUrl?: string;
   actorName?: string;
   actorType?: "user" | "system";
+  link?: string;
+  projectId?: string;
+  nodeId?: string;
+  postId?: string;
+  commentId?: string;
+  ticketId?: string;
+  csQnaId?: string;
+  csPostId?: string;
+  projectNodeId?: string;
+  externalUrl?: string;
 }
 
 interface NotificationItemProps {
   notification: Notification;
   onMarkRead: (id: string) => void;
   onRemove: (id: string) => void;
+  onOpen?: (notification: Notification) => void;
 }
 
-export function NotificationItem({ notification, onMarkRead, onRemove }: NotificationItemProps) {
+export function NotificationItem({ notification, onMarkRead, onRemove, onOpen }: NotificationItemProps) {
   const {
     id,
     title,
@@ -54,7 +74,10 @@ export function NotificationItem({ notification, onMarkRead, onRemove }: Notific
   const statusLabel = read ? "읽음" : "새 알림";
 
   return (
-    <TableRow className={cn("transition-colors", isNew ? "bg-primary/5" : undefined)}>
+    <TableRow
+      className={cn("transition-colors", isNew ? "bg-primary/5" : undefined, onOpen && "cursor-pointer")}
+      onClick={() => onOpen?.(notification)}
+    >
       <TableCell className="p-2 align-middle">
         <div className="flex items-center gap-3">
           {actorType === "system" ? (
@@ -103,7 +126,10 @@ export function NotificationItem({ notification, onMarkRead, onRemove }: Notific
           {!read && (
             <button
               type="button"
-              onClick={() => onMarkRead(id)}
+              onClick={(event) => {
+                event.stopPropagation();
+                onMarkRead(id);
+              }}
               className="rounded-full p-1 text-muted-foreground transition-colors hover:bg-muted/40 hover:text-foreground"
               aria-label="읽음으로 표시"
             >
@@ -112,7 +138,10 @@ export function NotificationItem({ notification, onMarkRead, onRemove }: Notific
           )}
           <button
             type="button"
-            onClick={() => onRemove(id)}
+            onClick={(event) => {
+              event.stopPropagation();
+              onRemove(id);
+            }}
             className="rounded-full p-1 text-muted-foreground transition-colors hover:bg-muted/40 hover:text-foreground"
             aria-label="알림 삭제"
           >

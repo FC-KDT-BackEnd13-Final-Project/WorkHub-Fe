@@ -8,11 +8,12 @@ interface NotificationListProps {
   notifications: Notification[];
   onMarkRead: (id: string) => void;
   onRemove: (id: string) => void;
+  onOpen?: (notification: Notification) => void;
 }
 
 const PAGE_SIZE = 10;
 
-export function NotificationList({ notifications, onMarkRead, onRemove }: NotificationListProps) {
+export function NotificationList({ notifications, onMarkRead, onRemove, onOpen }: NotificationListProps) {
   const [currentPage, setCurrentPage] = useState(1);
 
   const totalPages = calculateTotalPages(notifications.length, PAGE_SIZE);
@@ -42,6 +43,7 @@ export function NotificationList({ notifications, onMarkRead, onRemove }: Notifi
                   notification={notification}
                   onMarkRead={onMarkRead}
                   onRemove={onRemove}
+                  onOpen={onOpen}
                 />
               ))}
             </TableBody>
