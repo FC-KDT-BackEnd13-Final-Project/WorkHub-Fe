@@ -15,7 +15,7 @@ export interface UpdateNodePayload {
     endDate?: string;
 }
 
-export type NodeStatusPayload = "NOT_STARTED" | "PENDING_REVIEW" | "DONE" | "ON_HOLD";
+export type NodeStatusPayload = "NOT_STARTED" | "IN_PROGRESS" | "PENDING_REVIEW" | "DONE" | "ON_HOLD";
 
 export interface UpdateNodeOrderPayload {
     projectNodeId: number;

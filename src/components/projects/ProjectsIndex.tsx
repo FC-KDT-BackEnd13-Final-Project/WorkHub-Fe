@@ -932,46 +932,12 @@ export function ProjectsIndex() {
         return;
       }
 
+      // total/approve가 0인 경우 워크플로가 없다고 가정하고 추가 호출을 생략
       fetchedProjectProgress.current.add(project.id);
-
-      void (async () => {
-        try {
-          const response = await projectApi.getNodes(project.id);
-          const nodes = response.projectNodes ?? [];
-          const total = nodes.length;
-          const completed = nodes.filter((node) =>
-            ["DONE", "COMPLETED"].includes(node.nodeStatus),
-          ).length;
-          const progress = total === 0 ? 0 : Math.round((completed / total) * 100);
-
-          setProjectProgressMap((prev) => ({
-            ...prev,
-            [project.id]: { total, completed, progress },
-          }));
-
-          setProjects((prev) =>
-            prev.map((item) =>
-              item.id === project.id
-                ? {
-                    ...item,
-                    tasks: total,
-                    progress,
-                  }
-                : item,
-            ),
-          );
-        } catch (error) {
-          console.error(`프로젝트(${project.id}) 진행률 계산 실패:`, error);
-          setProjectProgressMap((prev) => ({
-            ...prev,
-            [project.id]: {
-              total: project.tasks ?? 0,
-              completed: 0,
-              progress: project.progress ?? 0,
-            },
-          }));
-        }
-      })();
+      setProjectProgressMap((prev) => ({
+        ...prev,
+        [project.id]: { total: 0, completed: 0, progress: 0 },
+      }));
     });
   }, [projects]);
 

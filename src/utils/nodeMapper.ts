@@ -1,4 +1,8 @@
-import type { NodeApiItem, NodeStatus as ApiNodeStatus } from "../types/projectNodeList";
+import type {
+  ConfirmStatus,
+  NodeApiItem,
+  NodeStatus as ApiNodeStatus,
+} from "../types/projectNodeList";
 
 // ProjectNodesBoard의 Node 타입
 export type NodeStatus = "NOT_STARTED" | "IN_PROGRESS" | "PENDING_REVIEW" | "ON_HOLD" | "DONE";
@@ -16,6 +20,7 @@ export interface Node {
   developerUserId?: number;
   status: NodeStatus;
   approvalStatus?: ApprovalStatus; // optional (서버에서 제공하지 않으면 undefined)
+  approvalStatusLabel?: string;
   updatedAt: string;
   startDate: string;
   endDate: string;
@@ -87,7 +92,43 @@ export function mapApiNodeToUiNode(apiNode: NodeApiItem): Node {
     tags: [],
     filesCount: 0,
     linksCount: 0,
-    // approvalStatus는 서버에서 제공하지 않으므로 undefined
+    approvalStatus: mapConfirmStatusToApprovalStatus(apiNode.confirmStatus),
+    approvalStatusLabel: mapConfirmStatusToLabel(apiNode.confirmStatus),
     hasNotification: false,
   };
+}
+
+export function mapConfirmStatusToApprovalStatus(confirmStatus: ConfirmStatus): ApprovalStatus | undefined {
+  if (confirmStatus === null || confirmStatus === undefined) {
+    return undefined;
+  }
+
+  const normalized =
+    typeof confirmStatus === "string"
+      ? confirmStatus.trim().toUpperCase()
+      : confirmStatus;
+
+  if (normalized === "APPROVED" || normalized === "CONFIRMED" || normalized === "CONFIRM") {
+    return "APPROVED";
+  }
+  if (normalized === "REJECTED" || normalized === "REJECT" || normalized === "DENIED") {
+    return "REJECTED";
+  }
+  if (normalized === "PENDING" || normalized === "WAIT" || normalized === "WAITING" || normalized === "REQUEST" || normalized === "REQUESTED") {
+    return "PENDING";
+  }
+
+  // 알 수 없는 문자열이면 표시하지 않음
+  return undefined;
+}
+
+export function mapConfirmStatusToLabel(confirmStatus: ConfirmStatus): string | undefined {
+  const status = mapConfirmStatusToApprovalStatus(confirmStatus);
+  if (!status) return undefined;
+  const labels: Record<ApprovalStatus, string> = {
+    PENDING: "승인 대기",
+    APPROVED: "승인 완료",
+    REJECTED: "반려",
+  };
+  return labels[status];
 }
