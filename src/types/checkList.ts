@@ -24,11 +24,25 @@ export interface CheckListItemResponse {
   options: CheckListOptionResponse[];
 }
 
+export interface CheckListUserSummary {
+  userId?: number;
+  userName?: string | null;
+  loginId?: string | null;
+  phone?: string | null;
+  mobile?: string | null;
+  email?: string | null;
+}
+
 export interface CheckListResponse {
   checkListId: number;
   description: string;
   projectNodeId: number;
   userId: number;
+  userName?: string | null;
+  userLoginId?: string | null;
+  userPhone?: string | null;
+  userEmail?: string | null;
+  user?: CheckListUserSummary | null;
   items: CheckListItemResponse[];
 }
 
