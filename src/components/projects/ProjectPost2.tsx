@@ -1,5 +1,6 @@
-import { Fragment, useEffect, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
+import { toast } from "sonner";
 import { Card2, CardContent } from "../ui/card2";
 import {
   Table2,
@@ -20,26 +21,15 @@ import {
   SelectValue,
 } from "../ui/select";
 import { CornerDownRight, Search } from "lucide-react";
-import {
-  loadRepliesForPost,
-  type PostReplyItem,
-} from "@/utils/postRepliesStorage";
 import { typeBadgeStyles } from "./PostCard";
-import {
-  mockProjectPosts,
-  type ProjectPostSummary,
-} from "@/data/mockProjectPosts";
-import {
-  calculateTotalPages,
-  clampPage,
-  paginate,
-} from "@/utils/pagination";
+import { clampPage } from "@/utils/pagination";
 import { PaginationControls } from "../common/PaginationControls";
-
-type Customer = ProjectPostSummary;
+import { createPost, fetchPostThreads, flattenPostReplies, mapLabelToPostType, mapPostTypeToLabel } from "@/lib/posts";
+import type { PostThreadResponse } from "@/types/post";
+import type { RichTextDraft } from "../RichTextDemo";
 
 // 타입/색상 관련 타입
-type PostType = Customer["type"]; // "공지" | "질문" | "일반"
+type PostType = "공지" | "질문" | "일반";
 type TypeFilter = "all" | PostType;
 
 type StatusStyle = {
@@ -100,67 +90,109 @@ const formatDateOnly = (value: string) => {
 const formatReplyDate = (value: string) => formatDateOnly(value);
 const formatPostDate = (value: string) => formatDateOnly(value);
 
-// Mock data
-const mockCustomers: Customer[] = mockProjectPosts;
+type ThreadRow = {
+  id: string;
+  customerName: string;
+  type: PostType;
+  title: string;
+  content: string;
+  createdDate: string;
+  updatedDate: string;
+};
+
+const DEFAULT_POST_IP = "0.0.0.0";
+
+const dataUrlToFile = (dataUrl: string, fileName: string) => {
+  const [header, encoded] = dataUrl.split(",");
+  const mimeMatch = /data:(.*?);base64/.exec(header ?? "");
+  const mime = mimeMatch?.[1] ?? "application/octet-stream";
+  const binary = atob(encoded ?? "");
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i += 1) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+  return new File([bytes], fileName, { type: mime });
+};
 
 export function ProjectPost2() {
   const [searchTerm, setSearchTerm] = useState("");
   const [typeFilter, setTypeFilter] = useState<TypeFilter>("all");
-  const [customers] = useState<Customer[]>(mockCustomers);
+  const [threads, setThreads] = useState<PostThreadResponse[]>([]);
+  const [totalPages, setTotalPages] = useState(1);
+  const [loading, setLoading] = useState(false);
+  const [fetchError, setFetchError] = useState<string | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
   const [isWriting, setIsWriting] = useState(false);
+  const [draft, setDraft] = useState<RichTextDraft | null>(null);
   const navigate = useNavigate();
   const location = useLocation();
   const { projectId, nodeId } =
       useParams<{ projectId?: string; nodeId?: string }>();
 
-  const navigateToDetail = (post: Customer, reply?: PostReplyItem) => {
+  const navigateToDetail = (postId: string, replyId?: string) => {
     const targetPath =
         projectId && nodeId
-            ? `/projects/${projectId}/nodes/${nodeId}/posts/${post.id}`
-            : `/projectpost/${post.id}`;
+            ? `/projects/${projectId}/nodes/${nodeId}/posts/${postId}`
+            : `/projectpost/${postId}`;
     navigate(targetPath, {
-      state: reply ? { post, reply, isReplyView: true } : { post },
+      state: replyId ? { replyId, isReplyView: true } : undefined,
     });
   };
-
-  // 검색 + 타입 필터
-  const filteredCustomers = customers.filter((customer) => {
-    const term = searchTerm.toLowerCase().trim();
-    const matchesType = typeFilter === "all" || customer.type === typeFilter;
-
-    if (!term) return matchesType;
-
-    const title = customer.title?.toLowerCase() ?? "";
-    const content = customer.content?.toLowerCase() ?? "";
-    const name = customer.customerName?.toLowerCase() ?? "";
-
-    return (
-        matchesType &&
-        (name.includes(term) || title.includes(term) || content.includes(term))
-    );
-  });
 
   // 페이징 상태
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
   const indexOfFirstItem = (currentPage - 1) * itemsPerPage;
 
-  const totalPages = calculateTotalPages(
-      filteredCustomers.length,
-      itemsPerPage
-  );
-  const paginatedRows = paginate(filteredCustomers, currentPage, itemsPerPage);
+  const paginatedRows = useMemo(() => {
+    return threads.map((thread) => {
+      const label = mapPostTypeToLabel(thread.postType);
+      return {
+        id: String(thread.postId),
+        customerName: "알 수 없음",
+        type: label,
+        title: thread.title,
+        content: thread.contentPreview,
+        createdDate: thread.createdAt,
+        updatedDate: thread.createdAt,
+      } satisfies ThreadRow;
+    });
+  }, [threads]);
 
   useEffect(() => {
     setCurrentPage((prev) => clampPage(prev, totalPages));
   }, [totalPages]);
 
-  // location이 바뀔 때마다 다시 렌더링 → localStorage에서 최신 답글 읽어오기
+  // location이 바뀔 때마다 다시 렌더링
   useEffect(() => {
     // 의도적으로 아무것도 안 해도 됨.
     // location이 바뀌면 컴포넌트가 다시 그려지고,
-    // 그 때마다 loadRepliesForPost로 localStorage를 새로 읽는다.
   }, [location.key]);
+
+  useEffect(() => {
+    if (!projectId || !nodeId) return;
+    setLoading(true);
+    const requestType = typeFilter === "all" ? undefined : mapLabelToPostType(typeFilter);
+    fetchPostThreads({
+      projectId,
+      nodeId,
+      keyword: searchTerm.trim() || undefined,
+      postType: requestType,
+      page: currentPage - 1,
+      size: itemsPerPage,
+    })
+      .then((response) => {
+        setThreads(response.posts ?? []);
+        setTotalPages(Math.max(response.totalPages ?? 1, 1));
+        setFetchError(null);
+      })
+      .catch((error) => {
+        const message = error instanceof Error ? error.message : "게시글을 불러오는 데 실패했습니다.";
+        setFetchError(message);
+        toast.error(message);
+      })
+      .finally(() => setLoading(false));
+  }, [currentPage, nodeId, projectId, refreshKey, searchTerm, typeFilter]);
 
   // isWriting 상태가 true일 때 글쓰기 UI
   if (isWriting) {
@@ -169,12 +201,54 @@ export function ProjectPost2() {
           <div className="flex flex-col gap-4">
             <RichTextDemo
                 showTypeSelector
+                onChange={setDraft}
                 actionButtons={
                   <div className="flex items-center gap-2">
                     <Button2 variant="outline" onClick={() => setIsWriting(false)}>
                       취소
                     </Button2>
-                    <Button2 onClick={() => setIsWriting(false)}>등록</Button2>
+                    <Button2
+                      onClick={async () => {
+                        if (!projectId || !nodeId) {
+                          toast.error("프로젝트 정보를 확인할 수 없습니다.");
+                          return;
+                        }
+                        if (!draft || (!draft.title.trim() && !draft.content.trim())) {
+                          toast.error("제목 또는 내용을 입력해주세요.");
+                          return;
+                        }
+                        try {
+                          const files = (draft.attachments ?? [])
+                            .filter((file) => file.dataUrl)
+                            .map((file) => dataUrlToFile(file.dataUrl, file.name));
+                          await createPost({
+                            projectId,
+                            nodeId,
+                            payload: {
+                              title: draft.title.trim(),
+                              content: draft.content.trim(),
+                              postType: mapLabelToPostType(draft.type),
+                              postIp: DEFAULT_POST_IP,
+                              links: draft.links?.map((link) => ({
+                                url: link.url,
+                                description: link.description,
+                              })),
+                            },
+                            files,
+                          });
+                          toast.success("게시글이 등록되었습니다.");
+                          setIsWriting(false);
+                          setDraft(null);
+                          setCurrentPage(1);
+                          setRefreshKey((prev) => prev + 1);
+                        } catch (error) {
+                          const message = error instanceof Error ? error.message : "게시글 등록에 실패했습니다.";
+                          toast.error(message);
+                        }
+                      }}
+                    >
+                      등록
+                    </Button2>
                   </div>
                 }
             />
@@ -201,7 +275,10 @@ export function ProjectPost2() {
           {/* 타입 필터 Select */}
           <Select
               value={typeFilter}
-              onValueChange={(value) => setTypeFilter(value as TypeFilter)}
+              onValueChange={(value) => {
+                setTypeFilter(value as TypeFilter);
+                setCurrentPage(1);
+              }}
           >
             <SelectTrigger className="h-9 rounded-md border border-border bg-input-background px-3 py-1 md:w-52">
               <SelectValue placeholder="모든 타입" />
@@ -221,6 +298,9 @@ export function ProjectPost2() {
             문의 작성
           </Button2>
         </div>
+        {loading && (
+          <p className="text-sm text-muted-foreground">게시글을 불러오는 중입니다...</p>
+        )}
 
         {/* 게시판 목록 */}
         <Card2 className="overflow-hidden">
@@ -242,19 +322,17 @@ export function ProjectPost2() {
                 <TableBody>
                   {paginatedRows.map((customer, index) => {
                     const statusStyle = statusStyles[customer.type];
-                    // 이 글에 대한 답글들 localStorage에서 바로 읽기
-                    const replies = (loadRepliesForPost(customer.id) ?? []).filter(
-                      (reply) => !reply.isComment,
-                    );
                     const normalizedContent = stripHtml(customer.content);
                     const truncatedTitle = truncatePlainText(customer.title, 15);
                     const truncatedContent = truncatePlainText(normalizedContent, 50);
+                    const thread = threads.find((item) => String(item.postId) === customer.id);
+                    const replies = thread ? flattenPostReplies(thread.replies ?? []) : [];
 
                     return (
                         <Fragment key={customer.id}>
                           <TableRow
                               className="cursor-pointer"
-                              onClick={() => navigateToDetail(customer)}
+                              onClick={() => navigateToDetail(customer.id)}
                           >
                             {/* No (전체 인덱스 유지) */}
                             <TableCell className="px-2 py-2 text-center whitespace-nowrap">
@@ -316,17 +394,13 @@ export function ProjectPost2() {
                                 const formattedCreatedDate =
                                     formatReplyDate(reply.createdAt) || reply.createdAt;
                                 const formattedUpdatedDate =
-                                    formatReplyDate(
-                                        reply.updatedAt || reply.createdAt
-                                    ) ||
-                                    reply.updatedAt ||
-                                    reply.createdAt;
+                                    formatReplyDate(reply.createdAt) || reply.createdAt;
 
                                 return (
                                     <TableRow
-                                        key={`${customer.id}-${reply.id}`}
+                                        key={`${customer.id}-${reply.postId}`}
                                         className="bg-muted/20 cursor-pointer"
-                                        onClick={() => navigateToDetail(customer, reply)}
+                                        onClick={() => navigateToDetail(customer.id, String(reply.postId))}
                                     >
                                       {/* No 자리 비워두기 */}
                                       <TableCell className="px-2 py-2" />
@@ -335,7 +409,7 @@ export function ProjectPost2() {
                                       <TableCell className="px-3 py-2 whitespace-nowrap">
                                         <div className="flex items-center gap-1 text-sm text-muted-foreground">
                                           <CornerDownRight className="h-4 w-4 text-primary" />
-                                          <span>{reply.author}</span>
+                                          <span>답글</span>
                                         </div>
                                       </TableCell>
 
@@ -380,10 +454,10 @@ export function ProjectPost2() {
                                               whiteSpace: "nowrap",
                                             }}
                                             title={
-                                                stripHtml(reply.content || "") || "내용 없음"
+                                                stripHtml(reply.contentPreview || "") || "내용 없음"
                                             }
                                         >
-                                          {stripHtml(reply.content || "") || "내용 없음"}
+                                          {stripHtml(reply.contentPreview || "") || "내용 없음"}
                                         </div>
                                       </TableCell>
 
@@ -407,7 +481,7 @@ export function ProjectPost2() {
         </Card2>
 
         {/* 페이징 영역 */}
-        {filteredCustomers.length > 0 && (
+        {totalPages > 1 && (
             <PaginationControls
                 currentPage={currentPage}
                 totalPages={totalPages}
@@ -417,7 +491,7 @@ export function ProjectPost2() {
         )}
 
         {/* Empty State */}
-        {filteredCustomers.length === 0 && searchTerm && (
+        {!loading && paginatedRows.length === 0 && searchTerm && (
             <Card2>
               <CardContent className="text-center py-8">
                 <div className="text-muted-foreground">
@@ -436,6 +510,13 @@ export function ProjectPost2() {
                 </div>
               </CardContent>
             </Card2>
+        )}
+        {fetchError && !searchTerm && (
+          <Card2>
+            <CardContent className="text-center py-8 text-sm text-red-600">
+              {fetchError}
+            </CardContent>
+          </Card2>
         )}
       </div>
   );
