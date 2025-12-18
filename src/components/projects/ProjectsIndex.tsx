@@ -1600,16 +1600,16 @@ export function ProjectsIndex() {
             )}
           </div>
 
-          <div className="hidden w-full gap-4 md:flex md:flex-row md:items-center md:flex-wrap">
+          <div className="hidden w-full gap-4 md:flex md:flex-row md:items-center md:flex-nowrap">
             <Input
               placeholder="프로젝트를 검색하세요"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="file:text-foreground placeholder:text-muted-foreground selection:bg-primary selection:text-primary-foreground dark:bg-input/30 border-input flex h-9 w-full min-w-0 rounded-md border bg-input-background px-3 py-1 text-base transition-[color,box-shadow] outline-none md:flex-1 md:text-sm focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
+              className="file:text-foreground placeholder:text-muted-foreground selection:bg-primary selection:text-primary-foreground dark:bg-input/30 border-input flex h-9 w-full min-w-0 rounded-md border bg-input-background px-3 py-1 text-base transition-[color,box-shadow] outline-none md:w-[360px] md:flex-none md:text-sm focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
             />
 
             <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as StatusFilter)}>
-              <SelectTrigger className="border-input data-[placeholder]:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 h-9 w-full rounded-md border bg-input-background px-3 py-1 text-sm outline-none md:w-40 focus-visible:ring-[3px]">
+              <SelectTrigger className="border-input data-[placeholder]:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 h-9 w-full rounded-md border bg-input-background px-3 py-1 text-sm outline-none md:w-40 md:flex-none focus-visible:ring-[3px]">
                 <SelectValue placeholder="상태 선택" />
               </SelectTrigger>
               <SelectContent>
@@ -1621,7 +1621,7 @@ export function ProjectsIndex() {
               </SelectContent>
             </Select>
 
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 md:flex-none">
               <Label className="flex items-center gap-2 text-xs font-medium text-muted-foreground whitespace-nowrap md:text-sm">
                 계약기간
               </Label>
@@ -1654,7 +1654,7 @@ export function ProjectsIndex() {
             </div>
 
             <Select value={sortOption} onValueChange={(value) => setSortOption(value as SortOption)}>
-              <SelectTrigger className="border-input data-[placeholder]:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 h-9 w-full rounded-md border bg-input-background px-3 py-1 text-sm outline-none md:w-32 focus-visible:ring-[3px]">
+              <SelectTrigger className="border-input data-[placeholder]:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 h-9 w-full rounded-md border bg-input-background px-3 py-1 text-sm outline-none md:w-32 md:flex-none focus-visible:ring-[3px]">
                 <SelectValue placeholder="정렬" />
               </SelectTrigger>
               <SelectContent>
@@ -1667,7 +1667,7 @@ export function ProjectsIndex() {
             </Select>
 
             {!isClient && (
-              <div className="flex items-center gap-2 md:ml-auto">
+              <div className="flex items-center gap-2 md:ml-auto md:flex-none">
                 <Button className="h-9 px-4 text-sm" onClick={handleOpenCreateModal}>
                   + 새 프로젝트
                 </Button>

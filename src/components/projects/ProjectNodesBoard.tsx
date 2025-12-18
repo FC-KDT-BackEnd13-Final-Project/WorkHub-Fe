@@ -1078,72 +1078,145 @@ useEffect(() => {
         </ModalShell>
       )}
 
-      <div className="flex flex-col gap-4 rounded-2xl bg-white p-4 shadow-sm md:flex-row md:items-center">
-        <Input
-          placeholder="작업을 검색하세요"
-          value={search}
-          onChange={(event) => setSearch(event.target.value)}
-          className="md:flex-1"
-        />
-        <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as "전체" | NodeStatus)}>
-          <SelectTrigger className="md:w-52">
-            <SelectValue placeholder="전체 상태" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="전체">전체 상태</SelectItem>
-            {statusOptions.map((option) => (
-              <SelectItem key={option} value={option}>
-                {nodeStatusLabels[option]}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <Select value={approvalFilter} onValueChange={(value) => setApprovalFilter(value as ApprovalFilter)}>
-          <SelectTrigger className="md:w-52">
-            <SelectValue placeholder="전체 승인" />
-          </SelectTrigger>
-          <SelectContent>
-            {approvalFilterOptions.map((option) => (
-              <SelectItem key={option} value={option}>
-                {option === "전체" ? "전체 승인" : approvalStatusLabels[option]}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <Select value={developerFilter} onValueChange={(value) => setDeveloperFilter(value)}>
-          <SelectTrigger className="md:w-52">
-            <SelectValue placeholder="전체 개발 담당자" />
-          </SelectTrigger>
-          <SelectContent>
-            {developerFilterOptions.map((option, index) => (
-              <SelectItem key={`${option}-${index}`} value={option}>
-                {option === "전체" ? "전체 개발 담당자" : option}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <div className="flex items-center gap-2">
-          {!isClient && (
-            <Button className="h-9 px-4 text-sm" onClick={openWorkflowModal}>
-              + 새 워크플로
-            </Button>
-          )}
-          <Button
-            variant="outline"
-            className="h-9 px-4 text-sm"
-            onClick={() => navigate(`/projects/${projectId ?? "project"}/nodes/support`)}
-          >
-            CS 문의
-          </Button>
-          {!isClient && (
+      <div className="flex flex-col gap-4 rounded-2xl bg-white p-4 shadow-sm">
+        <div className="flex flex-col gap-4 md:hidden">
+          <Input
+            placeholder="작업을 검색하세요"
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            className="w-full"
+          />
+          <div className="flex gap-2 overflow-x-auto pb-1">
+            <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as "전체" | NodeStatus)}>
+              <SelectTrigger className="min-w-[140px]">
+                <SelectValue placeholder="전체 상태" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="전체">전체 상태</SelectItem>
+                {statusOptions.map((option) => (
+                  <SelectItem key={option} value={option}>
+                    {nodeStatusLabels[option]}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={approvalFilter} onValueChange={(value) => setApprovalFilter(value as ApprovalFilter)}>
+              <SelectTrigger className="min-w-[140px]">
+                <SelectValue placeholder="전체 승인" />
+              </SelectTrigger>
+              <SelectContent>
+                {approvalFilterOptions.map((option) => (
+                  <SelectItem key={option} value={option}>
+                    {option === "전체" ? "전체 승인" : approvalStatusLabels[option]}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={developerFilter} onValueChange={(value) => setDeveloperFilter(value)}>
+              <SelectTrigger className="min-w-[160px]">
+                <SelectValue placeholder="전체 개발 담당자" />
+              </SelectTrigger>
+              <SelectContent>
+                {developerFilterOptions.map((option, index) => (
+                  <SelectItem key={`${option}-${index}`} value={option}>
+                    {option === "전체" ? "전체 개발 담당자" : option}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="flex items-center gap-2">
+            {!isClient && (
+              <Button className="h-9 px-4 text-sm flex-1" onClick={openWorkflowModal}>
+                + 새 워크플로
+              </Button>
+            )}
             <Button
-              variant={isReorderMode ? "default" : "outline"}
-              className="h-9 px-4 text-sm"
-              onClick={() => setIsReorderMode((prev) => !prev)}
+              variant="outline"
+              className="h-9 px-4 text-sm flex-1"
+              onClick={() => navigate(`/projects/${projectId ?? "project"}/nodes/support`)}
             >
-              {isReorderMode ? "편집 완료" : "편집"}
+              CS 문의
             </Button>
-          )}
+            {!isClient && (
+              <Button
+                variant={isReorderMode ? "default" : "outline"}
+                className="h-9 px-4 text-sm flex-1"
+                onClick={() => setIsReorderMode((prev) => !prev)}
+              >
+                {isReorderMode ? "편집 완료" : "편집"}
+              </Button>
+            )}
+          </div>
+        </div>
+
+        <div className="hidden w-full gap-4 md:flex md:flex-row md:items-center md:flex-wrap">
+          <Input
+            placeholder="작업을 검색하세요"
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            className="h-9 w-full md:flex-1 md:min-w-[360px]"
+          />
+          <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as "전체" | NodeStatus)}>
+            <SelectTrigger className="h-9 w-full md:w-48">
+              <SelectValue placeholder="전체 상태" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="전체">전체 상태</SelectItem>
+              {statusOptions.map((option) => (
+                <SelectItem key={option} value={option}>
+                  {nodeStatusLabels[option]}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select value={approvalFilter} onValueChange={(value) => setApprovalFilter(value as ApprovalFilter)}>
+            <SelectTrigger className="h-9 w-full md:w-48">
+              <SelectValue placeholder="전체 승인" />
+            </SelectTrigger>
+            <SelectContent>
+              {approvalFilterOptions.map((option) => (
+                <SelectItem key={option} value={option}>
+                  {option === "전체" ? "전체 승인" : approvalStatusLabels[option]}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select value={developerFilter} onValueChange={(value) => setDeveloperFilter(value)}>
+            <SelectTrigger className="h-9 w-full md:w-56">
+              <SelectValue placeholder="전체 개발 담당자" />
+            </SelectTrigger>
+            <SelectContent>
+              {developerFilterOptions.map((option, index) => (
+                <SelectItem key={`${option}-${index}`} value={option}>
+                  {option === "전체" ? "전체 개발 담당자" : option}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <div className="flex items-center gap-2 md:ml-auto">
+            {!isClient && (
+              <Button className="h-9 px-4 text-sm" onClick={openWorkflowModal}>
+                + 새 워크플로
+              </Button>
+            )}
+            <Button
+              variant="outline"
+              className="h-9 px-4 text-sm"
+              onClick={() => navigate(`/projects/${projectId ?? "project"}/nodes/support`)}
+            >
+              CS 문의
+            </Button>
+            {!isClient && (
+              <Button
+                variant={isReorderMode ? "default" : "outline"}
+                className="h-9 px-4 text-sm"
+                onClick={() => setIsReorderMode((prev) => !prev)}
+              >
+                {isReorderMode ? "편집 완료" : "편집"}
+              </Button>
+            )}
+          </div>
         </div>
       </div>
 
