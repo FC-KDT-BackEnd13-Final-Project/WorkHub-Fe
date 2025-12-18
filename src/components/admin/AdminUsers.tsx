@@ -200,15 +200,15 @@ export function AdminUsers() {
                     <div className="md:hidden">
                         <div className="relative w-full pr-1">
                             {isLoading ? (
-                                <div className="rounded-xl border border-white/70 bg-white/90 p-4 text-center text-sm text-muted-foreground shadow-sm">
+                                <div className="rounded-xl border-white/70 bg-white/90 p-4 text-center text-sm text-muted-foreground shadow-sm">
                                     회원 목록을 불러오는 중입니다...
                                 </div>
                             ) : error ? (
-                                <div className="rounded-xl border border-red-100 bg-red-50 p-4 text-center text-sm text-red-600">
+                                <div className="rounded-xl border-red-100 bg-red-50 p-4 text-center text-sm text-red-600">
                                     데이터를 불러오는 중 오류가 발생했습니다: {error}
                                 </div>
                             ) : paginatedUsers.length === 0 ? (
-                                <div className="rounded-xl border border-white/70 bg-white/90 p-4 text-center text-sm text-muted-foreground shadow-sm">
+                                <div className="rounded-xl border-white/70 bg-white/90 p-4 text-center text-sm text-muted-foreground shadow-sm">
                                     조건에 맞는 회원이 없습니다.
                                 </div>
                             ) : (
