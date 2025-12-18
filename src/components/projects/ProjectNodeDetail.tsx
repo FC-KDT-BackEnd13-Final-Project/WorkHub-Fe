@@ -38,7 +38,7 @@ export function ProjectNodeDetail() {
 
   return (
     <div className="pt-8 pb-12">
-      <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8 space-y-6">
+      <div className="mx-auto max-w-5xl space-y-6">
         <div className="rounded-2xl bg-white p-6 shadow-sm">
           <h1 className="text-3xl font-semibold tracking-tight">{displayedNodeLabel}</h1>
           <p className="mt-2 text-muted-foreground">
