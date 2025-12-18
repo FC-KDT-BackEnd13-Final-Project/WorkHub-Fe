@@ -351,12 +351,12 @@ export function ProjectChecklist2() {
   };
 
   return (
-      <div className={`max-w-4xl mx-auto p-6 ${isFormDisabled ? "no-disabled-opacity" : ""}`}>
-        <Card2>
-          <CardHeader className="pb-6">
+      <div className={`max-w-4xl mx-auto px-8 sm:px-6 py-6 ${isFormDisabled ? "no-disabled-opacity" : ""}`}>
+        <Card2 className="px-6 sm:px-0">
+          <CardHeader className="pb-6 px-2 sm:px-6">
             <CardTitle className="text-center text-2xl">체크리스트 작성</CardTitle>
           </CardHeader>
-          <CardContent className="pb-6">
+          <CardContent className="pb-6 px-2 sm:px-6">
             {apiError && (
               <div className="mb-4 rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
                 {apiError}
