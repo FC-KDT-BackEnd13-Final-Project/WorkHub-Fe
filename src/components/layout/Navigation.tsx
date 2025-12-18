@@ -65,6 +65,12 @@ export function Navigation({ mobileMenuContent }: NavigationProps = {}) {
     setTheme(isDark ? "light" : "dark");
   };
 
+  const handleLogout = () => {
+    setAuthState(false);
+    removeAuthState();
+    window.location.href = "/";
+  };
+
   return (
       <nav className="sticky top-0 z-[200] w-full border-b border-border bg-white shadow-sm">
         <div className="flex w-full items-center justify-between px-4 py-4 sm:px-6 lg:px-8">
@@ -161,8 +167,3 @@ export function Navigation({ mobileMenuContent }: NavigationProps = {}) {
       </nav>
   );
 }
-  const handleLogout = () => {
-    setAuthState(false);
-    removeAuthState();
-    window.location.href = "/";
-  };
