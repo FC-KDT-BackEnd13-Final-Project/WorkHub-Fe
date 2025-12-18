@@ -662,7 +662,30 @@ export function AdminUserDetail() {
           </div>
           </div>
         </div>
-      <div className="flex items-center gap-3">
+      <div className="flex flex-nowrap items-center justify-center gap-3 overflow-x-auto pb-1 md:hidden">
+        <Button
+          variant="secondary"
+          className="h-9 min-w-[120px] px-3 py-1 text-sm rounded-md border border-border"
+          onClick={() => navigate(changeRoleModalPath)}
+        >
+          권한/상태 변경
+        </Button>
+        <Button
+          variant="secondary"
+          className="h-9 min-w-[120px] px-3 py-1 text-sm rounded-md border border-border"
+          onClick={() => navigate(initPasswordModalPath)}
+        >
+          비밀번호 초기화
+        </Button>
+        <Button
+          variant="destructive"
+          className="h-9 min-w-[120px] px-3 py-1 text-sm rounded-md border border-border"
+          onClick={() => navigate(removeUserModalPath)}
+        >
+          회원 삭제
+        </Button>
+      </div>
+      <div className="hidden items-center gap-3 md:flex">
         <Button
           variant="secondary"
           className="h-9 min-w-[120px] px-3 py-1 text-sm rounded-md border border-border"

@@ -117,26 +117,24 @@ export function AdminUsers() {
     }, [safeTotalPages]);
 
     return (
-        <div className="space-y-4 pb-12">
-            <div className="rounded-2xl bg-white p-6 shadow-sm flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-                <div>
-                    <h1 className="text-3xl font-semibold tracking-tight">Users</h1>
-                    <p className="mt-2 text-muted-foreground">구성원을 관리하고 권한을 지정하며 활동 현황을 확인하세요.</p>
-                </div>
+        <div className="space-y-6 pb-10 pt-2">
+            <div className="rounded-2xl bg-white p-6 shadow-sm">
+                <h1 className="text-3xl font-semibold tracking-tight">Users</h1>
+                <p className="mt-2 text-muted-foreground">구성원을 관리하고 권한을 지정하며 활동 현황을 확인하세요.</p>
             </div>
 
-            <div className="flex flex-col gap-4 rounded-2xl bg-white p-4 shadow-sm md:flex-row md:items-center">
-                <Input
-                    placeholder="회원을 검색하세요"
-                    value={search}
-                    onChange={(event) => setSearch(event.target.value)}
-                    className="w-full md:flex-1"
-                />
+            <div className="flex flex-col gap-4 rounded-2xl bg-white p-4 shadow-sm md:flex-row md:flex-wrap md:items-center">
+                <div className="flex w-full flex-col gap-3 md:flex-1 md:flex-row md:flex-wrap md:items-center md:gap-3">
+                    <Input
+                        placeholder="회원을 검색하세요"
+                        value={search}
+                        onChange={(event) => setSearch(event.target.value)}
+                        className="file:text-foreground placeholder:text-muted-foreground selection:bg-primary selection:text-primary-foreground dark:bg-input/30 border-input flex h-9 w-full min-w-0 rounded-md border bg-input-background px-3 py-1 text-base transition-[color,box-shadow] outline-none md:flex-1 md:text-sm focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
+                    />
 
-                <div className="flex w-full gap-2 overflow-x-auto pb-1 md:overflow-visible md:flex-row">
-                    <div className="min-w-[160px] flex-1 md:flex-none">
+                    <div className="w-full md:w-44">
                         <Select value={roleFilter} onValueChange={(value) => setRoleFilter(value as (typeof roles)[number])}>
-                            <SelectTrigger className="w-full md:w-52">
+                            <SelectTrigger className="border-input data-[placeholder]:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 h-9 w-full rounded-md border bg-input-background px-3 py-1 text-sm outline-none focus-visible:ring-[3px]">
                                 <SelectValue placeholder="전체 역할" />
                             </SelectTrigger>
                             <SelectContent>
@@ -149,9 +147,9 @@ export function AdminUsers() {
                         </Select>
                     </div>
 
-                    <div className="min-w-[160px] flex-1 md:flex-none">
+                    <div className="w-full md:w-48">
                         <Select value={companyFilter} onValueChange={setCompanyFilter}>
-                            <SelectTrigger className="w-full md:w-52">
+                            <SelectTrigger className="border-input data-[placeholder]:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 h-9 w-full rounded-md border bg-input-background px-3 py-1 text-sm outline-none focus-visible:ring-[3px]">
                                 <SelectValue placeholder="전체 회사" />
                             </SelectTrigger>
                             <SelectContent>
@@ -165,14 +163,14 @@ export function AdminUsers() {
                         </Select>
                     </div>
 
-                    <div className="min-w-[160px] flex-1 md:flex-none">
+                    <div className="w-full md:w-40">
                         <Select
                             value={statusFilter}
                             onValueChange={(value) =>
                                 setStatusFilter(value as (typeof statusOptions)[number])
                             }
                         >
-                            <SelectTrigger className="w-full md:w-48">
+                            <SelectTrigger className="border-input data-[placeholder]:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 h-9 w-full rounded-md border bg-input-background px-3 py-1 text-sm outline-none focus-visible:ring-[3px]">
                                 <SelectValue placeholder="전체 상태" />
                             </SelectTrigger>
                             <SelectContent>
@@ -183,9 +181,10 @@ export function AdminUsers() {
                             </SelectContent>
                         </Select>
                     </div>
+
                 </div>
 
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 md:ml-auto md:flex-none">
                     <Button className="h-9 px-4 text-sm" onClick={() => navigate("/admin/users/add")}>
                         + 추가
                     </Button>

@@ -1521,21 +1521,16 @@ export function ProjectsIndex() {
         </div>
 
         {/* 상단 필터 영역 */}
-        <div className="flex flex-col gap-4 rounded-2xl bg-white p-4 shadow-sm md:flex-row md:items-center">
-          {/* 검색어 */}
+        <div className="flex flex-col gap-4 rounded-2xl bg-white p-4 shadow-sm md:flex-row md:items-center md:flex-wrap">
           <Input
-              placeholder="프로젝트를 검색하세요"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="md:flex-1"
+            placeholder="프로젝트를 검색하세요"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="file:text-foreground placeholder:text-muted-foreground selection:bg-primary selection:text-primary-foreground dark:bg-input/30 border-input flex h-9 w-full min-w-0 rounded-md border bg-input-background px-3 py-1 text-base transition-[color,box-shadow] outline-none md:flex-1 md:text-sm focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
           />
 
-          {/* 상태 필터 */}
-          <Select
-            value={statusFilter}
-            onValueChange={(value) => setStatusFilter(value as StatusFilter)}
-          >
-            <SelectTrigger className="h-9 rounded-md bg-input-background px-3 py-1 md:w-40">
+          <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as StatusFilter)}>
+            <SelectTrigger className="border-input data-[placeholder]:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 h-9 w-full rounded-md border bg-input-background px-3 py-1 text-sm outline-none md:w-40 focus-visible:ring-[3px]">
               <SelectValue placeholder="상태 선택" />
             </SelectTrigger>
             <SelectContent>
@@ -1547,79 +1542,64 @@ export function ProjectsIndex() {
             </SelectContent>
           </Select>
 
-          {/* 계약기간 (시작/종료 하나의 폼) */}
           <div className="flex items-center gap-2">
-            <Label className="whitespace-nowrap text-xs md:text-sm">
+            <Label className="flex items-center gap-2 text-xs font-medium text-muted-foreground whitespace-nowrap md:text-sm">
               계약기간
             </Label>
             <div className="flex items-center gap-1">
-              {/* 기간 시작 */}
               <Input
-                  type="date"
-                  value={filterStartDate}
-                  onChange={(e) => {
-                    const value = e.target.value;
-                    setFilterStartDate(value);
-
-                    // 시작일 변경 시, 종료일이 1년 범위를 넘으면 잘라줌
-                    if (value && filterEndDate) {
-                      const maxEnd = getOneYearLaterISO(value);
-                      if (new Date(filterEndDate) > new Date(maxEnd)) {
-                        setFilterEndDate(maxEnd);
-                      }
+                type="date"
+                value={filterStartDate}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  setFilterStartDate(value);
+                  if (value && filterEndDate) {
+                    const maxEnd = getOneYearLaterISO(value);
+                    if (new Date(filterEndDate) > new Date(maxEnd)) {
+                      setFilterEndDate(maxEnd);
                     }
-                  }}
-                  className="h-9 w-[140px] rounded-md border border-border bg-input-background px-3 py-1"
+                  }
+                }}
+                className="file:text-foreground placeholder:text-muted-foreground selection:bg-primary selection:text-primary-foreground dark:bg-input/30 flex h-9 min-w-0 rounded-md border border-border bg-input-background px-3 py-1 text-base transition-[color,box-shadow] outline-none w-[140px] md:text-sm focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
               />
-
               <span className="px-1 text-sm text-muted-foreground">~</span>
-
-              {/* 기간 종료 (시작일 ~ 시작일 + 1년 - 1일) */}
               <Input
-                  type="date"
-                  value={filterEndDate}
-                  min={filterStartDate || undefined}
-                  max={filterStartDate ? getOneYearLaterISO(filterStartDate) : undefined}
-                  onChange={(e) => setFilterEndDate(e.target.value)}
-                  className="h-9 w-[140px] rounded-md border border-border bg-input-background px-3 py-1"
+                type="date"
+                value={filterEndDate}
+                min={filterStartDate || undefined}
+                max={filterStartDate ? getOneYearLaterISO(filterStartDate) : undefined}
+                onChange={(e) => setFilterEndDate(e.target.value)}
+                className="file:text-foreground placeholder:text-muted-foreground selection:bg-primary selection:text-primary-foreground dark:bg-input/30 flex h-9 min-w-0 rounded-md border border-border bg-input-background px-3 py-1 text-base transition-[color,box-shadow] outline-none w-[140px] md:text-sm focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
               />
             </div>
           </div>
 
-          {/* 정렬 옵션 (startDate 기준) */}
-          <Select
-              value={sortOption}
-              onValueChange={(value) => setSortOption(value as SortOption)}
-          >
-            <SelectTrigger className="h-9 rounded-md bg-input-background px-3 py-1 md:w-29">
-              <SelectValue />
+          <Select value={sortOption} onValueChange={(value) => setSortOption(value as SortOption)}>
+            <SelectTrigger className="border-input data-[placeholder]:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 h-9 w-full rounded-md border bg-input-background px-3 py-1 text-sm outline-none md:w-32 focus-visible:ring-[3px]">
+              <SelectValue placeholder="정렬" />
             </SelectTrigger>
             <SelectContent>
               {sortOptions.map((option) => (
-                  <SelectItem key={option} value={option}>
-                    {option}
-                  </SelectItem>
+                <SelectItem key={option} value={option}>
+                  {option}
+                </SelectItem>
               ))}
             </SelectContent>
           </Select>
 
-          {/* 새 프로젝트 + 편집 모드 버튼 */}
           {!isClient && (
-              <div className="flex items-center gap-2">
-                <Button
-                    className="h-9 px-4 text-sm md:w-auto"
-                    onClick={handleOpenCreateModal}
-                >
-                  + 새 프로젝트
-                </Button>
-                <Button
-                    variant={isProjectEditMode ? "default" : "outline"}
-                    className="h-9 px-4 text-sm"
-                    onClick={() => setIsProjectEditMode((prev) => !prev)}
-                >
-                  {isProjectEditMode ? "편집 완료" : "편집"}
-                </Button>
-              </div>
+            <div className="flex items-center gap-2 md:ml-auto">
+              <Button className="h-9 px-4 text-sm" onClick={handleOpenCreateModal}>
+                + 새 프로젝트
+              </Button>
+              <Button
+                variant={isProjectEditMode ? "default" : "outline"}
+                className="h-9 px-4 text-sm"
+                onClick={() => setIsProjectEditMode((prev) => !prev)}
+              >
+                {isProjectEditMode ? "편집 완료" : "편집"}
+              </Button>
+            </div>
           )}
         </div>
 

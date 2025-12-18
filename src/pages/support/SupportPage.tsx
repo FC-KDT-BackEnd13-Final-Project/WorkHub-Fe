@@ -26,8 +26,6 @@ import {
   type SupportTicketStatus,
 } from "@/data/supportTickets";
 import { clampPage } from "@/utils/pagination";
-import { PageHeader } from "@/components/common/PageHeader";
-import { FilterToolbar } from "@/components/common/FilterToolbar";
 import { PaginationControls } from "@/components/common/PaginationControls";
 import { typeBadgeStyles } from "@/components/projects/PostCard";
 import {
@@ -290,36 +288,39 @@ export function SupportPage() {
   };
 
   return (
-      <div className="space-y-6">
-        <PageHeader title="CS 문의" description="프로젝트 관련 문의를 확인하세요." />
+      <div className="space-y-4 md:space-y-6">
+        <div className="rounded-2xl bg-white p-6 shadow-sm">
+          <h1 className="text-3xl font-semibold tracking-tight">CS 문의</h1>
+          <p className="mt-2 text-muted-foreground">프로젝트 관련 문의를 확인하세요.</p>
+        </div>
 
-        {/* 검색 / 필터 */}
         {!isWriting && (
-            <FilterToolbar align="between">
+          <div className="rounded-2xl bg-white p-6 shadow-sm">
+            <div className="flex flex-col gap-3 md:flex-row md:flex-nowrap md:items-center md:justify-between">
               <Input2
-                  value={searchInput}
-                  onChange={(e) => {
-                    const value = e.target.value;
-                    setSearchInput(value);
-                  }}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      setSearchTerm(searchInput);
-                      setCurrentPage(0);
-                    }
-                  }}
-                  placeholder="검색어를 입력하세요"
-                  className="md:flex-1"
+                value={searchInput}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  setSearchInput(value);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    setSearchTerm(searchInput);
+                    setCurrentPage(0);
+                  }
+                }}
+                placeholder="검색어를 입력하세요"
+                className="file:text-foreground placeholder:text-muted-foreground selection:bg-primary selection:text-primary-foreground dark:bg-input/30 border-input flex h-9 w-full min-w-0 rounded-md border bg-input-background px-3 py-1 text-base transition-[color,box-shadow] outline-none md:flex-1 md:text-sm focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
               />
 
               <Select
-                  value={statusFilter}
-                  onValueChange={(value) => {
-                    setStatusFilter(value as SupportTicketStatus | "all");
-                    setCurrentPage(0);
-                  }}
+                value={statusFilter}
+                onValueChange={(value) => {
+                  setStatusFilter(value as SupportTicketStatus | "all");
+                  setCurrentPage(0);
+                }}
               >
-                <SelectTrigger className="h-9 rounded-md border bg-input-background px-3 py-1 md:w-52">
+                <SelectTrigger className="border-input data-[placeholder]:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 h-9 w-full rounded-md border bg-input-background px-3 py-1 text-sm outline-none md:w-52 focus-visible:ring-[3px]">
                   <SelectValue placeholder="전체 상태" />
                 </SelectTrigger>
                 <SelectContent>
@@ -330,10 +331,14 @@ export function SupportPage() {
                 </SelectContent>
               </Select>
 
-              <Button2 className="h-9 px-4 text-sm md:w-auto" onClick={handleStartWriting}>
+              <Button2
+                className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive bg-primary text-primary-foreground hover:bg-primary/90 py-2 has-[>svg]:px-3 h-9 px-4 text-sm md:w-auto"
+                onClick={handleStartWriting}
+              >
                 문의 작성
               </Button2>
-            </FilterToolbar>
+            </div>
+          </div>
         )}
 
         {/* 작성 화면 */}
