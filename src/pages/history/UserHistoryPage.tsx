@@ -127,6 +127,28 @@ export function UserHistoryPage() {
     </Select>
   );
 
+  const renderMobileFilterLayout = (controls: ReactNode[] = []) => {
+    const hasAdditional = controls.length > 0;
+
+    return (
+      <div className="flex flex-col gap-3">
+        <Input
+          placeholder="작업을 검색하세요"
+          value={searchTerm}
+          onChange={(event) => setSearchTerm(event.target.value)}
+        />
+        <div className={`flex w-full gap-3 ${hasAdditional ? "flex-row" : "flex-col"}`}>
+          {controls.map((control, index) => (
+            <div key={`mobile-filter-${index}`} className={`${hasAdditional ? "flex-1" : "w-full"}`}>
+              {control}
+            </div>
+          ))}
+          <div className={`${hasAdditional ? "flex-1" : "w-full"}`}>{renderSortSelect()}</div>
+        </div>
+      </div>
+    );
+  };
+
   const renderDesktopFiltersByTab = () => {
     switch (activeTab) {
       case "user":
@@ -219,83 +241,50 @@ export function UserHistoryPage() {
   const renderMobileFiltersByTab = () => {
     switch (activeTab) {
       case "user":
-        return (
-          <div className="flex flex-col gap-3">
-            <Input
-              placeholder="작업을 검색하세요"
-              value={searchTerm}
-              onChange={(event) => setSearchTerm(event.target.value)}
-            />
-            {renderSortSelect()}
-          </div>
-        );
+        return renderMobileFilterLayout();
       case "post":
-        return (
-          <div className="flex flex-col gap-3">
-            <Input
-              placeholder="작업을 검색하세요"
-              value={searchTerm}
-              onChange={(event) => setSearchTerm(event.target.value)}
-            />
-            <Select value={postFilter} onValueChange={(value: PostFilter) => setPostFilter(value)}>
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder="분류 선택" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">전체</SelectItem>
-                <SelectItem value="post">게시글</SelectItem>
-                <SelectItem value="postComment">게시글 댓글</SelectItem>
-                <SelectItem value="csPost">CS 게시글</SelectItem>
-                <SelectItem value="csQna">CS QnA</SelectItem>
-              </SelectContent>
-            </Select>
-            {renderSortSelect()}
-          </div>
-        );
+        return renderMobileFilterLayout([
+          <Select value={postFilter} onValueChange={(value: PostFilter) => setPostFilter(value)}>
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder="분류 선택" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">전체</SelectItem>
+              <SelectItem value="post">게시글</SelectItem>
+              <SelectItem value="postComment">게시글 댓글</SelectItem>
+              <SelectItem value="csPost">CS 게시글</SelectItem>
+              <SelectItem value="csQna">CS QnA</SelectItem>
+            </SelectContent>
+          </Select>,
+        ]);
       case "project":
-        return (
-          <div className="flex flex-col gap-3">
-            <Input
-              placeholder="작업을 검색하세요"
-              value={searchTerm}
-              onChange={(event) => setSearchTerm(event.target.value)}
-            />
-            <Select value={projectFilter} onValueChange={(value: ProjectFilter) => setProjectFilter(value)}>
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder="분류 선택" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">전체</SelectItem>
-                <SelectItem value="projectAgency">개발사</SelectItem>
-                <SelectItem value="projectClient">고객사</SelectItem>
-                <SelectItem value="project">프로젝트</SelectItem>
-                <SelectItem value="projectPhase">프로젝트 단계</SelectItem>
-              </SelectContent>
-            </Select>
-            {renderSortSelect()}
-          </div>
-        );
+        return renderMobileFilterLayout([
+          <Select value={projectFilter} onValueChange={(value: ProjectFilter) => setProjectFilter(value)}>
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder="분류 선택" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">전체</SelectItem>
+              <SelectItem value="projectAgency">개발사</SelectItem>
+              <SelectItem value="projectClient">고객사</SelectItem>
+              <SelectItem value="project">프로젝트</SelectItem>
+              <SelectItem value="projectPhase">프로젝트 단계</SelectItem>
+            </SelectContent>
+          </Select>,
+        ]);
       case "checklist":
-        return (
-          <div className="flex flex-col gap-3">
-            <Input
-              placeholder="작업을 검색하세요"
-              value={searchTerm}
-              onChange={(event) => setSearchTerm(event.target.value)}
-            />
-            <Select value={checklistFilter} onValueChange={(value: ChecklistFilter) => setChecklistFilter(value)}>
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder="분류 선택" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">전체</SelectItem>
-                <SelectItem value="checklist">체크리스트</SelectItem>
-                <SelectItem value="checklistComment">체크리스트 댓글</SelectItem>
-              </SelectContent>
-            </Select>
-            {renderSortSelect()}
-          </div>
-        );
+        return renderMobileFilterLayout([
+          <Select value={checklistFilter} onValueChange={(value: ChecklistFilter) => setChecklistFilter(value)}>
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder="분류 선택" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">전체</SelectItem>
+              <SelectItem value="checklist">체크리스트</SelectItem>
+              <SelectItem value="checklistComment">체크리스트 댓글</SelectItem>
+            </SelectContent>
+          </Select>,
+        ]);
       default:
         return null;
     }
