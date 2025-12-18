@@ -258,9 +258,9 @@ export function ProjectPost2() {
   }
 
   return (
-      <div className="w-full max-w-[1800px] mx-auto p-6 space-y-6">
+      <div className="w-full max-w-[1800px] mx-auto px-0 sm:px-6 py-6 space-y-6">
         {/* Header */}
-        <div className="flex flex-col gap-4 rounded-2xl bg-white p-4 shadow-sm md:flex-row md:items-center">
+        <div className="flex flex-col gap-3 rounded-2xl bg-white p-4 shadow-sm md:flex-row md:flex-nowrap md:items-center md:justify-between">
           <Input2
               id="search"
               placeholder="검색어를 입력하세요"
@@ -269,53 +269,69 @@ export function ProjectPost2() {
                 setSearchTerm(e.target.value);
                 setCurrentPage(1);
               }}
-              className="md:flex-1"
+              className="file:text-foreground placeholder:text-muted-foreground selection:bg-primary selection:text-primary-foreground dark:bg-input/30 border-input flex h-9 w-full min-w-0 rounded-md border bg-input-background px-3 py-1 text-base transition-[color,box-shadow] outline-none md:flex-1 md:text-sm focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
           />
 
-          {/* 타입 필터 Select */}
-          <Select
-              value={typeFilter}
-              onValueChange={(value) => {
-                setTypeFilter(value as TypeFilter);
-                setCurrentPage(1);
-              }}
-          >
-            <SelectTrigger className="h-9 rounded-md border border-border bg-input-background px-3 py-1 md:w-52">
-              <SelectValue placeholder="모든 타입" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">전체</SelectItem>
-              <SelectItem value="공지">공지</SelectItem>
-              <SelectItem value="질문">질문</SelectItem>
-              <SelectItem value="일반">일반</SelectItem>
-            </SelectContent>
-          </Select>
+          <div className="flex w-full items-center gap-3 md:w-auto">
+            {/* 타입 필터 Select */}
+            <Select
+                value={typeFilter}
+                onValueChange={(value) => {
+                  setTypeFilter(value as TypeFilter);
+                  setCurrentPage(1);
+                }}
+            >
+              <SelectTrigger className="border-input data-[placeholder]:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 h-9 flex-1 min-w-0 rounded-md border bg-input-background px-3 py-1 text-sm outline-none md:w-52 md:flex-none focus-visible:ring-[3px]">
+                <SelectValue placeholder="모든 타입" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">전체</SelectItem>
+                <SelectItem value="공지">공지</SelectItem>
+                <SelectItem value="질문">질문</SelectItem>
+                <SelectItem value="일반">일반</SelectItem>
+              </SelectContent>
+            </Select>
 
-          <Button2
-              className="h-9 px-4 text-sm md:w-auto"
-              onClick={() => setIsWriting(true)}
-          >
-            문의 작성
-          </Button2>
+            <Button2
+                className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive bg-primary text-primary-foreground hover:bg-primary/90 py-2 has-[>svg]:px-3 h-9 px-4 text-sm flex-none min-w-[120px] md:w-auto"
+                onClick={() => setIsWriting(true)}
+            >
+              문의 작성
+            </Button2>
+          </div>
         </div>
         {loading && (
           <p className="text-sm text-muted-foreground">게시글을 불러오는 중입니다...</p>
         )}
 
         {/* 게시판 목록 */}
-        <Card2 className="overflow-hidden">
+        <Card2 className="text-card-foreground flex flex-col gap-6 rounded-2xl border border-white/70 bg-white/90 shadow-sm backdrop-blur overflow-hidden">
           <CardContent className="p-0">
             <div className="w-full">
               <Table2>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="px-2 w-[56px] text-center">No</TableHead>
-                    <TableHead>작성자</TableHead>
-                    <TableHead>타입</TableHead>
-                    <TableHead>제목</TableHead>
-                    <TableHead>내용</TableHead>
-                    <TableHead>생성일</TableHead>
-                    <TableHead>수정일</TableHead>
+                    <TableHead className="text-foreground h-10 align-middle font-medium whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] px-2 w-[56px] text-center">
+                      No
+                    </TableHead>
+                    <TableHead className="text-foreground h-10 px-2 text-left align-middle font-medium whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]">
+                      작성자
+                    </TableHead>
+                    <TableHead className="text-foreground h-10 px-2 text-left align-middle font-medium whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]">
+                      타입
+                    </TableHead>
+                    <TableHead className="text-foreground h-10 px-2 text-left align-middle font-medium whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]">
+                      제목
+                    </TableHead>
+                    <TableHead className="text-foreground h-10 px-2 text-left align-middle font-medium whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]">
+                      내용
+                    </TableHead>
+                    <TableHead className="text-foreground h-10 px-2 text-left align-middle font-medium whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]">
+                      생성일
+                    </TableHead>
+                    <TableHead className="text-foreground h-10 px-2 text-left align-middle font-medium whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]">
+                      수정일
+                    </TableHead>
                   </TableRow>
                 </TableHeader>
 
@@ -335,12 +351,12 @@ export function ProjectPost2() {
                               onClick={() => navigateToDetail(customer.id)}
                           >
                             {/* No (전체 인덱스 유지) */}
-                            <TableCell className="px-2 py-2 text-center whitespace-nowrap">
+                            <TableCell className="p-2 align-middle whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] px-2 py-2 text-center">
                               {indexOfFirstItem + index + 1}
                             </TableCell>
 
                             {/* 작성자 */}
-                            <TableCell className="px-3 py-2 whitespace-nowrap">
+                            <TableCell className="p-2 align-middle [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] px-3 py-2 whitespace-nowrap">
                               <div
                                   className="w-[80px] truncate"
                                   title={customer.customerName}
@@ -350,7 +366,7 @@ export function ProjectPost2() {
                             </TableCell>
 
                             {/* 타입 - 색 배지 */}
-                            <TableCell className="px-3 py-2 whitespace-nowrap">
+                            <TableCell className="p-2 align-middle [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] px-3 py-2 whitespace-nowrap">
                           <span
                               className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium border"
                               style={{
@@ -364,26 +380,26 @@ export function ProjectPost2() {
                             </TableCell>
 
                             {/* 제목 (말줄임표) */}
-                            <TableCell className="px-3 py-2 whitespace-normal">
+                            <TableCell className="p-2 align-middle [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] px-3 py-2 whitespace-normal">
                               <div className="w-[200px]" title={customer.title}>
                                 {truncatedTitle}
                               </div>
                             </TableCell>
 
                             {/* 내용 (말줄임표) */}
-                            <TableCell className="px-3 py-2 whitespace-normal">
+                            <TableCell className="p-2 align-middle [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] px-3 py-2 whitespace-normal">
                               <div className="w-[260px] truncate" title={normalizedContent}>
                                 {truncatedContent}
                               </div>
                             </TableCell>
 
                             {/* 생성일 */}
-                            <TableCell className="px-3 py-2 whitespace-nowrap">
+                            <TableCell className="p-2 align-middle [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] px-3 py-2 whitespace-nowrap">
                               {formatPostDate(customer.createdDate)}
                             </TableCell>
 
                             {/* 수정일 */}
-                            <TableCell className="px-3 py-2 whitespace-nowrap">
+                            <TableCell className="p-2 align-middle [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] px-3 py-2 whitespace-nowrap">
                               {formatPostDate(customer.updatedDate)}
                             </TableCell>
                           </TableRow>
@@ -512,7 +528,7 @@ export function ProjectPost2() {
             </Card2>
         )}
         {fetchError && !searchTerm && (
-          <Card2>
+          <Card2 className="shadow-none border-none bg-transparent">
             <CardContent className="text-center py-8 text-sm text-red-600">
               {fetchError}
             </CardContent>
