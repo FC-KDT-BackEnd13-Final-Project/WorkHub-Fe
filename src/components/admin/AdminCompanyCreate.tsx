@@ -165,7 +165,7 @@ export function AdminCompanyCreate() {
                                 >
                                     회사 주소
                                 </Label>
-                                <div className="flex flex-col gap-2 md:flex-row">
+                                <div className="flex flex-row flex-wrap gap-2 md:flex-nowrap md:items-center">
                                     <Input
                                         id="company-address"
                                         placeholder="주소를 검색하거나 입력하세요"

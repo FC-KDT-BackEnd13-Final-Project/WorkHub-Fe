@@ -124,7 +124,83 @@ export function AdminUsers() {
             </div>
 
             <div className="flex flex-col gap-4 rounded-2xl bg-white p-4 shadow-sm md:flex-row md:flex-wrap md:items-center">
-                <div className="flex w-full flex-col gap-3 md:flex-1 md:flex-row md:flex-wrap md:items-center md:gap-3">
+                {/* 모바일 레이아웃 */}
+                <div className="flex w-full flex-col gap-3 md:hidden">
+                    <Input
+                        placeholder="회원을 검색하세요"
+                        value={search}
+                        onChange={(event) => setSearch(event.target.value)}
+                        className="file:text-foreground placeholder:text-muted-foreground selection:bg-primary selection:text-primary-foreground dark:bg-input/30 border-input h-9 w-full rounded-md border bg-input-background px-3 py-1 text-sm outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
+                    />
+
+                    <div className="flex flex-row gap-2">
+                        <div className="flex-1">
+                            <Select value={roleFilter} onValueChange={(value) => setRoleFilter(value as (typeof roles)[number])}>
+                                <SelectTrigger className="border-input data-[placeholder]:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 h-9 w-full rounded-md border bg-input-background px-3 py-1 text-xs outline-none focus-visible:ring-[3px]">
+                                    <SelectValue placeholder="전체 역할" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {roles.map((role) => (
+                                        <SelectItem key={role} value={role}>
+                                            {roleDisplayMap[role] ?? role}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+
+                        <div className="flex-1">
+                            <Select value={companyFilter} onValueChange={setCompanyFilter}>
+                                <SelectTrigger className="border-input data-[placeholder]:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 h-9 w-full rounded-md border bg-input-background px-3 py-1 text-xs outline-none focus-visible:ring-[3px]">
+                                    <SelectValue placeholder="전체 회사" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="All">전체 회사</SelectItem>
+                                    {companies.map((company) => (
+                                        <SelectItem key={company} value={company}>
+                                            {company}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+
+                        <div className="flex-1">
+                            <Select
+                                value={statusFilter}
+                                onValueChange={(value) =>
+                                    setStatusFilter(value as (typeof statusOptions)[number])
+                                }
+                            >
+                                <SelectTrigger className="border-input data-[placeholder]:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 h-9 w-full rounded-md border bg-input-background px-3 py-1 text-xs outline-none focus-visible:ring-[3px]">
+                                    <SelectValue placeholder="전체 상태" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="All">전체 상태</SelectItem>
+                                    <SelectItem value="ACTIVE">활성</SelectItem>
+                                    <SelectItem value="INACTIVE">비활성</SelectItem>
+                                    <SelectItem value="SUSPENDED">정지</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                    </div>
+
+                    <div className="flex gap-2">
+                        <Button className="h-11 flex-1 px-4 text-sm" onClick={() => navigate("/admin/users/add")}>
+                            + 추가
+                        </Button>
+                        <Button
+                            className="h-11 flex-1 px-4 text-sm"
+                            variant="outline"
+                            onClick={() => navigate("/admin/users/companies")}
+                        >
+                            고객사 목록
+                        </Button>
+                    </div>
+                </div>
+
+                {/* 데스크톱 레이아웃 */}
+                <div className="hidden w-full flex-col gap-3 md:flex md:flex-1 md:flex-row md:flex-wrap md:items-center md:gap-3">
                     <Input
                         placeholder="회원을 검색하세요"
                         value={search}
@@ -184,7 +260,7 @@ export function AdminUsers() {
 
                 </div>
 
-                <div className="flex items-center gap-2 md:ml-auto md:flex-none">
+                <div className="hidden items-center gap-2 md:ml-auto md:flex md:flex-none">
                     <Button className="h-9 px-4 text-sm" onClick={() => navigate("/admin/users/add")}>
                         + 추가
                     </Button>
