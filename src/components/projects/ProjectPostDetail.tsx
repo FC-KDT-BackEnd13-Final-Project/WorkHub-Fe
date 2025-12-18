@@ -1,5 +1,5 @@
 import { useLocation, useNavigate, useParams } from "react-router-dom";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { Card2, CardContent, CardFooter, CardHeader } from "../ui/card2";
 import { Badge2 } from "../ui/badge2";
@@ -39,6 +39,7 @@ import {
     updatePost,
 } from "../../lib/posts";
 import type { CommentResponse, PostResponse, PostThreadResponse } from "../../types/post";
+import { fileApi } from "@/lib/api";
 
 export interface ReplyDraftPayload {
     title: string;
@@ -69,6 +70,8 @@ interface PostPayload {
     isOwner?: boolean;
     parentId?: string | null; // 원글이면 null, 답글이면 원글 id
     ticketStatus?: SupportTicketStatus;
+    attachments?: AttachmentDraft[];
+    links?: { url: string; description: string }[];
 }
 
 interface CommentHistoryEntry {
@@ -175,6 +178,8 @@ export function ProjectPostDetail({
                 hashtag: fallbackPost.hashtag,
                 isOwner: true,
                 ticketStatus: undefined,
+                attachments: [],
+                links: [],
             }
             : {
                 id: postId ?? "",
@@ -187,7 +192,29 @@ export function ProjectPostDetail({
                 hashtag: "",
                 isOwner: true,
                 ticketStatus: undefined,
+                attachments: [],
+                links: [],
             });
+
+    const derivedAttachmentsFromProps = useMemo(() => {
+        if (statePost?.attachments && statePost.attachments.length > 0) {
+            return statePost.attachments;
+        }
+        if (initialPost?.attachments && initialPost.attachments.length > 0) {
+            return initialPost.attachments;
+        }
+        return statePost?.attachments ?? initialPost?.attachments ?? [];
+    }, [statePost?.attachments, initialPost?.attachments]);
+
+    const derivedLinksFromProps = useMemo(() => {
+        if (statePost?.links && statePost.links.length > 0) {
+            return statePost.links;
+        }
+        if (initialPost?.links && initialPost.links.length > 0) {
+            return initialPost.links;
+        }
+        return statePost?.links ?? initialPost?.links ?? [];
+    }, [statePost?.links, initialPost?.links]);
 
     const [postTitleState, setPostTitleState] = useState(post.title);
     const [postContentState, setPostContentState] = useState(post.content);
@@ -195,15 +222,19 @@ export function ProjectPostDetail({
     const [ticketStatus, setTicketStatus] = useState<SupportTicketStatus | undefined>(
         post.ticketStatus,
     );
-    const [postAttachments, setPostAttachments] = useState<AttachmentDraft[]>([]);
-    const [postLinks, setPostLinks] = useState<{ url: string; description: string; linkId?: number }[]>([]);
+    const [postAttachments, setPostAttachments] = useState<AttachmentDraft[]>(
+        derivedAttachmentsFromProps,
+    );
+    const [postLinks, setPostLinks] = useState<
+        { url: string; description: string; linkId?: number }[]
+    >(derivedLinksFromProps);
     const [isPostEditing, setIsPostEditing] = useState(startInEditMode);
     const [postEditorKey, setPostEditorKey] = useState(0);
     const [postEditDraft, setPostEditDraft] = useState<RichTextDraft>({
         title: post.title,
         content: post.content,
-        attachments: [],
-        links: [],
+        attachments: derivedAttachmentsFromProps,
+        links: derivedLinksFromProps,
         type: post.type,
     });
     const [isPostSaving, setIsPostSaving] = useState(false);
@@ -335,7 +366,16 @@ export function ProjectPostDetail({
         setPostContentState(post.content);
         setPostTypeState(post.type);
         setTicketStatus(post.ticketStatus);
-    }, [post.title, post.content, post.type, post.ticketStatus]);
+        setPostAttachments(derivedAttachmentsFromProps);
+        setPostLinks(derivedLinksFromProps);
+    }, [
+        post.title,
+        post.content,
+        post.type,
+        post.ticketStatus,
+        derivedAttachmentsFromProps,
+        derivedLinksFromProps,
+    ]);
 
     useEffect(() => {
         if (startInEditMode) {
@@ -786,6 +826,8 @@ export function ProjectPostDetail({
         post.title = trimmedTitle;
         post.content = postEditDraft.content;
         post.type = postEditDraft.type;
+        post.attachments = postEditDraft.attachments;
+        post.links = postEditDraft.links;
         post.updatedDate = new Date().toISOString();
         setIsPostEditing(false);
     };
@@ -1998,6 +2040,47 @@ export function ProjectPostDetail({
         return "수정됨";
     };
 
+    const triggerFileDownload = (url: string, filename?: string) => {
+        if (typeof window === "undefined") return;
+        const newWindow = window.open(url, "_blank", "noopener,noreferrer");
+        if (!newWindow && filename) {
+            // 팝업 차단 등으로 새 창이 열리지 않으면 현재 창에서 강제로 이동
+            const anchor = document.createElement("a");
+            anchor.href = url;
+            anchor.download = filename;
+            anchor.rel = "noopener";
+            document.body.appendChild(anchor);
+            anchor.click();
+            document.body.removeChild(anchor);
+        }
+    };
+
+    const handleAttachmentDownload = async (attachment: AttachmentDraft) => {
+        if (attachment.fileKey) {
+            try {
+                const fileInfo = await fileApi.getDownloadUrl(attachment.fileKey, attachment.name);
+                const targetUrl = fileInfo?.presignedUrl;
+                if (!targetUrl) {
+                    throw new Error("Presigned URL이 없습니다.");
+                }
+                // S3 URL에 Content-Disposition 헤더가 포함되어 있어 바로 다운로드됨
+                window.location.href = targetUrl;
+                return;
+            } catch (error) {
+                console.error("첨부 파일 다운로드 URL 조회 실패", error);
+                toast.error("파일을 다운로드할 수 없습니다. 잠시 후 다시 시도해 주세요.");
+                return;
+            }
+        }
+
+        if (attachment.dataUrl) {
+            triggerFileDownload(attachment.dataUrl, attachment.name);
+            return;
+        }
+
+        toast.error("다운로드할 파일 정보를 찾을 수 없습니다.");
+    };
+
     return (
         <div className="w-full max-w-5xl mx-auto p-6 space-y-2">
             {/* 게시글 카드 */}
@@ -2017,14 +2100,14 @@ export function ProjectPostDetail({
                                 <ul className="list-disc pl-5 text-muted-foreground space-y-1">
                                     {postAttachments.map((file) => (
                                         <li key={file.id}>
-                                            {file.dataUrl ? (
-                                                <a
-                                                    href={file.dataUrl}
-                                                    download={file.name}
+                                            {file.fileKey || file.dataUrl ? (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleAttachmentDownload(file)}
                                                     className="text-primary underline"
                                                 >
                                                     {file.name}
-                                                </a>
+                                                </button>
                                             ) : (
                                                 file.name
                                             )}
@@ -2122,14 +2205,14 @@ export function ProjectPostDetail({
                                         <ul className="list-disc pl-5 text-muted-foreground space-y-1">
                                             {focusedReply.attachments.map((file, index) => (
                                                 <li key={`${file.name}-${index}`}>
-                                                    {file.dataUrl ? (
-                                                        <a
-                                                            href={file.dataUrl}
-                                                            download={file.name}
+                                                    {file.fileKey || file.dataUrl ? (
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => handleAttachmentDownload(file)}
                                                             className="text-primary underline"
                                                         >
                                                             {file.name}
-                                                        </a>
+                                                        </button>
                                                     ) : (
                                                         file.name
                                                     )}

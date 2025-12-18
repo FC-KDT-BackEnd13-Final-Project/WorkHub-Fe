@@ -32,6 +32,13 @@ type CreateProjectPayload = {
   endDate: string;
 };
 
+export type FileDownloadResponse = {
+  fileName: string;
+  originalFileName?: string;
+  presignedUrl: string;
+  fileUrl?: string;
+};
+
 type CompanyListResponse = {
   success: boolean;
   code: string;
@@ -60,10 +67,6 @@ const API_BASE_URL = 'https://workhub.o-r.kr'
 // 공통 설정을 담은 axios 인스턴스
 export const apiClient = axios.create({
   baseURL: API_BASE_URL, // 기본 URL을 매 요청마다 붙일 필요 없이 설정
-  headers: {
-    'Content-Type': 'application/json',
-    'accept': 'application/json',
-  },
   withCredentials: true, // 서버와 쿠키 기반 세션을 사용할 수 있게 허용
 });
 
@@ -580,10 +583,19 @@ export const csPostApi = {
    * @param projectId - 프로젝트 ID
    * @param payload - 게시글 생성 데이터
    */
-  create: async (projectId: string, payload: CreateCsPostPayload) => {
+  create: async (projectId: string, payload: CreateCsPostPayload, files?: File[]) => {
+    const formData = new FormData();
+    formData.append(
+      "data",
+      new Blob([JSON.stringify(payload)], { type: "application/json" }),
+    );
+    files?.forEach((file) => {
+      formData.append("files", file);
+    });
+
     const response = await apiClient.post(
       `/api/v1/projects/${projectId}/csPosts`,
-      payload
+      formData,
     );
 
     const { success, message, data } = response.data;
@@ -769,10 +781,23 @@ export const csPostApi = {
     projectId: string,
     csPostId: string,
     payload: CsPostUpdateRequest,
+    newFiles?: File[],
   ): Promise<CsPostDetailResponse> => {
+    const formData = new FormData();
+    formData.append(
+      "data",
+      new Blob([JSON.stringify(payload)], { type: "application/json" }),
+    );
+    newFiles?.forEach((file) => {
+      formData.append("newFiles", file);
+    });
+
     const response = await apiClient.patch(
       `/api/v1/projects/${projectId}/csPosts/${csPostId}`,
-      payload,
+      formData,
+      {
+        headers: { "Content-Type": "multipart/form-data" },
+      },
     );
 
     const { success, message, data } = response.data;
@@ -782,5 +807,51 @@ export const csPostApi = {
     }
 
     throw new Error(message || 'CS 게시글 수정에 실패했습니다.');
+  },
+};
+
+/**
+ * 파일 API
+ */
+export const fileApi = {
+  /**
+   * 파일명 기준으로 Pre-signed URL 목록을 조회한다.
+   * @param fileNames - 저장된 파일명(UUID)
+   */
+  getDownloadUrls: async (fileNames: string[]): Promise<FileDownloadResponse[]> => {
+    if (!fileNames || fileNames.length === 0) {
+      return [];
+    }
+
+    const response = await apiClient.get('/api/v1/files/get-files', {
+      params: { fileNames },
+    });
+
+    const { success, message, data } = response.data;
+
+    if (success === true) {
+      return data;
+    }
+
+    throw new Error(message || '파일 URL 조회에 실패했습니다.');
+  },
+
+  /**
+   * 원본 파일명으로 다운로드할 수 있는 Pre-signed URL을 조회한다.
+   * @param fileName - S3에 저장된 파일명(UUID)
+   * @param originalFileName - 원본 파일명
+   */
+  getDownloadUrl: async (fileName: string, originalFileName: string): Promise<FileDownloadResponse> => {
+    const response = await apiClient.get('/api/v1/files/download', {
+      params: { fileName, originalFileName },
+    });
+
+    const { success, message, data } = response.data;
+
+    if (success === true) {
+      return data;
+    }
+
+    throw new Error(message || '파일 다운로드 URL 조회에 실패했습니다.');
   },
 };

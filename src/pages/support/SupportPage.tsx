@@ -38,6 +38,9 @@ import { csPostApi } from "@/lib/api";
 import type { CsPostApiItem, CsPostStatus } from "@/types/csPost";
 import { toast } from "sonner";
 import { getErrorMessage } from "@/utils/errorMessages";
+import { attachmentDraftsToFiles } from "@/utils/attachment";
+import { mapCsPostFilesToAttachments } from "@/utils/csPostAttachments";
+import type { AttachmentDraft } from "@/components/RichTextDemo";
 
 // API 응답을 UI 형식으로 변환
 interface Ticket {
@@ -49,6 +52,7 @@ interface Ticket {
   createdDate: string;
   updatedDate: string;
   isOwner?: boolean;
+  attachments: AttachmentDraft[];
 }
 
 const convertApiItemToTicket = (item: CsPostApiItem): Ticket => ({
@@ -60,6 +64,7 @@ const convertApiItemToTicket = (item: CsPostApiItem): Ticket => ({
   createdDate: item.createdAt,
   updatedDate: item.updatedAt,
   isOwner: true,
+  attachments: mapCsPostFilesToAttachments(item.files, `cs-file-${item.csPostId}`),
 });
 
 type StatusStyle = {
@@ -261,8 +266,10 @@ export function SupportPage() {
       content: draft.content,
     };
 
+    const files = attachmentDraftsToFiles(draft.attachments);
+
     try {
-      await csPostApi.create(projectId, payload);
+      await csPostApi.create(projectId, payload, files);
       toast.success("CS 문의가 등록되었습니다.");
       clear();
       resetWriteDraft();
