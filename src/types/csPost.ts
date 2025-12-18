@@ -16,6 +16,14 @@ export interface CsPostApiItem {
   updatedAt: string; // ISO 8601 형식
   userId?: number;
   userName?: string;
+  files?: CsPostFileResponse[];
+}
+
+export interface CsPostFileResponse {
+  csPostFileId: number;
+  fileName: string;
+  originalFileName?: string;
+  fileOrder: number;
 }
 
 /**
@@ -76,6 +84,7 @@ export interface CsPostDetailResponse {
   updatedAt: string; // ISO 8601 형식
   userId?: number;
   userName?: string;
+  files?: CsPostFileResponse[];
 }
 
 /**

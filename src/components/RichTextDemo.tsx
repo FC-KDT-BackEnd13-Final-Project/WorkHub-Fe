@@ -9,6 +9,7 @@ export interface AttachmentDraft {
     name: string;
     size: number;
     dataUrl: string;
+    fileKey?: string;
 }
 
 export interface RichTextDraft {

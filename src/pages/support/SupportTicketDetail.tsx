@@ -8,8 +8,10 @@ import type { CsPostDetailResponse } from "../../types/csPost";
 import { saveRepliesForPost, type PostReplyItem } from "../../utils/postRepliesStorage";
 import { convertQnaResponseToReply, convertQnaToReply } from "../../utils/supportQnaMapper";
 import { toast } from "sonner";
-import type { RichTextDraft } from "../../components/RichTextDemo";
+import type { AttachmentDraft, RichTextDraft } from "../../components/RichTextDemo";
 import { getErrorMessage } from "@/utils/errorMessages";
+import { attachmentDraftsToFiles } from "@/utils/attachment";
+import { mapCsPostFilesToAttachments } from "@/utils/csPostAttachments";
 
 const QNA_FETCH_PARAMS = {
   page: 0,
@@ -30,6 +32,7 @@ interface TicketDetail {
   ticketStatus?: SupportTicketStatus;
   isOwner: boolean;
   hashtag?: string;
+  attachments: AttachmentDraft[];
 }
 
 const convertApiDetailToTicket = (data: CsPostDetailResponse): TicketDetail => {
@@ -37,6 +40,7 @@ const convertApiDetailToTicket = (data: CsPostDetailResponse): TicketDetail => {
   const statusLabel = normalizedStatus
     ? supportTicketStatusLabel[normalizedStatus]
     : undefined;
+  const attachments = mapCsPostFilesToAttachments(data.files);
   return {
     id: String(data.csPostId),
     customerName: data.userName ?? data.customerName,
@@ -49,6 +53,7 @@ const convertApiDetailToTicket = (data: CsPostDetailResponse): TicketDetail => {
     ticketStatus: normalizedStatus,
     isOwner: true,
     hashtag: "",
+    attachments,
   };
 };
 
@@ -181,9 +186,10 @@ export function SupportTicketDetail() {
       content: draft.content,
       files: [],
     };
+    const newFiles = attachmentDraftsToFiles(draft.attachments);
 
     try {
-      await csPostApi.update(projectId, ticketId, payload);
+      await csPostApi.update(projectId, ticketId, payload, newFiles);
       toast.success("CS 문의가 수정되었습니다.");
       const refreshed = await csPostApi.getDetail(projectId, ticketId);
       setTicket(convertApiDetailToTicket(refreshed));

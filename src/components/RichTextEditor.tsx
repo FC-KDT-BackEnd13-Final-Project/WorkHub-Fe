@@ -408,7 +408,7 @@ export function RichTextEditor({
                 </div>
             )}
 
-            <style jsx>{`
+            <style>{`
                 [contentEditable]:empty:before {
                     content: attr(data-placeholder);
                     color: #9ca3af;
