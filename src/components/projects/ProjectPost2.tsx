@@ -300,75 +300,41 @@ export function ProjectPost2() {
             </Button2>
           </div>
         </div>
-        {loading && (
-          <p className="text-sm text-muted-foreground">게시글을 불러오는 중입니다...</p>
-        )}
-
-        {/* 게시판 목록 */}
-        <Card2 className="text-card-foreground flex flex-col gap-6 rounded-2xl border border-white/70 bg-white/90 shadow-sm backdrop-blur overflow-hidden">
-          <CardContent className="p-0">
-            <div className="w-full">
-              <Table2>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="text-foreground h-10 align-middle font-medium whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] px-2 w-[56px] text-center">
-                      No
-                    </TableHead>
-                    <TableHead className="text-foreground h-10 px-2 text-left align-middle font-medium whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]">
-                      작성자
-                    </TableHead>
-                    <TableHead className="text-foreground h-10 px-2 text-left align-middle font-medium whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]">
-                      타입
-                    </TableHead>
-                    <TableHead className="text-foreground h-10 px-2 text-left align-middle font-medium whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]">
-                      제목
-                    </TableHead>
-                    <TableHead className="text-foreground h-10 px-2 text-left align-middle font-medium whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]">
-                      내용
-                    </TableHead>
-                    <TableHead className="text-foreground h-10 px-2 text-left align-middle font-medium whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]">
-                      생성일
-                    </TableHead>
-                    <TableHead className="text-foreground h-10 px-2 text-left align-middle font-medium whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]">
-                      수정일
-                    </TableHead>
-                  </TableRow>
-                </TableHeader>
-
-                <TableBody>
-                  {paginatedRows.map((customer, index) => {
-                    const statusStyle = statusStyles[customer.type];
-                    const normalizedContent = stripHtml(customer.content);
-                    const truncatedTitle = truncatePlainText(customer.title, 15);
-                    const truncatedContent = truncatePlainText(normalizedContent, 50);
-                    const thread = threads.find((item) => String(item.postId) === customer.id);
-                    const replies = thread ? flattenPostReplies(thread.replies ?? []) : [];
-
-                    return (
-                        <Fragment key={customer.id}>
-                          <TableRow
-                              className="cursor-pointer"
-                              onClick={() => navigateToDetail(customer.id)}
+        {/* 모바일 카드 */}
+        <div className="md:hidden space-y-3 rounded-2xl border border-white/70 bg-white/98 p-4 shadow-sm">
+          <div className="grid gap-3">
+            {loading && (
+                <div className="col-span-full text-center text-muted-foreground py-8">
+                  게시글을 불러오는 중입니다...
+                </div>
+            )}
+            {!loading && paginatedRows.length === 0 && (
+                <div className="col-span-full text-center text-muted-foreground py-8">
+                  조건에 맞는 게시글이 없습니다.
+                </div>
+            )}
+            {!loading &&
+                paginatedRows.length > 0 &&
+                    paginatedRows.map((customer) => {
+                      const normalizedContent = stripHtml(customer.content);
+                      const statusStyle = statusStyles[customer.type];
+                      return (
+                          <div
+                              key={customer.id}
+                              className="rounded-xl border border-white/70 bg-white/95 p-4 shadow-sm"
+                          role="button"
+                          tabIndex={0}
+                          onClick={() => navigateToDetail(customer.id)}
+                          onKeyDown={(event) => {
+                            if (event.key === "Enter" || event.key === " ") {
+                              event.preventDefault();
+                              navigateToDetail(customer.id);
+                            }
+                          }}
                           >
-                            {/* No (전체 인덱스 유지) */}
-                            <TableCell className="p-2 align-middle whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] px-2 py-2 text-center">
-                              {indexOfFirstItem + index + 1}
-                            </TableCell>
-
-                            {/* 작성자 */}
-                            <TableCell className="p-2 align-middle [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] px-3 py-2 whitespace-nowrap">
-                              <div
-                                  className="w-[80px] truncate"
-                                  title={customer.customerName}
-                              >
-                                {customer.customerName}
-                              </div>
-                            </TableCell>
-
-                            {/* 타입 - 색 배지 */}
-                            <TableCell className="p-2 align-middle [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] px-3 py-2 whitespace-nowrap">
+                        <div className="flex flex-col space-y-2">
                           <span
-                              className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium border"
+                              className="inline-flex items-center rounded-full px-2 py-0.5 text-sm font-medium border self-start"
                               style={{
                                 backgroundColor: statusStyle.background,
                                 color: statusStyle.text,
@@ -377,124 +343,226 @@ export function ProjectPost2() {
                           >
                             {customer.type}
                           </span>
-                            </TableCell>
+                          <p className="text-sm font-medium text-foreground">{customer.title}</p>
+                          <p className="truncate text-xs text-muted-foreground">
+                            {normalizedContent || "내용이 없습니다."}
+                          </p>
+                        </div>
+                        <div className="mt-4 space-y-2 text-xs text-muted-foreground">
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="text-[11px] text-slate-400">작성자</span>
+                            <span className="text-right font-medium text-foreground">
+                              {customer.customerName}
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="text-[11px] text-slate-400">생성일</span>
+                            <span>{formatPostDate(customer.createdDate)}</span>
+                          </div>
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="text-[11px] text-slate-400">수정일</span>
+                            <span>{formatPostDate(customer.updatedDate)}</span>
+                          </div>
+                        </div>
+                      </div>
+                  );
+                })}
+          </div>
+        </div>
 
-                            {/* 제목 (말줄임표) */}
-                            <TableCell className="p-2 align-middle [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] px-3 py-2 whitespace-normal">
-                              <div className="w-[200px]" title={customer.title}>
-                                {truncatedTitle}
-                              </div>
-                            </TableCell>
+        {/* 게시판 목록 - 데스크톱 */}
+        <div className="hidden md:block">
+          <Card2 className="text-card-foreground flex flex-col gap-6 rounded-2xl border border-white/70 bg-white/90 shadow-sm backdrop-blur overflow-hidden">
+            <CardContent className="p-0">
+              <div className="w-full">
+                <Table2>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="text-foreground h-10 align-middle font-medium whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] px-2 w-[56px] text-center">
+                        No
+                      </TableHead>
+                      <TableHead className="text-foreground h-10 px-2 text-left align-middle font-medium whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]">
+                        작성자
+                      </TableHead>
+                      <TableHead className="text-foreground h-10 px-2 text-left align-middle font-medium whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]">
+                        타입
+                      </TableHead>
+                      <TableHead className="text-foreground h-10 px-2 text-left align-middle font-medium whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]">
+                        제목
+                      </TableHead>
+                      <TableHead className="text-foreground h-10 px-2 text-left align-middle font-medium whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]">
+                        내용
+                      </TableHead>
+                      <TableHead className="text-foreground h-10 px-2 text-left align-middle font-medium whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]">
+                        생성일
+                      </TableHead>
+                      <TableHead className="text-foreground h-10 px-2 text-left align-middle font-medium whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]">
+                        수정일
+                      </TableHead>
+                    </TableRow>
+                  </TableHeader>
 
-                            {/* 내용 (말줄임표) */}
-                            <TableCell className="p-2 align-middle [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] px-3 py-2 whitespace-normal">
-                              <div className="w-[260px] truncate" title={normalizedContent}>
-                                {truncatedContent}
-                              </div>
-                            </TableCell>
+                  <TableBody>
+                    {paginatedRows.map((customer, index) => {
+                      const statusStyle = statusStyles[customer.type];
+                      const normalizedContent = stripHtml(customer.content);
+                      const truncatedTitle = truncatePlainText(customer.title, 15);
+                      const truncatedContent = truncatePlainText(normalizedContent, 50);
+                      const thread = threads.find((item) => String(item.postId) === customer.id);
+                      const replies = thread ? flattenPostReplies(thread.replies ?? []) : [];
 
-                            {/* 생성일 */}
-                            <TableCell className="p-2 align-middle [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] px-3 py-2 whitespace-nowrap">
-                              {formatPostDate(customer.createdDate)}
-                            </TableCell>
+                      return (
+                          <Fragment key={customer.id}>
+                            <TableRow
+                                className="cursor-pointer"
+                                onClick={() => navigateToDetail(customer.id)}
+                            >
+                              {/* No (전체 인덱스 유지) */}
+                              <TableCell className="p-2 align-middle whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] px-2 py-2 text-center">
+                                {indexOfFirstItem + index + 1}
+                              </TableCell>
 
-                            {/* 수정일 */}
-                            <TableCell className="p-2 align-middle [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] px-3 py-2 whitespace-nowrap">
-                              {formatPostDate(customer.updatedDate)}
-                            </TableCell>
-                          </TableRow>
-
-                          {/* 답글 리스트 (있을 때만) */}
-                          {replies.length > 0 &&
-                              replies.map((reply) => {
-                                const formattedCreatedDate =
-                                    formatReplyDate(reply.createdAt) || reply.createdAt;
-                                const formattedUpdatedDate =
-                                    formatReplyDate(reply.createdAt) || reply.createdAt;
-
-                                return (
-                                    <TableRow
-                                        key={`${customer.id}-${reply.postId}`}
-                                        className="bg-muted/20 cursor-pointer"
-                                        onClick={() => navigateToDetail(customer.id, String(reply.postId))}
-                                    >
-                                      {/* No 자리 비워두기 */}
-                                      <TableCell className="px-2 py-2" />
-
-                                      {/* 작성자 (↳ 아이콘 + 이름) */}
-                                      <TableCell className="px-3 py-2 whitespace-nowrap">
-                                        <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                                          <CornerDownRight className="h-4 w-4 text-primary" />
-                                          <span>답글</span>
-                                        </div>
-                                      </TableCell>
-
-                                      {/* 타입: 답글 배지 */}
-                                      <TableCell className="px-3 py-2 whitespace-nowrap">
-                                <span
-                                    className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium border"
-                                    style={{
-                                      backgroundColor: replyTypeStyle.background,
-                                      color: replyTypeStyle.text,
-                                      borderColor: replyTypeStyle.border,
-                                    }}
+                              {/* 작성자 */}
+                              <TableCell className="p-2 align-middle [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] px-3 py-2 whitespace-nowrap">
+                                <div
+                                    className="w-[80px] truncate"
+                                    title={customer.customerName}
                                 >
-                                  답글
-                                </span>
-                                      </TableCell>
+                                  {customer.customerName}
+                                </div>
+                              </TableCell>
 
-                                      {/* 제목 */}
-                                      <TableCell className="px-3 py-2">
-                                        <div
-                                            className="block"
-                                            style={{
-                                              width: "200px",
-                                              overflow: "hidden",
-                                              textOverflow: "ellipsis",
-                                              whiteSpace: "nowrap",
-                                            }}
-                                            title={reply.title || "무제 답글"}
-                                        >
-                                          {reply.title || "무제 답글"}
-                                        </div>
-                                      </TableCell>
+                              {/* 타입 - 색 배지 */}
+                              <TableCell className="p-2 align-middle [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] px-3 py-2 whitespace-nowrap">
+                            <span
+                                className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium border"
+                                style={{
+                                  backgroundColor: statusStyle.background,
+                                  color: statusStyle.text,
+                                  borderColor: statusStyle.border,
+                                }}
+                            >
+                              {customer.type}
+                            </span>
+                              </TableCell>
 
-                                      {/* 내용 */}
-                                      <TableCell className="px-3 py-2">
-                                        <div
-                                            className="block"
-                                            style={{
-                                              width: "260px",
-                                              overflow: "hidden",
-                                              textOverflow: "ellipsis",
-                                              whiteSpace: "nowrap",
-                                            }}
-                                            title={
-                                                stripHtml(reply.contentPreview || "") || "내용 없음"
-                                            }
-                                        >
-                                          {stripHtml(reply.contentPreview || "") || "내용 없음"}
-                                        </div>
-                                      </TableCell>
+                              {/* 제목 (말줄임표) */}
+                              <TableCell className="p-2 align-middle [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] px-3 py-2 whitespace-normal">
+                                <div className="w-[200px]" title={customer.title}>
+                                  {truncatedTitle}
+                                </div>
+                              </TableCell>
 
-                                      {/* 생성일 / 수정일 */}
-                                      <TableCell className="px-3 py-2 whitespace-nowrap text-sm">
-                                        {formattedCreatedDate}
-                                      </TableCell>
-                                      <TableCell className="px-3 py-2 whitespace-nowrap text-sm">
-                                        {formattedUpdatedDate}
-                                      </TableCell>
-                                    </TableRow>
-                                );
-                              })}
-                        </Fragment>
-                    );
-                  })}
-                </TableBody>
-              </Table2>
-            </div>
-          </CardContent>
-        </Card2>
+                              {/* 내용 (말줄임표) */}
+                              <TableCell className="p-2 align-middle [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] px-3 py-2 whitespace-normal">
+                                <div className="w-[260px] truncate" title={normalizedContent}>
+                                  {truncatedContent}
+                                </div>
+                              </TableCell>
+
+                              {/* 생성일 */}
+                              <TableCell className="p-2 align-middle [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] px-3 py-2 whitespace-nowrap">
+                                {formatPostDate(customer.createdDate)}
+                              </TableCell>
+
+                              {/* 수정일 */}
+                              <TableCell className="p-2 align-middle [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] px-3 py-2 whitespace-nowrap">
+                                {formatPostDate(customer.updatedDate)}
+                              </TableCell>
+                            </TableRow>
+
+                            {/* 답글 리스트 (있을 때만) */}
+                            {replies.length > 0 &&
+                                replies.map((reply) => {
+                                  const formattedCreatedDate =
+                                      formatReplyDate(reply.createdAt) || reply.createdAt;
+                                  const formattedUpdatedDate =
+                                      formatReplyDate(reply.createdAt) || reply.createdAt;
+
+                                  return (
+                                      <TableRow
+                                          key={`${customer.id}-${reply.postId}`}
+                                          className="bg-muted/20 cursor-pointer"
+                                          onClick={() => navigateToDetail(customer.id, String(reply.postId))}
+                                      >
+                                        {/* No 자리 비워두기 */}
+                                        <TableCell className="px-2 py-2" />
+
+                                        {/* 작성자 (↳ 아이콘 + 이름) */}
+                                        <TableCell className="px-3 py-2 whitespace-nowrap">
+                                          <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                                            <CornerDownRight className="h-4 w-4 text-primary" />
+                                            <span>답글</span>
+                                          </div>
+                                        </TableCell>
+
+                                        {/* 타입: 답글 배지 */}
+                                        <TableCell className="px-3 py-2 whitespace-nowrap">
+                                  <span
+                                      className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium border"
+                                      style={{
+                                        backgroundColor: replyTypeStyle.background,
+                                        color: replyTypeStyle.text,
+                                        borderColor: replyTypeStyle.border,
+                                      }}
+                                  >
+                                    답글
+                                  </span>
+                                        </TableCell>
+
+                                        {/* 제목 */}
+                                        <TableCell className="px-3 py-2">
+                                          <div
+                                              className="block"
+                                              style={{
+                                                width: "200px",
+                                                overflow: "hidden",
+                                                textOverflow: "ellipsis",
+                                                whiteSpace: "nowrap",
+                                              }}
+                                              title={reply.title || "무제 답글"}
+                                          >
+                                            {reply.title || "무제 답글"}
+                                          </div>
+                                        </TableCell>
+
+                                        {/* 내용 */}
+                                        <TableCell className="px-3 py-2">
+                                          <div
+                                              className="block"
+                                              style={{
+                                                width: "260px",
+                                                overflow: "hidden",
+                                                textOverflow: "ellipsis",
+                                                whiteSpace: "nowrap",
+                                              }}
+                                              title={
+                                                  stripHtml(reply.contentPreview || "") || "내용 없음"
+                                              }
+                                          >
+                                            {stripHtml(reply.contentPreview || "") || "내용 없음"}
+                                          </div>
+                                        </TableCell>
+
+                                        {/* 생성일 / 수정일 */}
+                                        <TableCell className="px-3 py-2 whitespace-nowrap text-sm">
+                                          {formattedCreatedDate}
+                                        </TableCell>
+                                        <TableCell className="px-3 py-2 whitespace-nowrap text-sm">
+                                          {formattedUpdatedDate}
+                                        </TableCell>
+                                      </TableRow>
+                                  );
+                                })}
+                          </Fragment>
+                      );
+                    })}
+                  </TableBody>
+                </Table2>
+              </div>
+            </CardContent>
+          </Card2>
+        </div>
 
         {/* 페이징 영역 */}
         {totalPages > 1 && (
@@ -528,11 +596,9 @@ export function ProjectPost2() {
             </Card2>
         )}
         {fetchError && !searchTerm && (
-          <Card2 className="shadow-none border-none bg-transparent">
-            <CardContent className="text-center py-8 text-sm text-red-600">
+            <div className="text-center py-8 text-sm text-red-600">
               {fetchError}
-            </CardContent>
-          </Card2>
+            </div>
         )}
       </div>
   );

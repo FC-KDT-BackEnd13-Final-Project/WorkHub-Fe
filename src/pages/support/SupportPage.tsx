@@ -378,13 +378,6 @@ export function SupportPage() {
             </div>
         ) : (
             <div className="space-y-4">
-              {/* 에러 메시지 */}
-              {error && (
-                  <div className="p-4 bg-red-50 border border-red-200 rounded-md text-red-700">
-                    {error}
-                  </div>
-              )}
-
                 {/* 모바일 카드 */}
                 <div className="md:hidden space-y-3 rounded-2xl border border-white/70 bg-white/98 p-4 shadow-sm">
                     <div className="grid gap-3">
@@ -423,21 +416,21 @@ export function SupportPage() {
               </span>
                                         </div>
 
-                                        {ticket.status && (
-                                            <div className="flex items-center justify-between gap-2">
-                                                <span className="text-[11px] text-slate-400">상태</span>
-                                                <span
-                                                    className="inline-flex items-center justify-center rounded-md border px-2 py-0.5 text-[11px] font-medium"
-                                                    style={{
-                                                        backgroundColor: statusStyles[ticket.status].background,
-                                                        color: statusStyles[ticket.status].text,
-                                                        borderColor: statusStyles[ticket.status].border,
-                                                    }}
-                                                >
-                  {supportTicketStatusLabel[ticket.status]}
-                </span>
-                                            </div>
-                                        )}
+                        {ticket.status && (
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="text-sm text-slate-400">상태</span>
+                            <span
+                              className="inline-flex items-center justify-center rounded-full border px-2 py-0.5 text-sm font-medium"
+                              style={{
+                                backgroundColor: statusStyles[ticket.status].background,
+                                color: statusStyles[ticket.status].text,
+                                borderColor: statusStyles[ticket.status].border,
+                              }}
+                            >
+                              {supportTicketStatusLabel[ticket.status]}
+                            </span>
+                          </div>
+                        )}
 
                                         <div className="flex items-center justify-between gap-2">
                                             <span className="text-[11px] text-slate-400">생성일</span>
@@ -454,6 +447,13 @@ export function SupportPage() {
                         )}
                     </div>
                 </div>
+
+              {/* 에러 메시지 */}
+              {error && (
+                  <div className="text-center py-8 text-sm text-red-600">
+                    {error}
+                  </div>
+              )}
               {/* 데스크톱 테이블 */}
               <div className="hidden md:block">
                 <Card2 className="overflow-hidden">
