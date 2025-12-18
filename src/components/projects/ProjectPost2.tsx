@@ -197,7 +197,7 @@ export function ProjectPost2() {
   // isWriting 상태가 true일 때 글쓰기 UI
   if (isWriting) {
     return (
-        <div className="w-full max-w-[1800px] mx-auto p-6 space-y-6">
+        <div className="w-full max-w-[1800px] mx-auto space-y-6 px-0 py-6 md:px-6">
           <div className="flex flex-col gap-4">
             <RichTextDemo
                 showTypeSelector
@@ -315,13 +315,13 @@ export function ProjectPost2() {
             )}
             {!loading &&
                 paginatedRows.length > 0 &&
-                    paginatedRows.map((customer) => {
-                      const normalizedContent = stripHtml(customer.content);
-                      const statusStyle = statusStyles[customer.type];
-                      return (
-                          <div
-                              key={customer.id}
-                              className="rounded-xl border border-white/70 bg-white/95 p-4 shadow-sm"
+                paginatedRows.map((customer) => {
+                  const normalizedContent = stripHtml(customer.content);
+                  const statusStyle = statusStyles[customer.type];
+                  return (
+                      <div
+                          key={customer.id}
+                          className="rounded-2xl border border-white/70 bg-white/95 p-4 shadow-sm"
                           role="button"
                           tabIndex={0}
                           onClick={() => navigateToDetail(customer.id)}
@@ -331,38 +331,37 @@ export function ProjectPost2() {
                               navigateToDetail(customer.id);
                             }
                           }}
-                          >
-                        <div className="flex flex-col space-y-2">
-                          <span
-                              className="inline-flex items-center rounded-full px-2 py-0.5 text-sm font-medium border self-start"
-                              style={{
-                                backgroundColor: statusStyle.background,
-                                color: statusStyle.text,
-                                borderColor: statusStyle.border,
-                              }}
-                          >
-                            {customer.type}
-                          </span>
-                          <p className="text-sm font-medium text-foreground">{customer.title}</p>
-                          <p className="truncate text-xs text-muted-foreground">
+                      >
+                        <div className="space-y-3">
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="space-y-1">
+                              <p className="text-xs text-muted-foreground">
+                                작성자 · {customer.customerName}
+                              </p>
+                              <p className="text-base font-semibold text-foreground">
+                                {customer.title}
+                              </p>
+                              <p className="text-xs text-muted-foreground">
+                                생성일 · {formatPostDate(customer.createdDate)}
+                              </p>
+                            </div>
+                            <span
+                                className="inline-flex items-center rounded-md border px-2 py-0.5 text-xs font-medium whitespace-nowrap"
+                                style={{
+                                  backgroundColor: statusStyle.background,
+                                  color: statusStyle.text,
+                                  borderColor: statusStyle.border,
+                                }}
+                            >
+                              {customer.type}
+                            </span>
+                          </div>
+                          <p className="text-sm text-muted-foreground line-clamp-2">
                             {normalizedContent || "내용이 없습니다."}
                           </p>
                         </div>
-                        <div className="mt-4 space-y-2 text-xs text-muted-foreground">
-                          <div className="flex items-center justify-between gap-2">
-                            <span className="text-[11px] text-slate-400">작성자</span>
-                            <span className="text-right font-medium text-foreground">
-                              {customer.customerName}
-                            </span>
-                          </div>
-                          <div className="flex items-center justify-between gap-2">
-                            <span className="text-[11px] text-slate-400">생성일</span>
-                            <span>{formatPostDate(customer.createdDate)}</span>
-                          </div>
-                          <div className="flex items-center justify-between gap-2">
-                            <span className="text-[11px] text-slate-400">수정일</span>
-                            <span>{formatPostDate(customer.updatedDate)}</span>
-                          </div>
+                        <div className="mt-4 flex items-center justify-between text-[11px] text-muted-foreground">
+                          <span>수정일 · {formatPostDate(customer.updatedDate)}</span>
                         </div>
                       </div>
                   );

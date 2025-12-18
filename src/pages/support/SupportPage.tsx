@@ -340,7 +340,7 @@ export function SupportPage() {
 
         {/* 작성 화면 */}
         {isWriting ? (
-            <div className="w-full max-w-[1800px] mx-auto p-6 space-y-6">
+            <div className="w-full max-w-[1800px] mx-auto space-y-6 py-4 md:px-6 md:py-6">
               {writeError && (
                 <div className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
                   {writeError}
@@ -390,60 +390,55 @@ export function SupportPage() {
                                 조건에 맞는 문의가 없습니다.
                             </div>
                         ) : (
-                            effectiveTickets.map((ticket) => (
-                                <div
-                                    key={ticket.id}
-                                    className="rounded-xl border border-white/70 bg-white/95 p-4 shadow-sm"
-                                    onClick={() => navigateToDetail(ticket)}
-                                    role="button"
-                                    tabIndex={0}
-                                    onKeyDown={(e) => {
+                            effectiveTickets.map((ticket) => {
+                              const contentPreview = stripHtml(ticket.content);
+                              return (
+                                  <div
+                                      key={ticket.id}
+                                      className="rounded-2xl border border-white/70 bg-white/95 p-4 shadow-sm"
+                                      onClick={() => navigateToDetail(ticket)}
+                                      role="button"
+                                      tabIndex={0}
+                                      onKeyDown={(e) => {
                                         if (e.key === "Enter" || e.key === " ") navigateToDetail(ticket);
-                                    }}
-                                >
-                                    <div className="flex flex-col space-y-2">
-                                        <p className="text-sm font-medium text-foreground">{ticket.title}</p>
-                                        <p className="truncate text-xs text-muted-foreground">
-                                            {stripHtml(ticket.content)}
-                                        </p>
+                                      }}
+                                  >
+                                    <div className="space-y-3">
+                                      <div className="flex items-start justify-between gap-3">
+                                        <div className="space-y-1">
+                                          <p className="text-xs text-muted-foreground">
+                                            작성자 · {ticket.customerName}
+                                          </p>
+                                          <p className="text-base font-semibold text-foreground">
+                                            {ticket.title}
+                                          </p>
+                                          <p className="text-xs text-muted-foreground">
+                                            생성일 · {formatDateOnly(ticket.createdDate)}
+                                          </p>
+                                        </div>
+                                        {ticket.status && (
+                                            <span
+                                                className="inline-flex items-center justify-center rounded-md border px-2 py-0.5 text-xs font-medium whitespace-nowrap"
+                                                style={{
+                                                  backgroundColor: statusStyles[ticket.status].background,
+                                                  color: statusStyles[ticket.status].text,
+                                                  borderColor: statusStyles[ticket.status].border,
+                                                }}
+                                            >
+                                              {supportTicketStatusLabel[ticket.status]}
+                                            </span>
+                                        )}
+                                      </div>
+                                      <p className="text-sm text-muted-foreground line-clamp-2">
+                                        {contentPreview || "내용이 없습니다."}
+                                      </p>
                                     </div>
-
-                                    <div className="mt-4 space-y-2 text-xs text-muted-foreground">
-                                        <div className="flex items-center justify-between gap-2">
-                                            <span className="text-[11px] text-slate-400">작성자</span>
-                                            <span className="text-right font-medium text-foreground">
-                {ticket.customerName}
-              </span>
-                                        </div>
-
-                        {ticket.status && (
-                          <div className="flex items-center justify-between gap-2">
-                            <span className="text-sm text-slate-400">상태</span>
-                            <span
-                              className="inline-flex items-center justify-center rounded-full border px-2 py-0.5 text-sm font-medium"
-                              style={{
-                                backgroundColor: statusStyles[ticket.status].background,
-                                color: statusStyles[ticket.status].text,
-                                borderColor: statusStyles[ticket.status].border,
-                              }}
-                            >
-                              {supportTicketStatusLabel[ticket.status]}
-                            </span>
-                          </div>
-                        )}
-
-                                        <div className="flex items-center justify-between gap-2">
-                                            <span className="text-[11px] text-slate-400">생성일</span>
-                                            <span>{formatDateOnly(ticket.createdDate)}</span>
-                                        </div>
-
-                                        <div className="flex items-center justify-between gap-2">
-                                            <span className="text-[11px] text-slate-400">수정일</span>
-                                            <span>{formatDateOnly(ticket.updatedDate)}</span>
-                                        </div>
+                                    <div className="mt-4 flex items-center justify-between text-[11px] text-muted-foreground">
+                                      <span>수정일 · {formatDateOnly(ticket.updatedDate)}</span>
                                     </div>
-                                </div>
-                            ))
+                                  </div>
+                              );
+                            })
                         )}
                     </div>
                 </div>
