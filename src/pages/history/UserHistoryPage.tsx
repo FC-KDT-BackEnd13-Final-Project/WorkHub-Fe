@@ -230,11 +230,15 @@ export function UserHistoryPage() {
               const Icon = tab.icon;
               const isActive = activeTab === tab.id;
               const paddingClass = tab.id === "user" ? "px-4 md:px-6" : "px-2 md:px-4";
+              const widthClass =
+                tab.id === "user"
+                  ? "flex-1 min-w-0 md:flex-none md:min-w-[180px]"
+                  : "flex-1 min-w-0 md:flex-none md:min-w-[140px]";
               return (
                 <Button
                   key={tab.id}
                   variant={isActive ? "default" : "outline"}
-                  className={`flex flex-1 min-w-0 items-center justify-center gap-1 ${paddingClass} py-2 text-xs md:flex-none md:min-w-[140px] md:gap-2 md:text-sm`}
+                  className={`flex items-center justify-center gap-1 ${paddingClass} py-2 text-xs ${widthClass} md:gap-2 md:text-sm`}
                   onClick={() => {
                     setActiveTab(tab.id as typeof activeTab);
                     setCategoryFilter(tab.category as CategoryFilter);
