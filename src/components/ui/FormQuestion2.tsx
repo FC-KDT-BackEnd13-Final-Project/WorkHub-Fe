@@ -11,11 +11,28 @@ import {
     Paperclip,
 } from "lucide-react";
 import { ModalShell } from "../common/ModalShell";
-import type { CheckListItemPayload, CheckListOptionPayload } from "@/types/checkList";
+import type {
+    CheckListItemPayload,
+    CheckListItemResponse,
+    CheckListOptionPayload,
+    CheckListOptionResponse,
+} from "@/types/checkList";
+
+interface ChecklistSubmissionPayload {
+    items: CheckListItemPayload[];
+    files: File[];
+}
+
+interface ChecklistRemoteFile {
+    id: string;
+    fileKey: string;
+    fileName: string;
+}
 
 interface EvidenceItem {
     files: File[];
     links: string[];
+    remoteFiles?: ChecklistRemoteFile[];
 }
 
 interface ChecklistReply {
@@ -116,11 +133,12 @@ interface FormQuestionProps {
     allowCommentWhenDisabled?: boolean;
     commentAuthor?: string;
     saveSignal?: number;
+    onRemoteFileDownload?: (fileKey: string, fileName: string) => void;
 }
 
 export interface FormQuestionHandle {
-    getChecklistItems: () => CheckListItemPayload[];
-    setChecklistItems: (items?: CheckListItemPayload[]) => void;
+    getChecklistSubmission: () => ChecklistSubmissionPayload;
+    setChecklistItems: (items?: CheckListItemResponse[]) => void;
 }
 
 const createChecklistGroup = (id: number): ChecklistGroup => ({
@@ -149,6 +167,7 @@ export const FormQuestion2 = forwardRef<FormQuestionHandle, FormQuestionProps>(f
         allowCommentWhenDisabled = false,
         commentAuthor = "작성자",
         saveSignal = 0,
+        onRemoteFileDownload,
     },
     ref,
 ) {
@@ -192,10 +211,12 @@ export const FormQuestion2 = forwardRef<FormQuestionHandle, FormQuestionProps>(f
         [checklistHistoryLogs],
     );
 
-    const buildChecklistItemsPayload = (
+    const buildChecklistSubmission = (
         sourceGroups: ChecklistGroup[],
-    ): CheckListItemPayload[] =>
-        sourceGroups
+    ): ChecklistSubmissionPayload => {
+        const attachments: File[] = [];
+
+        const items = sourceGroups
             .map((group, groupIndex) => {
                 const options: CheckListOptionPayload[] = group.rules
                     .map((rule, optionIndex) => {
@@ -210,10 +231,36 @@ export const FormQuestion2 = forwardRef<FormQuestionHandle, FormQuestionProps>(f
                                 ?.map((link) => link.trim())
                                 .filter(Boolean) ?? [];
 
+                        const remoteFileKeys =
+                            evidenceItem?.remoteFiles
+                                ?.map((remote) => remote.fileKey?.trim())
+                                .filter((key): key is string => Boolean(key)) ?? [];
+
+                        const normalizedFiles = (evidenceItem?.files ?? []).map(
+                            (file, fileIndex) => {
+                                const safeName = file.name?.trim();
+                                if (safeName) {
+                                    return file;
+                                }
+                                const generatedName = `attachment-${group.id}-${optionIndex + 1}-${
+                                    fileIndex + 1
+                                }`;
+                                return new File([file], generatedName, {
+                                    type: file.type,
+                                });
+                            },
+                        );
+
+                        normalizedFiles.forEach((file) => attachments.push(file));
+
+                        const attachmentNames = normalizedFiles
+                            .map((file) => file.name?.trim())
+                            .filter((name): name is string => Boolean(name));
+
                         return {
                             optionContent,
                             optionOrder: optionIndex,
-                            fileUrls: linkUrls,
+                            fileUrls: [...remoteFileKeys, ...linkUrls, ...attachmentNames],
                         };
                     })
                     .filter((option): option is CheckListOptionPayload => Boolean(option));
@@ -231,7 +278,13 @@ export const FormQuestion2 = forwardRef<FormQuestionHandle, FormQuestionProps>(f
             })
             .filter((item): item is CheckListItemPayload => Boolean(item));
 
-    const applyChecklistItemsToGroups = (items?: CheckListItemPayload[]) => {
+        return {
+            items,
+            files: attachments,
+        };
+    };
+
+    const applyChecklistItemsToGroups = (items?: CheckListItemResponse[]) => {
         if (!items || items.length === 0) {
             setGroups([createChecklistGroup(1)]);
         } else {
@@ -240,17 +293,40 @@ export const FormQuestion2 = forwardRef<FormQuestionHandle, FormQuestionProps>(f
             );
             const nextGroups = sortedItems.map((item, index) => {
                 const baseGroup = createChecklistGroup(index + 1);
-                const sortedOptions = [...(item.options ?? [])].sort(
+                const sortedOptions: CheckListOptionResponse[] = [...(item.options ?? [])].sort(
                     (a, b) => (a.optionOrder ?? 0) - (b.optionOrder ?? 0),
                 );
                 const nextRules = sortedOptions.length
                     ? sortedOptions.map((option) => option.optionContent ?? "")
                     : [""];
 
+                const evidences: Record<string, EvidenceItem> = {};
+                sortedOptions.forEach((option, optionIndex) => {
+                    const evidenceKey = `preCheck-${baseGroup.id}-${optionIndex}`;
+                    const remoteFiles: ChecklistRemoteFile[] = (option.files ?? []).map(
+                        (file, fileIndex) => ({
+                            id:
+                                String(
+                                    file.checkListOptionFileId ??
+                                        `${option.checkListOptionId ?? item.checkListItemId ?? baseGroup.id}-${fileIndex}`,
+                                ),
+                            fileKey: file.fileUrl,
+                            fileName:
+                                file.fileName?.trim() || file.fileUrl || `첨부-${optionIndex + 1}`,
+                        }),
+                    );
+                    evidences[evidenceKey] = {
+                        files: [],
+                        links: [],
+                        remoteFiles,
+                    };
+                });
+
                 return {
                     ...baseGroup,
                     title: item.itemTitle ?? "",
                     rules: nextRules.length ? nextRules : [""],
+                    evidences,
                 };
             });
             setGroups(nextGroups);
@@ -265,8 +341,8 @@ export const FormQuestion2 = forwardRef<FormQuestionHandle, FormQuestionProps>(f
     useImperativeHandle(
         ref,
         () => ({
-            getChecklistItems: () => buildChecklistItemsPayload(groupsRef.current),
-            setChecklistItems: (items?: CheckListItemPayload[]) =>
+            getChecklistSubmission: () => buildChecklistSubmission(groupsRef.current),
+            setChecklistItems: (items?: CheckListItemResponse[]) =>
                 applyChecklistItemsToGroups(items),
         }),
         [],
@@ -301,7 +377,13 @@ export const FormQuestion2 = forwardRef<FormQuestionHandle, FormQuestionProps>(f
                 if (!trimmed) return null;
                 const label = trimmed;
                 const evidence = group.evidences[`${prefix}${idx}`];
-                const files = evidence?.files?.map((file) => file.name).filter(Boolean) ?? [];
+                const localFiles =
+                    evidence?.files?.map((file) => file.name).filter(Boolean) ?? [];
+                const remoteFiles =
+                    evidence?.remoteFiles
+                        ?.map((file) => file.fileName)
+                        .filter(Boolean) ?? [];
+                const files = [...remoteFiles, ...localFiles];
                 const links = evidence?.links?.filter(Boolean) ?? [];
                 const detailLines: string[] = [];
                 if (files.length) {
@@ -1704,6 +1786,9 @@ export const FormQuestion2 = forwardRef<FormQuestionHandle, FormQuestionProps>(f
                                                 if (i !== groupIndex || g.locked)
                                                     return g;
 
+                                                const existingEvidence =
+                                                    g.evidences[evidenceId];
+
                                                 return {
                                                     ...g,
                                                     evidences: {
@@ -1711,7 +1796,10 @@ export const FormQuestion2 = forwardRef<FormQuestionHandle, FormQuestionProps>(f
                                                         [evidenceId]: {
                                                             files,
                                                             links:
-                                                                g.evidences[evidenceId]?.links ??
+                                                                existingEvidence?.links ??
+                                                                [],
+                                                            remoteFiles:
+                                                                existingEvidence?.remoteFiles ??
                                                                 [],
                                                         },
                                                     },
@@ -1727,15 +1815,21 @@ export const FormQuestion2 = forwardRef<FormQuestionHandle, FormQuestionProps>(f
                                                 if (i !== groupIndex || g.locked)
                                                     return g;
 
+                                                const existingEvidence =
+                                                    g.evidences[evidenceId];
+
                                                 return {
                                                     ...g,
                                                     evidences: {
                                                         ...g.evidences,
                                                         [evidenceId]: {
                                                             files:
-                                                                g.evidences[evidenceId]?.files ??
+                                                                existingEvidence?.files ??
                                                                 [],
                                                             links,
+                                                            remoteFiles:
+                                                                existingEvidence?.remoteFiles ??
+                                                                [],
                                                         },
                                                     },
                                                 };
@@ -1849,6 +1943,7 @@ export const FormQuestion2 = forwardRef<FormQuestionHandle, FormQuestionProps>(f
                                     }}
                                     disabled={disabled}
                                     selectionEnabled={canSelect}
+                                    onRemoteFileDownload={onRemoteFileDownload}
                                 />
 
                                 {/* 코멘트 / 이력 / 동의·보류 버튼 */}

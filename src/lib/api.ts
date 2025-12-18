@@ -61,6 +61,26 @@ type CompanyMemberListResponse = {
   }>;
 };
 
+const buildChecklistFormData = (
+  data: unknown,
+  options?: {
+    files?: File[];
+    fileFieldName?: string;
+  },
+): FormData => {
+  const formData = new FormData();
+  const jsonBlob = new Blob([JSON.stringify(data ?? {})], { type: 'application/json' });
+  formData.append('data', jsonBlob);
+  const fileFieldName = options?.fileFieldName ?? 'files';
+  const files = options?.files;
+  if (files && files.length > 0) {
+    files.forEach((file) => {
+      formData.append(fileFieldName, file);
+    });
+  }
+  return formData;
+};
+
 // 모든 API 요청이 갈 기본 서버 주소
 const API_BASE_URL = 'https://workhub.o-r.kr'
 
@@ -385,10 +405,12 @@ export const projectApi = {
     projectId: string,
     nodeId: string,
     payload: CheckListCreateRequest,
+    files?: File[],
   ): Promise<CheckListResponse> => {
+    const formData = buildChecklistFormData(payload, { files });
     const response = await apiClient.post(
       `/api/v1/projects/${projectId}/nodes/${nodeId}/checkLists`,
-      payload,
+      formData,
     );
 
     const { success, message, data } = response.data;
@@ -407,10 +429,15 @@ export const projectApi = {
     projectId: string,
     nodeId: string,
     payload: CheckListUpdateRequest,
+    newFiles?: File[],
   ): Promise<CheckListResponse> => {
+    const formData = buildChecklistFormData(payload, {
+      files: newFiles,
+      fileFieldName: 'newFiles',
+    });
     const response = await apiClient.patch(
       `/api/v1/projects/${projectId}/nodes/${nodeId}/checkLists`,
-      payload,
+      formData,
     );
 
     const { success, message, data } = response.data;
