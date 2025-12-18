@@ -295,24 +295,21 @@ export function SupportPage() {
         </div>
 
         {!isWriting && (
-          <div className="rounded-2xl bg-white p-6 shadow-sm">
-            <div className="flex flex-col gap-3 md:flex-row md:flex-nowrap md:items-center md:justify-between">
-              <Input2
-                value={searchInput}
-                onChange={(e) => {
-                  const value = e.target.value;
-                  setSearchInput(value);
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    setSearchTerm(searchInput);
-                    setCurrentPage(0);
-                  }
-                }}
-                placeholder="검색어를 입력하세요"
-                className="file:text-foreground placeholder:text-muted-foreground selection:bg-primary selection:text-primary-foreground dark:bg-input/30 border-input flex h-9 w-full min-w-0 rounded-md border bg-input-background px-3 py-1 text-base transition-[color,box-shadow] outline-none md:flex-1 md:text-sm focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
-              />
+          <div className="flex flex-col gap-3 rounded-2xl bg-white p-4 shadow-sm md:flex-row md:flex-nowrap md:items-center md:justify-between">
+            <Input2
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  setSearchTerm(searchInput);
+                  setCurrentPage(0);
+                }
+              }}
+              placeholder="검색어를 입력하세요"
+              className="file:text-foreground placeholder:text-muted-foreground selection:bg-primary selection:text-primary-foreground dark:bg-input/30 border-input flex h-9 w-full min-w-0 rounded-md border bg-input-background px-3 py-1 text-base transition-[color,box-shadow] outline-none md:flex-1 md:text-sm focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
+            />
 
+            <div className="flex w-full items-center gap-3 md:w-auto">
               <Select
                 value={statusFilter}
                 onValueChange={(value) => {
@@ -320,7 +317,7 @@ export function SupportPage() {
                   setCurrentPage(0);
                 }}
               >
-                <SelectTrigger className="border-input data-[placeholder]:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 h-9 w-full rounded-md border bg-input-background px-3 py-1 text-sm outline-none md:w-52 focus-visible:ring-[3px]">
+                <SelectTrigger className="border-input data-[placeholder]:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 h-9 flex-1 min-w-0 rounded-md border bg-input-background px-3 py-1 text-sm outline-none md:w-52 md:flex-none focus-visible:ring-[3px]">
                   <SelectValue placeholder="전체 상태" />
                 </SelectTrigger>
                 <SelectContent>
@@ -332,7 +329,7 @@ export function SupportPage() {
               </Select>
 
               <Button2
-                className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive bg-primary text-primary-foreground hover:bg-primary/90 py-2 has-[>svg]:px-3 h-9 px-4 text-sm md:w-auto"
+                className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive bg-primary text-primary-foreground hover:bg-primary/90 py-2 has-[>svg]:px-3 h-9 px-4 text-sm flex-none min-w-[120px] md:w-auto"
                 onClick={handleStartWriting}
               >
                 문의 작성
@@ -380,7 +377,7 @@ export function SupportPage() {
               />
             </div>
         ) : (
-            <>
+            <div className="space-y-4">
               {/* 에러 메시지 */}
               {error && (
                   <div className="p-4 bg-red-50 border border-red-200 rounded-md text-red-700">
@@ -388,36 +385,106 @@ export function SupportPage() {
                   </div>
               )}
 
-              {/* 목록 */}
-        <Card2 className="overflow-hidden">
-                <CardContent className="p-0">
-                  <Table2>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead className="px-2 w-[56px] text-center">No</TableHead>
-                        <TableHead>작성자</TableHead>
-                        <TableHead>상태</TableHead>
-                        <TableHead>제목</TableHead>
-                        <TableHead>내용</TableHead>
-                        <TableHead>생성일</TableHead>
-                        <TableHead>수정일</TableHead>
-                      </TableRow>
-                    </TableHeader>
+                {/* 모바일 카드 */}
+                <div className="md:hidden space-y-3 rounded-2xl border border-white/70 bg-white/98 p-4 shadow-sm">
+                    <div className="grid gap-3">
+                        {isLoading ? (
+                            <div className="col-span-full py-8 text-center text-muted-foreground">
+                                로딩 중...
+                            </div>
+                        ) : effectiveTickets.length === 0 ? (
+                            <div className="col-span-full py-8 text-center text-muted-foreground">
+                                조건에 맞는 문의가 없습니다.
+                            </div>
+                        ) : (
+                            effectiveTickets.map((ticket) => (
+                                <div
+                                    key={ticket.id}
+                                    className="rounded-xl border border-white/70 bg-white/95 p-4 shadow-sm"
+                                    onClick={() => navigateToDetail(ticket)}
+                                    role="button"
+                                    tabIndex={0}
+                                    onKeyDown={(e) => {
+                                        if (e.key === "Enter" || e.key === " ") navigateToDetail(ticket);
+                                    }}
+                                >
+                                    <div className="flex flex-col space-y-2">
+                                        <p className="text-sm font-medium text-foreground">{ticket.title}</p>
+                                        <p className="truncate text-xs text-muted-foreground">
+                                            {stripHtml(ticket.content)}
+                                        </p>
+                                    </div>
 
-                    <TableBody>
-                      {isLoading ? (
+                                    <div className="mt-4 space-y-2 text-xs text-muted-foreground">
+                                        <div className="flex items-center justify-between gap-2">
+                                            <span className="text-[11px] text-slate-400">작성자</span>
+                                            <span className="text-right font-medium text-foreground">
+                {ticket.customerName}
+              </span>
+                                        </div>
+
+                                        {ticket.status && (
+                                            <div className="flex items-center justify-between gap-2">
+                                                <span className="text-[11px] text-slate-400">상태</span>
+                                                <span
+                                                    className="inline-flex items-center justify-center rounded-md border px-2 py-0.5 text-[11px] font-medium"
+                                                    style={{
+                                                        backgroundColor: statusStyles[ticket.status].background,
+                                                        color: statusStyles[ticket.status].text,
+                                                        borderColor: statusStyles[ticket.status].border,
+                                                    }}
+                                                >
+                  {supportTicketStatusLabel[ticket.status]}
+                </span>
+                                            </div>
+                                        )}
+
+                                        <div className="flex items-center justify-between gap-2">
+                                            <span className="text-[11px] text-slate-400">생성일</span>
+                                            <span>{formatDateOnly(ticket.createdDate)}</span>
+                                        </div>
+
+                                        <div className="flex items-center justify-between gap-2">
+                                            <span className="text-[11px] text-slate-400">수정일</span>
+                                            <span>{formatDateOnly(ticket.updatedDate)}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            ))
+                        )}
+                    </div>
+                </div>
+              {/* 데스크톱 테이블 */}
+              <div className="hidden md:block">
+                <Card2 className="overflow-hidden">
+                  <CardContent className="p-0">
+                    <Table2>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="px-2 w-[56px] text-center">No</TableHead>
+                          <TableHead>작성자</TableHead>
+                          <TableHead>상태</TableHead>
+                          <TableHead>제목</TableHead>
+                          <TableHead>내용</TableHead>
+                          <TableHead>생성일</TableHead>
+                          <TableHead>수정일</TableHead>
+                        </TableRow>
+                      </TableHeader>
+
+                      <TableBody>
+                        {isLoading ? (
                           <TableRow>
                             <TableCell colSpan={7} className="py-8 text-center text-muted-foreground">
                               로딩 중...
                             </TableCell>
                           </TableRow>
-                      ) : effectiveTickets.length === 0 ? (
+                        ) : effectiveTickets.length === 0 ? (
                           <TableRow>
                             <TableCell colSpan={7} className="py-8 text-center text-muted-foreground">
                               조건에 맞는 문의가 없습니다.
                             </TableCell>
                           </TableRow>
-                      ) : (
+                        ) : (
                           effectiveTickets.map((ticket, index) => {
                             const statusLabel = ticket.status
                               ? supportTicketStatusLabel[ticket.status]
@@ -431,63 +498,63 @@ export function SupportPage() {
                             const truncatedContent = truncatePlainText(normalizedContent, 50);
 
                             return (
-                                <TableRow
-                                    key={ticket.id}
-                                    className="cursor-pointer"
-                                    onClick={() => navigateToDetail(ticket)}
-                                >
-                                  <TableCell className="px-2 py-2 text-center">
-                                    {currentPage * ITEMS_PER_PAGE + index + 1}
-                                  </TableCell>
+                              <TableRow
+                                key={ticket.id}
+                                className="cursor-pointer"
+                                onClick={() => navigateToDetail(ticket)}
+                              >
+                                <TableCell className="px-2 py-2 text-center">
+                                  {currentPage * ITEMS_PER_PAGE + index + 1}
+                                </TableCell>
 
-                                  <TableCell className="px-3 py-2 whitespace-nowrap">
-                                    {ticket.customerName}
-                                  </TableCell>
+                                <TableCell className="px-3 py-2 whitespace-nowrap">
+                                  {ticket.customerName}
+                                </TableCell>
 
-                                  <TableCell className="px-3 py-2 whitespace-nowrap">
-                                    {hasStatus && statusStyle && (
-                                      <span
-                                          className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium border"
-                                          style={{
-                                            backgroundColor: statusStyle.background,
-                                            color: statusStyle.text,
-                                            borderColor: statusStyle.border,
-                                          }}
-                                      >
-                                        {statusLabel}
-                                      </span>
-                                    )}
-                                  </TableCell>
+                                <TableCell className="px-3 py-2 whitespace-nowrap">
+                                  {hasStatus && statusStyle && (
+                                    <span
+                                      className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium border"
+                                      style={{
+                                        backgroundColor: statusStyle.background,
+                                        color: statusStyle.text,
+                                        borderColor: statusStyle.border,
+                                      }}
+                                    >
+                                      {statusLabel}
+                                    </span>
+                                  )}
+                                </TableCell>
 
-                                  <TableCell className="px-3 py-2 whitespace-normal">
-                                    <div className="w-[200px]" title={ticket.title}>
-                                      {truncatedTitle}
-                                    </div>
-                                  </TableCell>
+                                <TableCell className="px-3 py-2 whitespace-normal">
+                                  <div className="w-[200px]" title={ticket.title}>
+                                    {truncatedTitle}
+                                  </div>
+                                </TableCell>
 
-                                  <TableCell className="px-3 py-2 whitespace-normal">
-                                    <div className="w-[260px] truncate" title={normalizedContent}>
-                                      {truncatedContent}
-                                    </div>
-                                  </TableCell>
+                                <TableCell className="px-3 py-2 whitespace-normal">
+                                  <div className="w-[260px] truncate" title={normalizedContent}>
+                                    {truncatedContent}
+                                  </div>
+                                </TableCell>
 
-                                  <TableCell className="px-3 py-2 whitespace-nowrap">
-                                    {formatDateOnly(ticket.createdDate)}
-                                  </TableCell>
+                                <TableCell className="px-3 py-2 whitespace-nowrap">
+                                  {formatDateOnly(ticket.createdDate)}
+                                </TableCell>
 
-                                  <TableCell className="px-3 py-2 whitespace-nowrap">
-                                    {formatDateOnly(ticket.updatedDate)}
-                                  </TableCell>
-                                </TableRow>
+                                <TableCell className="px-3 py-2 whitespace-nowrap">
+                                  {formatDateOnly(ticket.updatedDate)}
+                                </TableCell>
+                              </TableRow>
                             );
                           })
-                      )}
-                    </TableBody>
-                  </Table2>
-                </CardContent>
-              </Card2>
-
-            </>
+                        )}
+                      </TableBody>
+                    </Table2>
+                  </CardContent>
+                </Card2>
+              </div>
+            </div>
         )}
 
         {/* 페이징 */}
