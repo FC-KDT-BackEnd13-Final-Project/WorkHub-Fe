@@ -351,12 +351,12 @@ export function ProjectChecklist2() {
   };
 
   return (
-      <div className={`max-w-4xl mx-auto p-6 ${isFormDisabled ? "no-disabled-opacity" : ""}`}>
-        <Card2>
-          <CardHeader className="pb-6">
-            <CardTitle className="text-center">체크리스트 작성</CardTitle>
+      <div className={`max-w-4xl mx-auto px-8 sm:px-6 py-6 ${isFormDisabled ? "no-disabled-opacity" : ""}`}>
+        <Card2 className="px-6 sm:px-0">
+          <CardHeader className="pb-6 px-2 sm:px-6">
+            <CardTitle className="text-center text-2xl">체크리스트 작성</CardTitle>
           </CardHeader>
-          <CardContent className="pb-6">
+          <CardContent className="pb-6 px-2 sm:px-6">
             {apiError && (
               <div className="mb-4 rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
                 {apiError}
@@ -368,7 +368,7 @@ export function ProjectChecklist2() {
               </div>
             )}
             {existingChecklistId && (
-              <div className="mb-4 rounded-md border border-muted-foreground/30 bg-muted/40 p-3 text-sm text-muted-foreground">
+              <div className="mb-4 rounded-md bg-muted/40 px-3 py-2 text-sm font-medium text-blue-600 text-center">
                 체크리스트가 이미 등록되어 있습니다. "수정" 버튼을 눌러 내용을 편집하고 다시 저장할 수 있습니다.
               </div>
             )}
@@ -460,7 +460,7 @@ export function ProjectChecklist2() {
               />
 
               {canEditChecklist && (
-                <div className="flex flex-col md:flex-row gap-3 pt-6 pb-4 border-t">
+                <div className="flex flex-col md:flex-row gap-2 pt-4 pb-4 border-t">
                   {roleLocksChecklist && isLocked ? (
                       <Button2
                         type="button"
