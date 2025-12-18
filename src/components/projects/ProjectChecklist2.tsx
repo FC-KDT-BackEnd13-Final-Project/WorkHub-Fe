@@ -10,7 +10,7 @@ import { Button2 } from "../ui/button2";
 import { FormQuestion2, type FormQuestionHandle } from "../ui/FormQuestion2";
 import { useLocalStorageValue } from "../../hooks/useLocalStorageValue";
 import { PROFILE_STORAGE_KEY, normalizeUserRole } from "../../constants/profile";
-import { projectApi } from "../../lib/api";
+import { fileApi, projectApi } from "../../lib/api";
 import type {
   CheckListItemPayload,
   CheckListItemResponse,
@@ -116,35 +116,6 @@ export function ProjectChecklist2() {
     [localAuthor],
   );
 
-  const buildChecklistPayloadFromResponse = useCallback(
-    (items?: CheckListItemResponse[]): CheckListItemPayload[] => {
-      if (!items || items.length === 0) {
-        return [];
-      }
-
-      return items
-        .slice()
-        .sort((a, b) => (a.itemOrder ?? 0) - (b.itemOrder ?? 0))
-        .map((item, itemIndex) => ({
-          itemTitle: item.itemTitle ?? "",
-          itemOrder: item.itemOrder ?? itemIndex,
-          templateId: item.templateId ?? null,
-          options: (item.options ?? [])
-            .slice()
-            .sort((a, b) => (a.optionOrder ?? 0) - (b.optionOrder ?? 0))
-            .map((option, optionIndex) => ({
-              optionContent: option.optionContent ?? "",
-              optionOrder: option.optionOrder ?? optionIndex,
-              fileUrls:
-                (option.files ?? [])
-                  .map((file) => file.fileUrl)
-                  .filter((url): url is string => Boolean(url)),
-            })),
-        }));
-    },
-    [],
-  );
-
   const applyChecklistSnapshot = useCallback(
     (description: string, items?: CheckListItemResponse[], authorFields?: AuthorFields) => {
       const normalizedDescription = description ?? "";
@@ -158,16 +129,12 @@ export function ProjectChecklist2() {
         request: normalizedDescription,
       });
 
-      const payload = buildChecklistPayloadFromResponse(items);
       if (formQuestionRef.current) {
-        if (payload.length > 0) {
-          formQuestionRef.current.setChecklistItems(payload);
-        } else {
-          formQuestionRef.current.setChecklistItems();
-        }
+        const nextItems = items && items.length > 0 ? items : undefined;
+        formQuestionRef.current.setChecklistItems(nextItems);
       }
     },
-    [appliedAuthor, buildChecklistPayloadFromResponse, reset],
+    [appliedAuthor, reset],
   );
 
   const buildCreateCommands = (items: CheckListItemPayload[]): CheckListItemUpdatePayload[] =>
@@ -187,6 +154,32 @@ export function ProjectChecklist2() {
         })),
       })),
     }));
+
+  const handleChecklistAttachmentDownload = useCallback(
+    async (fileKey: string, fileName: string) => {
+      if (!fileKey) {
+        toast.error("다운로드할 파일 정보를 찾을 수 없습니다.");
+        return;
+      }
+      try {
+        const fileInfo = await fileApi.getDownloadUrl(fileKey, fileName);
+        const targetUrl = fileInfo?.presignedUrl ?? fileInfo?.fileUrl;
+        if (!targetUrl) {
+          throw new Error("다운로드 URL이 없습니다.");
+        }
+        const anchor = document.createElement("a");
+        anchor.href = targetUrl;
+        anchor.download = fileName;
+        document.body.appendChild(anchor);
+        anchor.click();
+        anchor.remove();
+      } catch (error) {
+        console.error("체크리스트 첨부 다운로드 실패", error);
+        toast.error("파일을 다운로드할 수 없습니다. 잠시 후 다시 시도해주세요.");
+      }
+    },
+    [],
+  );
   const onSubmit = async (data: ChecklistData) => {
     if (!canEditChecklist || (roleLocksChecklist && isLocked)) {
       return;
@@ -196,7 +189,9 @@ export function ProjectChecklist2() {
       return;
     }
 
-    const items = formQuestionRef.current?.getChecklistItems() ?? [];
+    const submission = formQuestionRef.current?.getChecklistSubmission();
+    const items = submission?.items ?? [];
+    const files = submission?.files ?? [];
     if (!items.length) {
       toast.error("최소 1개의 체크리스트 항목을 입력해주세요.");
       return;
@@ -211,10 +206,15 @@ export function ProjectChecklist2() {
     try {
       setIsSubmitting(true);
       if (!existingChecklistId) {
-        const response = await projectApi.createCheckList(projectId!, nodeId!, {
-          description,
-          items,
-        });
+        const response = await projectApi.createCheckList(
+          projectId!,
+          nodeId!,
+          {
+            description,
+            items,
+          },
+          files,
+        );
 
         toast.success("체크리스트가 생성되었습니다.");
         setExistingChecklistId(response.checkListId ?? null);
@@ -238,7 +238,7 @@ export function ProjectChecklist2() {
           items: [...deleteCommands, ...createCommands],
         };
 
-        const response = await projectApi.updateCheckList(projectId!, nodeId!, payload);
+        const response = await projectApi.updateCheckList(projectId!, nodeId!, payload, files);
         toast.success("체크리스트가 수정되었습니다.");
         setExistingChecklistId(response.checkListId ?? existingChecklistId);
         const updatedAuthor = deriveAuthorFields(response);
@@ -457,6 +457,7 @@ export function ProjectChecklist2() {
                   allowCommentWhenDisabled={allowClientReview}
                   commentAuthor={authorId}
                   saveSignal={checklistSaveSignal}
+                  onRemoteFileDownload={handleChecklistAttachmentDownload}
               />
 
               {canEditChecklist && (

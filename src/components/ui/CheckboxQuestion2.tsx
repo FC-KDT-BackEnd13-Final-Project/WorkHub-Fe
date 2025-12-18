@@ -6,6 +6,11 @@ import { EvidenceUpload2 } from "./EvidenceUpload2";
 interface EvidenceData {
     files: File[];
     links: string[];
+    remoteFiles?: Array<{
+        id: string;
+        fileKey: string;
+        fileName: string;
+    }>;
 }
 
 interface CheckboxQuestionProps {
@@ -24,6 +29,7 @@ interface CheckboxQuestionProps {
     onRemoveOption: (index: number) => void;
     disabled?: boolean;
     selectionEnabled?: boolean;
+    onRemoteFileDownload?: (fileKey: string, fileName: string) => void;
 }
 
 export function CheckboxQuestion2({
@@ -41,6 +47,7 @@ export function CheckboxQuestion2({
                                       onRemoveOption,
                                       disabled = false,
                                       selectionEnabled,
+                                      onRemoteFileDownload,
                                   }: CheckboxQuestionProps) {
     const textareaRefs = useRef<(HTMLTextAreaElement | null)[]>([]);
     const canSelect = selectionEnabled ?? !disabled;
@@ -142,6 +149,8 @@ export function CheckboxQuestion2({
                                 onLinksChange={onEvidenceLinksChange}
                                 files={evidenceItem?.files ?? []}
                                 links={evidenceItem?.links ?? []}
+                                remoteFiles={evidenceItem?.remoteFiles ?? []}
+                                onRemoteFileDownload={onRemoteFileDownload}
                                 disabled={disabled}
                             />
                         </div>

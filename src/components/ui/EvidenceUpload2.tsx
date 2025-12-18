@@ -10,6 +10,12 @@ interface EvidenceUploadProps {
     files: File[];
     links: string[];
     onLinksChange: (id: string, links: string[]) => void;
+    remoteFiles?: Array<{
+        id: string;
+        fileKey: string;
+        fileName: string;
+    }>;
+    onRemoteFileDownload?: (fileKey: string, fileName: string) => void;
     disabled?: boolean;
 }
 
@@ -20,6 +26,8 @@ export function EvidenceUpload2({
                                    files,
                                    links = [],
                                    onLinksChange,
+                                   remoteFiles = [],
+                                   onRemoteFileDownload,
                                    disabled = false,
                                }: EvidenceUploadProps) {
     // 파일 목록
@@ -31,9 +39,10 @@ export function EvidenceUpload2({
     }, [files]);
 
     const hasLinks = links?.length > 0;
+    const hasRemoteFiles = remoteFiles.length > 0;
     const [isAddingLink, setIsAddingLink] = useState(false);
     const [linkInput, setLinkInput] = useState("");
-    const shouldRender = isChecked || fileList.length > 0 || hasLinks;
+    const shouldRender = isChecked || fileList.length > 0 || hasLinks || hasRemoteFiles;
     if (!shouldRender) return null;
 
     // 파일 선택 시
@@ -77,7 +86,7 @@ export function EvidenceUpload2({
         onLinksChange(id, next);
     };
 
-    const hasAnyItem = fileList.length > 0 || hasLinks;
+    const hasAnyItem = fileList.length > 0 || hasLinks || hasRemoteFiles;
 
     return (
         <div className="mt-2 p-6 border rounded-md bg-muted/40">
@@ -169,7 +178,25 @@ export function EvidenceUpload2({
             {/* 파일 & 링크 리스트 */}
             {hasAnyItem && (
                 <div className="space-y-2 mt-2">
-                    {/* 파일들 */}
+                    {/* 저장된 파일 */}
+                    {remoteFiles.map((file) => (
+                        <div
+                            key={file.id}
+                            className="flex items-center justify-between rounded-md border bg-white p-2 shadow-sm"
+                        >
+                            <button
+                                type="button"
+                                className="flex-1 text-left text-sm text-primary underline"
+                                onClick={() =>
+                                    onRemoteFileDownload?.(file.fileKey, file.fileName)
+                                }
+                            >
+                                {file.fileName}
+                            </button>
+                        </div>
+                    ))}
+
+                    {/* 업로드된 파일 */}
                     {fileList.map((file, index) => (
                         <div
                             key={`file-${index}`}
@@ -177,7 +204,6 @@ export function EvidenceUpload2({
                         >
                             <span className="text-sm">{file.name}</span>
 
-                            {/* 삭제 버튼 */}
                             <Button2
                                 type="button"
                                 size="sm"
@@ -206,7 +232,6 @@ export function EvidenceUpload2({
                                 {url}
                             </a>
 
-                            {/* 삭제 버튼 */}
                             <Button2
                                 type="button"
                                 size="sm"
