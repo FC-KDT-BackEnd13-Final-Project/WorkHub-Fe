@@ -228,52 +228,58 @@ export function AdminCompanies() {
       </div>
 
       <div className="flex flex-col gap-4 rounded-2xl bg-white p-4 shadow-sm mt-2 md:flex-row md:items-center md:gap-3 md:flex-nowrap">
-        <div className="flex w-full gap-2 overflow-x-auto pb-1 md:hidden">
+        <div className="flex w-full flex-col gap-3 md:hidden">
           <Input
             placeholder="고객사를 검색하세요"
             value={searchTerm}
             onChange={(event) => setSearchTerm(event.target.value)}
-            className="file:text-foreground placeholder:text-muted-foreground selection:bg-primary selection:text-primary-foreground dark:bg-input/30 border-input flex h-9 w-full min-w-[200px] rounded-md border bg-input-background px-3 py-1 text-base transition-[color,box-shadow] outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
+            className="file:text-foreground placeholder:text-muted-foreground selection:bg-primary selection:text-primary-foreground dark:bg-input/30 border-input h-9 w-full rounded-md border bg-input-background px-3 py-1 text-sm outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
           />
-          <div className="min-w-[140px] flex-shrink-0">
-            <Select value={statusFilter} onValueChange={handleStatusFilterChange}>
-              <SelectTrigger className="border-input data-[placeholder]:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 h-9 w-full rounded-md border bg-input-background px-3 py-1 text-sm outline-none focus-visible:ring-[3px]">
-                <SelectValue placeholder="전체 상태" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="All">전체 상태</SelectItem>
-                <SelectItem value="ACTIVE">활성</SelectItem>
-                <SelectItem value="INACTIVE">비활성</SelectItem>
-                <SelectItem value="SUSPENDED">정지</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="flex items-center gap-2 min-w-[320px]">
-            <Label className="flex items-center gap-2 text-xs font-medium text-muted-foreground whitespace-nowrap">가입 기간</Label>
-            <div className="flex items-center gap-1">
+
+          <Select value={statusFilter} onValueChange={handleStatusFilterChange}>
+            <SelectTrigger className="border-input data-[placeholder]:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 h-9 w-full rounded-md border bg-input-background px-3 py-1 text-xs outline-none focus-visible:ring-[3px]">
+              <SelectValue placeholder="전체 상태" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="All">전체 상태</SelectItem>
+              <SelectItem value="ACTIVE">활성</SelectItem>
+              <SelectItem value="INACTIVE">비활성</SelectItem>
+              <SelectItem value="SUSPENDED">정지</SelectItem>
+            </SelectContent>
+          </Select>
+
+          <div className="flex items-center gap-2">
+            <Label className="text-xs font-medium text-muted-foreground whitespace-nowrap">
+              가입 기간
+            </Label>
+            <div className="flex flex-1 items-center gap-2">
               <Input
                 type="date"
                 value={joinStartDate}
                 onChange={(event) => setJoinStartDate(event.target.value)}
-                className="file:text-foreground placeholder:text-muted-foreground selection:bg-primary selection:text-primary-foreground dark:bg-input/30 flex h-9 min-w-0 rounded-md border border-border bg-input-background px-3 py-1 text-base transition-[color,box-shadow] outline-none w-[140px] focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
+                className="file:text-foreground placeholder:text-muted-foreground selection:bg-primary selection:text-primary-foreground dark:bg-input/30 h-9 flex-1 rounded-md border border-border bg-input-background px-3 py-1 text-xs outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
                 aria-label="가입 시작일"
               />
-              <span className="px-1 text-sm text-muted-foreground">~</span>
+              <span className="text-center text-xs text-muted-foreground">~</span>
               <Input
                 type="date"
                 value={joinEndDate}
                 onChange={(event) => setJoinEndDate(event.target.value)}
-                className="file:text-foreground placeholder:text-muted-foreground selection:bg-primary selection:text-primary-foreground dark:bg-input/30 flex h-9 min-w-0 rounded-md border border-border bg-input-background px-3 py-1 text-base transition-[color,box-shadow] outline-none w-[140px] focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
+                className="file:text-foreground placeholder:text-muted-foreground selection:bg-primary selection:text-primary-foreground dark:bg-input/30 h-9 flex-1 rounded-md border border-border bg-input-background px-3 py-1 text-xs outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
                 aria-label="가입 종료일"
               />
             </div>
           </div>
-          <div className="flex items-center gap-2 min-w-[220px]">
-            <Button className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive bg-primary text-primary-foreground hover:bg-primary/90 py-2 has-[>svg]:px-3 h-9 px-4 text-sm flex-1" onClick={() => navigate("/admin/users/companies/add")}>
+
+          <div className="flex gap-2">
+            <Button
+              className="inline-flex h-11 flex-1 items-center justify-center gap-2 whitespace-nowrap rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition-all hover:bg-primary/90"
+              onClick={() => navigate("/admin/users/companies/add")}
+            >
               + 추가
             </Button>
             <Button
-              className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive border bg-background text-foreground hover:bg-accent hover:text-accent-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50 py-2 has-[>svg]:px-3 h-9 px-4 text-sm flex-1"
+              className="inline-flex h-11 flex-1 items-center justify-center gap-2 whitespace-nowrap rounded-md border bg-background px-4 text-sm font-medium text-foreground transition-all hover:bg-accent hover:text-accent-foreground"
               variant="outline"
               onClick={() => navigate("/admin/users")}
             >
@@ -281,7 +287,7 @@ export function AdminCompanies() {
             </Button>
           </div>
         </div>
-        <div className="flex w-full flex-col gap-3 md:flex-row md:flex-wrap md:items-center md:gap-3">
+        <div className="hidden w-full flex-col gap-3 md:flex md:flex-row md:flex-wrap md:items-center md:gap-3">
           <Input
             placeholder="고객사를 검색하세요"
             value={searchTerm}
@@ -325,7 +331,7 @@ export function AdminCompanies() {
           </div>
 
         </div>
-        <div className="flex items-center gap-2 md:ml-auto md:flex-none">
+        <div className="hidden items-center gap-2 md:ml-auto md:flex md:flex-none">
           <Button className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive bg-primary text-primary-foreground hover:bg-primary/90 py-2 has-[>svg]:px-3 h-9 px-4 text-sm" onClick={() => navigate("/admin/users/companies/add")}>
             + 추가
           </Button>

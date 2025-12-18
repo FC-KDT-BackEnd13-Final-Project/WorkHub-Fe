@@ -1527,12 +1527,16 @@ export function ProjectsIndex() {
               placeholder="프로젝트를 검색하세요"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="file:text-foreground placeholder:text-muted-foreground selection:bg-primary selection:text-primary-foreground dark:bg-input/30 border-input flex h-9 w-full min-w-0 rounded-md border bg-input-background px-3 py-1 text-base transition-[color,box-shadow] outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
+              className="file:text-foreground placeholder:text-muted-foreground selection:bg-primary selection:text-primary-foreground dark:bg-input/30 border-input h-9 w-full rounded-md border bg-input-background px-3 py-1 text-sm outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
             />
             <div className="flex items-center gap-2">
-              <Select className="flex-1" value={statusFilter} onValueChange={(value) => setStatusFilter(value as StatusFilter)}>
-                <SelectTrigger className="border-input data-[placeholder]:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 h-9 w-full rounded-md border bg-input-background px-3 py-1 text-sm outline-none focus-visible:ring-[3px]">
-                  <SelectValue placeholder="상태 선택" />
+              <Select
+                className="flex-1"
+                value={statusFilter}
+                onValueChange={(value) => setStatusFilter(value as StatusFilter)}
+              >
+                <SelectTrigger className="border-input data-[placeholder]:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 h-9 w-full rounded-md border bg-input-background px-3 py-1 text-xs outline-none focus-visible:ring-[3px]">
+                  <SelectValue placeholder="전체" />
                 </SelectTrigger>
                 <SelectContent>
                   {statusOptions.map((option) => (
@@ -1542,9 +1546,13 @@ export function ProjectsIndex() {
                   ))}
                 </SelectContent>
               </Select>
-              <Select className="flex-1" value={sortOption} onValueChange={(value) => setSortOption(value as SortOption)}>
-                <SelectTrigger className="border-input data-[placeholder]:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 h-9 w-full rounded-md border bg-input-background px-3 py-1 text-sm outline-none focus-visible:ring-[3px]">
-                  <SelectValue placeholder="정렬" />
+              <Select
+                className="flex-1"
+                value={sortOption}
+                onValueChange={(value) => setSortOption(value as SortOption)}
+              >
+                <SelectTrigger className="border-input data-[placeholder]:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 h-9 w-full rounded-md border bg-input-background px-3 py-1 text-xs outline-none focus-visible:ring-[3px]">
+                  <SelectValue placeholder="최신순" />
                 </SelectTrigger>
                 <SelectContent>
                   {sortOptions.map((option) => (
@@ -1556,8 +1564,10 @@ export function ProjectsIndex() {
               </Select>
             </div>
             <div className="flex items-center gap-2">
-              <Label className="text-xs font-medium text-muted-foreground whitespace-nowrap">계약기간</Label>
-              <div className="flex items-center gap-2 flex-1">
+              <Label className="text-xs font-medium text-muted-foreground whitespace-nowrap">
+                계약기간
+              </Label>
+              <div className="flex flex-1 items-center gap-2">
                 <Input
                   type="date"
                   value={filterStartDate}
@@ -1571,7 +1581,7 @@ export function ProjectsIndex() {
                       }
                     }
                   }}
-                  className="file:text-foreground placeholder:text-muted-foreground selection:bg-primary selection:text-primary-foreground dark:bg-input/30 flex h-9 min-w-0 rounded-md border border-border bg-input-background px-3 py-1 text-base transition-[color,box-shadow] outline-none flex-1 focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
+                  className="file:text-foreground placeholder:text-muted-foreground selection:bg-primary selection:text-primary-foreground dark:bg-input/30 h-9 flex-1 rounded-md border border-border bg-input-background px-3 py-1 text-xs outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
                 />
                 <span className="px-1 text-sm text-muted-foreground">~</span>
                 <Input
@@ -1580,7 +1590,7 @@ export function ProjectsIndex() {
                   min={filterStartDate || undefined}
                   max={filterStartDate ? getOneYearLaterISO(filterStartDate) : undefined}
                   onChange={(e) => setFilterEndDate(e.target.value)}
-                  className="file:text-foreground placeholder:text-muted-foreground selection:bg-primary selection:text-primary-foreground dark:bg-input/30 flex h-9 min-w-0 rounded-md border border-border bg-input-background px-3 py-1 text-base transition-[color,box-shadow] outline-none flex-1 focus-visible:border-ring focus-visible:ring-ring/50 focus-visible-ring-[3px]"
+                  className="file:text-foreground placeholder:text-muted-foreground selection:bg-primary selection:text-primary-foreground dark:bg-input/30 h-9 flex-1 rounded-md border border-border bg-input-background px-3 py-1 text-xs outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible-ring-[3px]"
                 />
               </div>
             </div>
