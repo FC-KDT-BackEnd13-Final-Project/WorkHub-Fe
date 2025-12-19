@@ -1,4 +1,12 @@
-import { useState, useEffect, useMemo, useRef, forwardRef, useImperativeHandle } from "react";
+import {
+    useState,
+    useEffect,
+    useMemo,
+    useRef,
+    forwardRef,
+    useImperativeHandle,
+    useCallback,
+} from "react";
 import { Card2, CardContent, CardHeader } from "./card2";
 import { Label2 } from "./label2";
 import { CheckboxQuestion2 } from "./CheckboxQuestion2";
@@ -14,6 +22,7 @@ import { ModalShell } from "../common/ModalShell";
 import type {
     CheckListItemPayload,
     CheckListItemResponse,
+    CheckListItemStatus,
     CheckListOptionPayload,
     CheckListOptionResponse,
 } from "@/types/checkList";
@@ -118,8 +127,10 @@ interface ChecklistGroup {
     commentDraft: string;
     commentAttachmentDraft: CommentAttachment[];
     isCommentOpen: boolean;
-    status: "pending" | "approved" | "hold";
+    status: CheckListItemStatus;
     locked: boolean;
+    checkListItemId: number | null;
+    isStatusUpdating: boolean;
     historyEntries: ChecklistHistoryEntry[];
     isHistoryOpen: boolean;
     historySelectedTargetId: number | null;
@@ -134,6 +145,11 @@ interface FormQuestionProps {
     commentAuthor?: string;
     saveSignal?: number;
     onRemoteFileDownload?: (fileKey: string, fileName: string) => void;
+    onItemStatusUpdate?: (
+        checkListItemId: number,
+        status: CheckListItemStatus,
+    ) => Promise<boolean>;
+    showDecisionButtons?: boolean;
 }
 
 export interface FormQuestionHandle {
@@ -151,12 +167,23 @@ const createChecklistGroup = (id: number): ChecklistGroup => ({
     commentDraft: "",
     commentAttachmentDraft: [],
     isCommentOpen: false,
-    status: "pending",
+    status: "PENDING",
     locked: false,
+    checkListItemId: null,
+    isStatusUpdating: false,
     historyEntries: [],
     isHistoryOpen: false,
     historySelectedTargetId: null,
 });
+
+const normalizeChecklistStatus = (
+    status?: CheckListItemStatus | null,
+): CheckListItemStatus => {
+    if (status === "AGREED" || status === "ON_HOLD") {
+        return status;
+    }
+    return "PENDING";
+};
 
 export const FormQuestion2 = forwardRef<FormQuestionHandle, FormQuestionProps>(function FormQuestion2(
     {
@@ -168,6 +195,8 @@ export const FormQuestion2 = forwardRef<FormQuestionHandle, FormQuestionProps>(f
         commentAuthor = "작성자",
         saveSignal = 0,
         onRemoteFileDownload,
+        onItemStatusUpdate,
+        showDecisionButtons = true,
     },
     ref,
 ) {
@@ -184,7 +213,9 @@ export const FormQuestion2 = forwardRef<FormQuestionHandle, FormQuestionProps>(f
 
     const canSelect = !disabled || allowSelectionWhenDisabled;
     const canComment = !disabled || allowCommentWhenDisabled;
-    const canDecide = !disabled || allowSelectionWhenDisabled;
+    const canDecide =
+        (!disabled || allowSelectionWhenDisabled || Boolean(onItemStatusUpdate)) &&
+        showDecisionButtons;
     const shouldClearSelectionsForReview = disabled && allowSelectionWhenDisabled;
     const [hasClearedForReview, setHasClearedForReview] = useState(false);
 
@@ -200,6 +231,74 @@ export const FormQuestion2 = forwardRef<FormQuestionHandle, FormQuestionProps>(f
     useEffect(() => {
         groupsRef.current = groups;
     }, [groups]);
+
+    const requestStatusChange = useCallback(
+        async (groupIndex: number, nextStatus: CheckListItemStatus) => {
+            if (!onItemStatusUpdate) {
+                setGroups((prev) =>
+                    prev.map((group, index) =>
+                        index === groupIndex
+                            ? { ...group, status: nextStatus, locked: true }
+                            : group,
+                    ),
+                );
+                return;
+            }
+
+            const targetGroup = groupsRef.current[groupIndex];
+            if (!targetGroup || !targetGroup.checkListItemId) {
+                return;
+            }
+
+            setGroups((prev) =>
+                prev.map((group, index) =>
+                    index === groupIndex
+                        ? { ...group, isStatusUpdating: true }
+                        : group,
+                ),
+            );
+
+            try {
+                const success = await onItemStatusUpdate(
+                    targetGroup.checkListItemId,
+                    nextStatus,
+                );
+                setGroups((prev) =>
+                    prev.map((group, index) => {
+                        if (index !== groupIndex) {
+                            return group;
+                        }
+                        if (!success) {
+                            return { ...group, isStatusUpdating: false };
+                        }
+                        return {
+                            ...group,
+                            status: nextStatus,
+                            locked: true,
+                            isStatusUpdating: false,
+                        };
+                    }),
+                );
+            } catch (error) {
+                setGroups((prev) =>
+                    prev.map((group, index) =>
+                        index === groupIndex
+                            ? { ...group, isStatusUpdating: false }
+                            : group,
+                    ),
+                );
+            }
+        },
+        [onItemStatusUpdate],
+    );
+
+    const shouldDisableDecisionButtons = useCallback(
+        (group: ChecklistGroup) =>
+            !canDecide ||
+            group.isStatusUpdating ||
+            (Boolean(onItemStatusUpdate) && !group.checkListItemId),
+        [canDecide, onItemStatusUpdate],
+    );
 
     const sortedChecklistHistoryEntries = useMemo(
         () =>
@@ -299,6 +398,8 @@ export const FormQuestion2 = forwardRef<FormQuestionHandle, FormQuestionProps>(f
                 const nextRules = sortedOptions.length
                     ? sortedOptions.map((option) => option.optionContent ?? "")
                     : [""];
+                const normalizedStatus = normalizeChecklistStatus(item.status ?? null);
+                const statusLocked = normalizedStatus !== "PENDING";
 
                 const evidences: Record<string, EvidenceItem> = {};
                 sortedOptions.forEach((option, optionIndex) => {
@@ -327,6 +428,9 @@ export const FormQuestion2 = forwardRef<FormQuestionHandle, FormQuestionProps>(f
                     title: item.itemTitle ?? "",
                     rules: nextRules.length ? nextRules : [""],
                     evidences,
+                    status: normalizedStatus,
+                    locked: statusLocked,
+                    checkListItemId: item.checkListItemId ?? null,
                 };
             });
             setGroups(nextGroups);
@@ -520,7 +624,7 @@ export const FormQuestion2 = forwardRef<FormQuestionHandle, FormQuestionProps>(f
     useEffect(() => {
         if (!unlockSignal) return;
         setGroups((prev) =>
-            prev.map((group) => ({ ...group, status: "pending", locked: false })),
+            prev.map((group) => ({ ...group, locked: false })),
         );
     }, [unlockSignal]);
 
@@ -1949,41 +2053,28 @@ export const FormQuestion2 = forwardRef<FormQuestionHandle, FormQuestionProps>(f
                                 {/* 코멘트 / 이력 / 동의·보류 버튼 */}
                                 <div className="my-2 mt-2 flex w-full flex-col items-end gap-2">
                                     {/* 동의 / 보류 버튼 */}
-                                    <div className="mb-6 flex items-center gap-1">
-                                        {/* 동의 */}
-                                        <button
-                                            type="button"
-                                            disabled={group.locked || !canDecide}
-                                            className={`h-9 rounded-md border px-4 text-sm ${
-                                                group.status === "approved"
+                                    {showDecisionButtons && (
+                                        <div className="mb-6 flex items-center gap-1">
+                                            {/* 동의 */}
+                                            <button
+                                                type="button"
+                                                disabled={shouldDisableDecisionButtons(group)}
+                                                className={`h-9 rounded-md border px-4 text-sm ${
+                                                group.status === "AGREED"
                                                     ? "border-primary bg-primary text-primary-foreground"
                                                     : "border-border bg-background hover:bg-muted"
                                             }`}
                                             onClick={() => {
                                                 if (
-                                                    group.locked ||
-                                                    !canDecide
-                                                )
-                                                    return;
-
-                                                if (
                                                     !confirm(
-                                                        "‘동의’로 확정하시겠습니까? \n 동의를 선택하면 이후에는 내용을 수정할 수 없습니다.",
+                                                        "‘동의’로 확정하시겠습니까?",
                                                     )
                                                 )
                                                     return;
 
-                                                setGroups((prev) =>
-                                                    prev.map((g, i) =>
-                                                        i === groupIndex
-                                                            ? {
-                                                                ...g,
-                                                                status:
-                                                                    "approved",
-                                                                locked: true,
-                                                            }
-                                                            : g,
-                                                    ),
+                                                void requestStatusChange(
+                                                    groupIndex,
+                                                    "AGREED",
                                                 );
                                             }}
                                         >
@@ -1993,42 +2084,30 @@ export const FormQuestion2 = forwardRef<FormQuestionHandle, FormQuestionProps>(f
                                         {/* 보류 */}
                                         <button
                                             type="button"
-                                            disabled={group.locked || !canDecide}
+                                            disabled={shouldDisableDecisionButtons(group)}
                                             className={`h-9 rounded-md border px-4 text-sm ${
-                                                group.status === "hold"
+                                                group.status === "ON_HOLD"
                                                     ? "border-primary bg-primary text-primary-foreground"
                                                     : "border-border bg-background hover:bg-muted"
                                             }`}
                                             onClick={() => {
                                                 if (
-                                                    group.locked ||
-                                                    !canDecide
-                                                )
-                                                    return;
-
-                                                if (
                                                     !confirm(
-                                                        "‘보류’로 확정하시겠습니까? \n 보류를 선택하면 이후에는 내용을 수정할 수 없습니다.",
+                                                        "‘보류’로 확정하시겠습니까?",
                                                     )
                                                 )
                                                     return;
 
-                                                setGroups((prev) =>
-                                                    prev.map((g, i) =>
-                                                        i === groupIndex
-                                                            ? {
-                                                                ...g,
-                                                                status: "hold",
-                                                                locked: true,
-                                                            }
-                                                            : g,
-                                                    ),
+                                                void requestStatusChange(
+                                                    groupIndex,
+                                                    "ON_HOLD",
                                                 );
                                             }}
-                                        >
-                                            보류
-                                        </button>
-                                    </div>
+                                            >
+                                                보류
+                                            </button>
+                                        </div>
+                                    )}
 
                                     {/* 말풍선 + 이력 버튼 */}
                                     <div className="pt-4 border-t flex w-full items-center justify-between gap-2">

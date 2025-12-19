@@ -18,7 +18,7 @@ export interface CheckListItemResponse {
   checkListItemId: number;
   itemTitle: string;
   itemOrder: number;
-  status: CheckListItemStatus;
+  status: CheckListItemStatus | null;
   confirmedAt: string | null;
   templateId: number | null;
   options: CheckListOptionResponse[];
