@@ -332,7 +332,7 @@ export function UserHistoryPage() {
       </div>
 
       <Card className="rounded-2xl border border-white/70 bg-white/90 shadow-sm backdrop-blur">
-        <CardContent className="px-4 pt-6 pb-5 md:px-6 md:pt-6 md:pb-6">
+        <CardContent className="px-6 pt-6 pb-5 md:px-6 md:pt-6 md:pb-6">
           <div className="space-y-4 md:hidden">
             {paginatedEvents.map((event) => {
               const palette = historyPalette[event.type];
