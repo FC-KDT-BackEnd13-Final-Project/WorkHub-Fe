@@ -42,6 +42,11 @@ export interface CheckListCommentRequest {
   files?: CheckListCommentFilePayload[];
 }
 
+export interface CheckListCommentUpdateRequest {
+  content: string;
+  files?: CheckListCommentFilePayload[];
+}
+
 export interface CheckListCommentResponse {
   checkListCommentId: number;
   checkListItemId: number;

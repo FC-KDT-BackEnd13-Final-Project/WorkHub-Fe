@@ -108,6 +108,7 @@ interface ChecklistComment {
     replies: ChecklistReply[];
     menuOpen: boolean;
     isEditing: boolean;
+    isEditSubmitting?: boolean;
     editDraft: string;
     showReplyBox: boolean;
     replyDraft: string;
@@ -159,6 +160,13 @@ interface FormQuestionProps {
         fileMeta: { fileName: string; fileOrder: number }[];
         parentCommentId?: number | null;
     }) => Promise<CheckListCommentResponse | void>;
+    onUpdateComment?: (payload: {
+        checkListItemId: number;
+        commentId: number;
+        content: string;
+        attachments: File[];
+        fileMeta: { fileName: string; fileOrder: number }[];
+    }) => Promise<CheckListCommentResponse | void>;
 }
 
 export interface FormQuestionHandle {
@@ -208,6 +216,7 @@ export const FormQuestion2 = forwardRef<FormQuestionHandle, FormQuestionProps>(f
         onItemStatusUpdate,
         showDecisionButtons = true,
         onSubmitComment,
+        onUpdateComment,
     },
     ref,
 ) {
@@ -487,6 +496,7 @@ export const FormQuestion2 = forwardRef<FormQuestionHandle, FormQuestionProps>(f
         replies: [],
         menuOpen: false,
         isEditing: false,
+        isEditSubmitting: false,
         editDraft: "",
         showReplyBox: false,
         replyDraft: "",
@@ -754,8 +764,25 @@ export const FormQuestion2 = forwardRef<FormQuestionHandle, FormQuestionProps>(f
             onSubmitComment && targetGroup.checkListItemId,
         );
 
-        const finalizeCommentAppend = () => {
-            const newComment = createLocalCommentRecord(draft, attachments);
+        const finalizeCommentAppend = (
+            serverComment?: CheckListCommentResponse | void,
+        ) => {
+            const baseRecord = createLocalCommentRecord(
+                serverComment?.content ?? draft,
+                attachments,
+            );
+            const newComment = serverComment
+                ? {
+                    ...baseRecord,
+                    id: serverComment.checkListCommentId,
+                    text: serverComment.content ?? draft,
+                    createdAt: serverComment.createdAt ?? baseRecord.createdAt,
+                    updatedAt: serverComment.updatedAt ?? null,
+                    author:
+                        serverComment.authorName?.trim() ||
+                        commentAuthor,
+                }
+                : baseRecord;
             const historyEntry = createHistoryEntry({
                 targetId: newComment.id,
                 type: "comment",
@@ -798,14 +825,14 @@ export const FormQuestion2 = forwardRef<FormQuestionHandle, FormQuestionProps>(f
                     fileName: attachment.file.name || `attachment-${index + 1}`,
                     fileOrder: index,
                 }));
-                await onSubmitComment?.({
+                const response = await onSubmitComment?.({
                     checkListItemId: targetGroup.checkListItemId!,
                     content: draft,
                     attachments: files,
                     fileMeta,
                     parentCommentId: null,
                 });
-                finalizeCommentAppend();
+                finalizeCommentAppend(response);
             } catch (error) {
                 setGroups((prev) =>
                     prev.map((group, index) =>
@@ -1055,6 +1082,7 @@ export const FormQuestion2 = forwardRef<FormQuestionHandle, FormQuestionProps>(f
         updateCommentState(groupIndex, commentId, (comment) => ({
             ...comment,
             isEditing: true,
+            isEditSubmitting: false,
             editDraft: comment.text,
             menuOpen: false,
             editAttachmentDraft: comment.attachments.map((attachment) => ({
@@ -1067,57 +1095,119 @@ export const FormQuestion2 = forwardRef<FormQuestionHandle, FormQuestionProps>(f
         updateCommentState(groupIndex, commentId, (comment) => ({
             ...comment,
             isEditing: false,
+            isEditSubmitting: false,
             editDraft: "",
             editAttachmentDraft: [],
         }));
     };
 
-    const saveCommentEdit = (groupIndex: number, commentId: number) => {
+    const saveCommentEdit = async (groupIndex: number, commentId: number) => {
         if (!canComment) return;
+        const targetGroup = groupsRef.current[groupIndex];
+        if (!targetGroup || isCommentInteractionLocked(targetGroup)) {
+            return;
+        }
 
-        setGroups((prev) =>
-            prev.map((group, index) => {
-                if (index !== groupIndex) return group;
+        const targetComment = targetGroup.comments.find(
+            (comment) => comment.id === commentId,
+        );
+        if (!targetComment) return;
 
-                let historyEntry: ChecklistHistoryEntry | null = null;
+        const newText = targetComment.editDraft.trim();
+        if (!newText) return;
+        const updatedAttachments =
+            targetComment.editAttachmentDraft ?? targetComment.attachments;
 
-                const updatedComments = group.comments.map((comment) => {
-                    if (comment.id !== commentId) return comment;
+        const files = updatedAttachments
+            .map((attachment) => attachment.file)
+            .filter((file): file is File => Boolean(file));
+        const fileMeta = updatedAttachments.map((attachment, index) => ({
+            fileName: attachment.file.name || `attachment-${index + 1}`,
+            fileOrder: index,
+        }));
 
-                    const newText = comment.editDraft.trim();
-                    if (!newText) return comment;
-                    const updatedAttachments =
-                        comment.editAttachmentDraft ?? comment.attachments;
+        const finalizeUpdate = (
+            serverResponse?: CheckListCommentResponse | void,
+        ) => {
+            setGroups((prev) =>
+                prev.map((group, index) => {
+                    if (index !== groupIndex) return group;
 
-                    historyEntry = createHistoryEntry({
-                        targetId: comment.id,
-                        type: "comment",
-                        action: "edited",
-                        author: comment.author,
-                        content: newText,
-                        parentCommentId: null,
+                    let historyEntry: ChecklistHistoryEntry | null = null;
+
+                    const updatedComments = group.comments.map((comment) => {
+                        if (comment.id !== commentId) return comment;
+
+                        historyEntry = createHistoryEntry({
+                            targetId: comment.id,
+                            type: "comment",
+                            action: "edited",
+                            author: comment.author,
+                            content: serverResponse?.content ?? newText,
+                            parentCommentId: null,
+                        });
+
+                        return {
+                            ...comment,
+                            id:
+                                serverResponse?.checkListCommentId ??
+                                comment.id,
+                            text: serverResponse?.content ?? newText,
+                            author:
+                                serverResponse?.authorName?.trim() ||
+                                comment.author,
+                            updatedAt:
+                                serverResponse?.updatedAt ??
+                                new Date().toISOString(),
+                            isEditing: false,
+                            editDraft: "",
+                            attachments: updatedAttachments,
+                            editAttachmentDraft: [],
+                            isEditSubmitting: false,
+                        };
                     });
 
+                    if (!historyEntry) return group;
+
                     return {
-                        ...comment,
-                        text: newText,
-                        updatedAt: new Date().toISOString(),
-                        isEditing: false,
-                        editDraft: "",
-                        attachments: updatedAttachments,
-                        editAttachmentDraft: [],
+                        ...group,
+                        comments: updatedComments,
+                        historyEntries: [...group.historyEntries, historyEntry],
                     };
-                });
+                }),
+            );
+        };
 
-                if (!historyEntry) return group;
-
-                return {
-                    ...group,
-                    comments: updatedComments,
-                    historyEntries: [...group.historyEntries, historyEntry],
-                };
-            }),
+        const shouldSyncWithServer = Boolean(
+            onUpdateComment &&
+            targetGroup.checkListItemId &&
+            targetComment.id,
         );
+
+        if (shouldSyncWithServer) {
+            updateCommentState(groupIndex, commentId, (comment) => ({
+                ...comment,
+                isEditSubmitting: true,
+            }));
+            try {
+                const response = await onUpdateComment?.({
+                    checkListItemId: targetGroup.checkListItemId!,
+                    commentId: targetComment.id,
+                    content: newText,
+                    attachments: files,
+                    fileMeta,
+                });
+                finalizeUpdate(response);
+            } catch (error) {
+                updateCommentState(groupIndex, commentId, (comment) => ({
+                    ...comment,
+                    isEditSubmitting: false,
+                }));
+            }
+            return;
+        }
+
+        finalizeUpdate();
     };
 
     const deleteComment = (groupIndex: number, commentId: number) => {
@@ -2399,18 +2489,19 @@ export const FormQuestion2 = forwardRef<FormQuestionHandle, FormQuestionProps>(f
                                                                     )}
 
                                                                     <div className="flex items-center justify-between gap-2">
-                                                                        <Button2
-                                                                            type="button"
-                                                                            variant="outline"
-                                                                            size="sm"
-                                                                            disabled={
-                                                                                !canComment ||
-                                                                                isCommentInteractionLocked(group)
-                                                                            }
-                                                                            onClick={() =>
-                                                                                document
-                                                                                    .getElementById(
-                                                                                        `comment-edit-attachment-input-${group.id}-${comment.id}`,
+                                                                <Button2
+                                                                    type="button"
+                                                                    variant="outline"
+                                                                    size="sm"
+                                                                    disabled={
+                                                                        !canComment ||
+                                                                        isCommentInteractionLocked(group) ||
+                                                                        comment.isEditSubmitting
+                                                                    }
+                                                                    onClick={() =>
+                                                                        document
+                                                                            .getElementById(
+                                                                                `comment-edit-attachment-input-${group.id}-${comment.id}`,
                                                                                     )
                                                                                     ?.click()
                                                                             }
@@ -2424,6 +2515,7 @@ export const FormQuestion2 = forwardRef<FormQuestionHandle, FormQuestionProps>(f
                                                                                 type="button"
                                                                                 variant="outline"
                                                                                 size="sm"
+                                                                                disabled={comment.isEditSubmitting}
                                                                                 onClick={() =>
                                                                                     cancelCommentEdit(
                                                                                         groupIndex,
@@ -2438,16 +2530,19 @@ export const FormQuestion2 = forwardRef<FormQuestionHandle, FormQuestionProps>(f
                                                                                 type="button"
                                                                                 size="sm"
                                                                                 onClick={() =>
-                                                                                    saveCommentEdit(
+                                                                                    void saveCommentEdit(
                                                                                         groupIndex,
                                                                                         comment.id,
                                                                                     )
                                                                                 }
                                                                                 disabled={
-                                                                                    !comment.editDraft.trim()
+                                                                                    !comment.editDraft.trim() ||
+                                                                                    comment.isEditSubmitting
                                                                                 }
                                                                             >
-                                                                                저장
+                                                                                {comment.isEditSubmitting
+                                                                                    ? "저장 중..."
+                                                                                    : "저장"}
                                                                             </Button2>
                                                                         </div>
                                                                     </div>

@@ -7,6 +7,7 @@ import type {
   CheckListUpdateRequest,
   CheckListCommentRequest,
   CheckListCommentResponse,
+  CheckListCommentUpdateRequest,
 } from '@/types/checkList';
 import type { NodeListApiResponse, NodeApiItem } from '@/types/projectNodeList';
 import { CreateNodePayload, UpdateNodePayload, type NodeStatusPayload, type UpdateNodeOrderPayload } from '@/types/projectNode';
@@ -503,6 +504,36 @@ export const projectApi = {
     }
 
     throw new Error(message || '체크리스트 댓글 작성에 실패했습니다.');
+  },
+
+  /**
+   * 체크리스트 댓글 수정
+   */
+  updateCheckListComment: async (
+    projectId: string,
+    nodeId: string,
+    checkListId: number | string,
+    checkListItemId: number | string,
+    commentId: number | string,
+    payload: CheckListCommentUpdateRequest,
+    files?: File[],
+  ): Promise<CheckListCommentResponse> => {
+    const formData = buildChecklistFormData(payload, {
+      files,
+      fileFieldName: 'newFiles',
+    });
+    const response = await apiClient.patch(
+      `/api/v1/projects/${projectId}/nodes/${nodeId}/checkLists/${checkListId}/items/${checkListItemId}/comments/${commentId}`,
+      formData,
+    );
+
+    const { success, message, data } = response.data ?? {};
+
+    if (success === true) {
+      return data;
+    }
+
+    throw new Error(message || '체크리스트 댓글 수정에 실패했습니다.');
   },
 };
 

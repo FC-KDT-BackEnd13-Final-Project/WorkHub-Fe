@@ -276,6 +276,48 @@ export function ProjectChecklist2() {
   const checklistCommentSubmitter = existingChecklistId
     ? handleChecklistCommentSubmit
     : undefined;
+
+  const handleChecklistCommentUpdate = useCallback(
+    async (
+      params: {
+        checkListItemId: number;
+        commentId: number;
+        content: string;
+        attachments: File[];
+        fileMeta: { fileName: string; fileOrder: number }[];
+      },
+    ): Promise<CheckListCommentResponse | void> => {
+      if (!projectId || !nodeId || !existingChecklistId) {
+        toast.error("체크리스트 정보를 찾을 수 없습니다.");
+        throw new Error("체크리스트 정보를 찾을 수 없습니다.");
+      }
+
+      const { checkListItemId, commentId, content, attachments, fileMeta } = params;
+
+      try {
+        return await projectApi.updateCheckListComment(
+          projectId,
+          nodeId,
+          existingChecklistId,
+          checkListItemId,
+          commentId,
+          {
+            content,
+            files: fileMeta,
+          },
+          attachments,
+        );
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : "체크리스트 댓글 수정에 실패했습니다.";
+        toast.error(message);
+        throw error;
+      }
+    },
+    [existingChecklistId, nodeId, projectId],
+  );
+
+  const checklistCommentUpdater = existingChecklistId ? handleChecklistCommentUpdate : undefined;
   const onSubmit = async (data: ChecklistData) => {
     if (!canEditChecklist || (roleLocksChecklist && isLocked)) {
       return;
@@ -559,6 +601,7 @@ export function ProjectChecklist2() {
                   onItemStatusUpdate={checklistStatusUpdater}
                   showDecisionButtons={shouldShowDecisionButtons}
                   onSubmitComment={checklistCommentSubmitter}
+                  onUpdateComment={checklistCommentUpdater}
               />
 
               {canEditChecklist && (
