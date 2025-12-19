@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { ModalShell } from "../common/ModalShell";
 import type {
+    CheckListCommentResponse,
     CheckListItemPayload,
     CheckListItemResponse,
     CheckListItemStatus,
@@ -131,6 +132,7 @@ interface ChecklistGroup {
     locked: boolean;
     checkListItemId: number | null;
     isStatusUpdating: boolean;
+    isCommentSubmitting: boolean;
     historyEntries: ChecklistHistoryEntry[];
     isHistoryOpen: boolean;
     historySelectedTargetId: number | null;
@@ -150,6 +152,13 @@ interface FormQuestionProps {
         status: CheckListItemStatus,
     ) => Promise<boolean>;
     showDecisionButtons?: boolean;
+    onSubmitComment?: (payload: {
+        checkListItemId: number;
+        content: string;
+        attachments: File[];
+        fileMeta: { fileName: string; fileOrder: number }[];
+        parentCommentId?: number | null;
+    }) => Promise<CheckListCommentResponse | void>;
 }
 
 export interface FormQuestionHandle {
@@ -171,6 +180,7 @@ const createChecklistGroup = (id: number): ChecklistGroup => ({
     locked: false,
     checkListItemId: null,
     isStatusUpdating: false,
+    isCommentSubmitting: false,
     historyEntries: [],
     isHistoryOpen: false,
     historySelectedTargetId: null,
@@ -197,6 +207,7 @@ export const FormQuestion2 = forwardRef<FormQuestionHandle, FormQuestionProps>(f
         onRemoteFileDownload,
         onItemStatusUpdate,
         showDecisionButtons = true,
+        onSubmitComment,
     },
     ref,
 ) {
@@ -218,6 +229,8 @@ export const FormQuestion2 = forwardRef<FormQuestionHandle, FormQuestionProps>(f
         showDecisionButtons;
     const shouldClearSelectionsForReview = disabled && allowSelectionWhenDisabled;
     const [hasClearedForReview, setHasClearedForReview] = useState(false);
+    const isCommentInteractionLocked = (group: ChecklistGroup) =>
+        group.locked && !allowCommentWhenDisabled;
 
     const createHistoryEntry = (
         payload: Omit<ChecklistHistoryEntry, "id" | "timestamp">,
@@ -431,6 +444,7 @@ export const FormQuestion2 = forwardRef<FormQuestionHandle, FormQuestionProps>(f
                     status: normalizedStatus,
                     locked: statusLocked,
                     checkListItemId: item.checkListItemId ?? null,
+                    isCommentSubmitting: false,
                 };
             });
             setGroups(nextGroups);
@@ -456,6 +470,31 @@ export const FormQuestion2 = forwardRef<FormQuestionHandle, FormQuestionProps>(f
     const createAttachment = (file: File): CommentAttachment => ({
         id: Date.now() + Math.floor(Math.random() * 1000),
         file,
+    });
+
+    const cloneCommentAttachments = (attachments: CommentAttachment[]) =>
+        attachments.map((attachment) => ({ ...attachment }));
+
+    const createLocalCommentRecord = (
+        text: string,
+        attachments: CommentAttachment[],
+    ): ChecklistComment => ({
+        id: Date.now() + Math.floor(Math.random() * 1000),
+        text,
+        createdAt: new Date().toISOString(),
+        author: commentAuthor,
+        updatedAt: null,
+        replies: [],
+        menuOpen: false,
+        isEditing: false,
+        editDraft: "",
+        showReplyBox: false,
+        replyDraft: "",
+        replyingToReplyId: null,
+        replyingToAuthor: null,
+        replyAttachmentDraft: [],
+        attachments,
+        editAttachmentDraft: [],
     });
 
     const formatHistoryTimestamp = (value?: string | null) => {
@@ -689,61 +728,97 @@ export const FormQuestion2 = forwardRef<FormQuestionHandle, FormQuestionProps>(f
     const updateCommentDraft = (groupIndex: number, value: string) => {
         if (!canComment) return;
         setGroups((prev) =>
-            prev.map((g, i) =>
-                i === groupIndex && !g.locked ? { ...g, commentDraft: value } : g,
-            ),
+            prev.map((g, i) => {
+                if (i !== groupIndex) return g;
+                if (isCommentInteractionLocked(g)) return g;
+                return { ...g, commentDraft: value };
+            }),
         );
     };
 
-    const addComment = (groupIndex: number) => {
+    const addComment = async (groupIndex: number) => {
         if (!canComment) return;
-        setGroups((prev) =>
-            prev.map((g, i) => {
-                if (i !== groupIndex || g.locked) return g;
-                const draft = g.commentDraft.trim();
-                const hasAttachments = g.commentAttachmentDraft.length > 0;
-                if (!draft && !hasAttachments) return g;
+        const targetGroup = groupsRef.current[groupIndex];
+        if (!targetGroup || isCommentInteractionLocked(targetGroup)) {
+            return;
+        }
 
-                const newComment: ChecklistComment = {
-                    id: Date.now(),
-                    text: draft,
-                    createdAt: new Date().toISOString(),
-                    author: commentAuthor,
-                    updatedAt: null,
-                    replies: [],
-                    menuOpen: false,
-                    isEditing: false,
-                    editDraft: "",
-                    showReplyBox: false,
-                    replyDraft: "",
-                    replyingToReplyId: null,
-                    replyingToAuthor: null,
-                    replyAttachmentDraft: [],
-                    attachments: g.commentAttachmentDraft.map((attachment) => ({
-                        ...attachment,
-                    })),
-                    editAttachmentDraft: [],
-                };
+        const draft = targetGroup.commentDraft.trim();
+        const attachments = cloneCommentAttachments(
+            targetGroup.commentAttachmentDraft,
+        );
+        const hasAttachments = attachments.length > 0;
+        if (!draft && !hasAttachments) return;
 
-                const historyEntry = createHistoryEntry({
-                    targetId: newComment.id,
-                    type: "comment",
-                    action: "created",
-                    author: newComment.author,
-                    content: newComment.text,
+        const shouldSyncWithServer = Boolean(
+            onSubmitComment && targetGroup.checkListItemId,
+        );
+
+        const finalizeCommentAppend = () => {
+            const newComment = createLocalCommentRecord(draft, attachments);
+            const historyEntry = createHistoryEntry({
+                targetId: newComment.id,
+                type: "comment",
+                action: "created",
+                author: newComment.author,
+                content: newComment.text,
+                parentCommentId: null,
+            });
+
+            setGroups((prev) =>
+                prev.map((group, index) => {
+                    if (index !== groupIndex) return group;
+                    return {
+                        ...group,
+                        comments: [...group.comments, newComment],
+                        commentDraft: "",
+                        commentAttachmentDraft: [],
+                        historyEntries: [...group.historyEntries, historyEntry],
+                        historySelectedTargetId:
+                            group.historySelectedTargetId ?? newComment.id,
+                        isCommentSubmitting: false,
+                    };
+                }),
+            );
+        };
+
+        if (shouldSyncWithServer) {
+            setGroups((prev) =>
+                prev.map((group, index) =>
+                    index === groupIndex
+                        ? { ...group, isCommentSubmitting: true }
+                        : group,
+                ),
+            );
+            try {
+                const files = attachments
+                    .map((attachment) => attachment.file)
+                    .filter((file): file is File => Boolean(file));
+                const fileMeta = attachments.map((attachment, index) => ({
+                    fileName: attachment.file.name || `attachment-${index + 1}`,
+                    fileOrder: index,
+                }));
+                await onSubmitComment?.({
+                    checkListItemId: targetGroup.checkListItemId!,
+                    content: draft,
+                    attachments: files,
+                    fileMeta,
                     parentCommentId: null,
                 });
+                finalizeCommentAppend();
+            } catch (error) {
+                setGroups((prev) =>
+                    prev.map((group, index) =>
+                        index === groupIndex
+                            ? { ...group, isCommentSubmitting: false }
+                            : group,
+                    ),
+                );
+            }
+            return;
+        }
 
-                return {
-                    ...g,
-                    comments: [...g.comments, newComment],
-                    commentDraft: "",
-                    commentAttachmentDraft: [],
-                    historyEntries: [...g.historyEntries, historyEntry],
-                    historySelectedTargetId: g.historySelectedTargetId ?? newComment.id,
-                };
-            }),
-        );
+        finalizeCommentAppend();
     };
 
     const handleCommentAttachmentSelect = (
@@ -755,17 +830,18 @@ export const FormQuestion2 = forwardRef<FormQuestionHandle, FormQuestionProps>(f
             createAttachment(file),
         );
         setGroups((prev) =>
-            prev.map((g, i) =>
-                i === groupIndex && !g.locked
-                    ? {
-                        ...g,
-                        commentAttachmentDraft: [
-                            ...g.commentAttachmentDraft,
-                            ...newAttachments,
-                        ],
-                    }
-                    : g,
-            ),
+            prev.map((g, i) => {
+                if (i !== groupIndex || isCommentInteractionLocked(g)) {
+                    return g;
+                }
+                return {
+                    ...g,
+                    commentAttachmentDraft: [
+                        ...g.commentAttachmentDraft,
+                        ...newAttachments,
+                    ],
+                };
+            }),
         );
     };
 
@@ -842,7 +918,8 @@ export const FormQuestion2 = forwardRef<FormQuestionHandle, FormQuestionProps>(f
         );
         setGroups((prev) =>
             prev.map((group, index) => {
-                if (index !== groupIndex || group.locked) return group;
+                if (index !== groupIndex || isCommentInteractionLocked(group))
+                    return group;
                 return {
                     ...group,
                     comments: group.comments.map((comment) =>
@@ -1168,7 +1245,8 @@ export const FormQuestion2 = forwardRef<FormQuestionHandle, FormQuestionProps>(f
                 let historyEntry: ChecklistHistoryEntry | null = null;
 
                 const updatedComments = group.comments.map((comment) => {
-                    if (comment.id !== commentId || group.locked) return comment;
+                    if (comment.id !== commentId || isCommentInteractionLocked(group))
+                        return comment;
 
                     const draft = (comment.replyDraft ?? "").trim();
                     const attachments = comment.replyAttachmentDraft ?? [];
@@ -2176,7 +2254,9 @@ export const FormQuestion2 = forwardRef<FormQuestionHandle, FormQuestionProps>(f
                                                             </span>
 
                                                                 {canComment &&
-                                                                    !group.locked && (
+                                                                    !isCommentInteractionLocked(
+                                                                        group,
+                                                                    ) && (
                                                                         <button
                                                                             type="button"
                                                                             className="rounded-md p-1 transition hover:bg-muted"
@@ -2270,7 +2350,10 @@ export const FormQuestion2 = forwardRef<FormQuestionHandle, FormQuestionProps>(f
                                                                         type="file"
                                                                         multiple
                                                                         className="hidden"
-                                                                        disabled={!canComment || group.locked}
+                                                                        disabled={
+                                                                            !canComment ||
+                                                                            isCommentInteractionLocked(group)
+                                                                        }
                                                                         onChange={(event) => {
                                                                             handleCommentEditAttachmentSelect(
                                                                                 groupIndex,
@@ -2320,7 +2403,10 @@ export const FormQuestion2 = forwardRef<FormQuestionHandle, FormQuestionProps>(f
                                                                             type="button"
                                                                             variant="outline"
                                                                             size="sm"
-                                                                            disabled={!canComment || group.locked}
+                                                                            disabled={
+                                                                                !canComment ||
+                                                                                isCommentInteractionLocked(group)
+                                                                            }
                                                                             onClick={() =>
                                                                                 document
                                                                                     .getElementById(
@@ -2447,7 +2533,9 @@ export const FormQuestion2 = forwardRef<FormQuestionHandle, FormQuestionProps>(f
                                                                                             </span>
 
                                                                                                 {canComment &&
-                                                                                                    !group.locked && (
+                                                                                                    !isCommentInteractionLocked(
+                                                                                                        group,
+                                                                                                    ) && (
                                                                                                         <button
                                                                                                             type="button"
                                                                                                             className="rounded-md p-1 transition hover:bg-muted"
@@ -2540,7 +2628,12 @@ export const FormQuestion2 = forwardRef<FormQuestionHandle, FormQuestionProps>(f
                                                                                                         type="file"
                                                                                                         multiple
                                                                                                         className="hidden"
-                                                                                                        disabled={!canComment || group.locked}
+                                                                                                        disabled={
+                                                                                                            !canComment ||
+                                                                                                            isCommentInteractionLocked(
+                                                                                                                group,
+                                                                                                            )
+                                                                                                        }
                                                                                                         onChange={(event) => {
                                                                                                             handleReplyEditAttachmentSelect(
                                                                                                                 groupIndex,
@@ -2590,7 +2683,12 @@ export const FormQuestion2 = forwardRef<FormQuestionHandle, FormQuestionProps>(f
                                                                                                             type="button"
                                                                                                             variant="outline"
                                                                                                             size="sm"
-                                                                                                            disabled={!canComment || group.locked}
+                                                                                                            disabled={
+                                                                                                                !canComment ||
+                                                                                                                isCommentInteractionLocked(
+                                                                                                                    group,
+                                                                                                                )
+                                                                                                            }
                                                                                                             onClick={() =>
                                                                                                                 document
                                                                                                                     .getElementById(
@@ -2676,7 +2774,7 @@ export const FormQuestion2 = forwardRef<FormQuestionHandle, FormQuestionProps>(f
                                                         {/* === 대댓글 작성 폼 === */}
                                 {comment.showReplyBox &&
                                     canComment &&
-                                    !group.locked && (
+                                    !isCommentInteractionLocked(group) && (
                                         <div className="mt-2 space-y-2">
                                             <Textarea2
                                                 value={
@@ -2700,7 +2798,10 @@ export const FormQuestion2 = forwardRef<FormQuestionHandle, FormQuestionProps>(f
                                                     type="file"
                                                     multiple
                                                     className="hidden"
-                                                    disabled={!canComment || group.locked}
+                                                    disabled={
+                                                        !canComment ||
+                                                        isCommentInteractionLocked(group)
+                                                    }
                                                     onChange={(event) => {
                                                         handleReplyAttachmentSelect(
                                                             groupIndex,
@@ -2750,7 +2851,10 @@ export const FormQuestion2 = forwardRef<FormQuestionHandle, FormQuestionProps>(f
                                                         type="button"
                                                         variant="outline"
                                                         size="sm"
-                                                        disabled={!canComment || group.locked}
+                                                        disabled={
+                                                            !canComment ||
+                                                            isCommentInteractionLocked(group)
+                                                        }
                                                         onClick={() =>
                                                             document
                                                                 .getElementById(
@@ -2805,12 +2909,15 @@ export const FormQuestion2 = forwardRef<FormQuestionHandle, FormQuestionProps>(f
                                         </div>
 
                                         {/* === 신규 코멘트 작성 === */}
-                                        {canComment && !group.locked && (
+                                        {canComment &&
+                                            !isCommentInteractionLocked(group) && (
                                             <div className="mt-2 space-y-2">
                                                 <Textarea2
                                                     value={group.commentDraft}
                                                     disabled={
-                                                        !canComment || group.locked
+                                                        !canComment ||
+                                                        isCommentInteractionLocked(group) ||
+                                                        group.isCommentSubmitting
                                                     }
                                                     onChange={(e) =>
                                                         updateCommentDraft(
@@ -2829,7 +2936,11 @@ export const FormQuestion2 = forwardRef<FormQuestionHandle, FormQuestionProps>(f
                                                         type="file"
                                                         multiple
                                                         className="hidden"
-                                                        disabled={!canComment || group.locked}
+                                                        disabled={
+                                                            !canComment ||
+                                                            isCommentInteractionLocked(group) ||
+                                                            group.isCommentSubmitting
+                                                        }
                                                         onChange={(event) => {
                                                             handleCommentAttachmentSelect(
                                                                 groupIndex,
@@ -2876,7 +2987,11 @@ export const FormQuestion2 = forwardRef<FormQuestionHandle, FormQuestionProps>(f
                                                             type="button"
                                                             variant="outline"
                                                             size="sm"
-                                                            disabled={!canComment || group.locked}
+                                                            disabled={
+                                                                !canComment ||
+                                                                isCommentInteractionLocked(group) ||
+                                                                group.isCommentSubmitting
+                                                            }
                                                             onClick={() =>
                                                                 document
                                                                     .getElementById(
@@ -2892,13 +3007,18 @@ export const FormQuestion2 = forwardRef<FormQuestionHandle, FormQuestionProps>(f
                                                         <Button2
                                                             type="button"
                                                             size="sm"
-                                                            onClick={() => addComment(groupIndex)}
+                                                            onClick={() => {
+                                                                void addComment(groupIndex);
+                                                            }}
                                                             disabled={
-                                                                !group.commentDraft.trim() &&
-                                                                group.commentAttachmentDraft.length === 0
+                                                                group.isCommentSubmitting ||
+                                                                (!group.commentDraft.trim() &&
+                                                                    group.commentAttachmentDraft.length === 0)
                                                             }
                                                         >
-                                                            등록
+                                                            {group.isCommentSubmitting
+                                                                ? "등록 중..."
+                                                                : "등록"}
                                                         </Button2>
                                                     </div>
                                                 </div>

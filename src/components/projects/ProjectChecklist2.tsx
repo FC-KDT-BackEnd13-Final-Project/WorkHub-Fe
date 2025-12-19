@@ -12,6 +12,7 @@ import { useLocalStorageValue } from "../../hooks/useLocalStorageValue";
 import { PROFILE_STORAGE_KEY, normalizeUserRole } from "../../constants/profile";
 import { fileApi, projectApi } from "../../lib/api";
 import type {
+  CheckListCommentResponse,
   CheckListItemPayload,
   CheckListItemResponse,
   CheckListItemStatus,
@@ -231,6 +232,50 @@ export function ProjectChecklist2() {
   const checklistStatusUpdater = existingChecklistId
     ? handleChecklistItemStatusChange
     : undefined;
+
+  const handleChecklistCommentSubmit = useCallback(
+    async (
+      params: {
+        checkListItemId: number;
+        content: string;
+        attachments: File[];
+        fileMeta: { fileName: string; fileOrder: number }[];
+        parentCommentId?: number | null;
+      },
+    ): Promise<CheckListCommentResponse | void> => {
+      if (!projectId || !nodeId || !existingChecklistId) {
+        toast.error("체크리스트 정보를 찾을 수 없습니다.");
+        throw new Error("체크리스트 정보를 찾을 수 없습니다.");
+      }
+
+      const { checkListItemId, content, attachments, fileMeta, parentCommentId = null } = params;
+
+      try {
+        return await projectApi.createCheckListComment(
+          projectId,
+          nodeId,
+          existingChecklistId,
+          checkListItemId,
+          {
+            content,
+            parentCommentId,
+            files: fileMeta,
+          },
+          attachments,
+        );
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : "체크리스트 댓글 작성에 실패했습니다.";
+        toast.error(message);
+        throw error;
+      }
+    },
+    [existingChecklistId, nodeId, projectId],
+  );
+
+  const checklistCommentSubmitter = existingChecklistId
+    ? handleChecklistCommentSubmit
+    : undefined;
   const onSubmit = async (data: ChecklistData) => {
     if (!canEditChecklist || (roleLocksChecklist && isLocked)) {
       return;
@@ -391,6 +436,7 @@ export function ProjectChecklist2() {
   const isFormDisabled =
     !canEditChecklist || (roleLocksChecklist && isLocked) || isSubmitting || isFetching;
   const shouldShowDecisionButtons = Boolean(existingChecklistId) && isFormDisabled;
+  const allowCommentsWhileLocked = Boolean(existingChecklistId);
   const allowClientReview = false;
   const handleUnlock = (event: MouseEvent<HTMLButtonElement>) => {
     event.preventDefault();
@@ -506,12 +552,13 @@ export function ProjectChecklist2() {
                   disabled={isFormDisabled}
                   unlockSignal={unlockSignal}
                   allowSelectionWhenDisabled={allowClientReview}
-                  allowCommentWhenDisabled={allowClientReview}
+                  allowCommentWhenDisabled={allowCommentsWhileLocked}
                   commentAuthor={authorId}
                   saveSignal={checklistSaveSignal}
                   onRemoteFileDownload={handleChecklistAttachmentDownload}
                   onItemStatusUpdate={checklistStatusUpdater}
                   showDecisionButtons={shouldShowDecisionButtons}
+                  onSubmitComment={checklistCommentSubmitter}
               />
 
               {canEditChecklist && (

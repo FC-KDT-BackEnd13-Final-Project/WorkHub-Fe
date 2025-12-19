@@ -7,6 +7,13 @@ export interface CheckListOptionFileResponse {
   fileOrder: number;
 }
 
+export interface CheckListCommentFileResponse {
+  checkListCommentFileId?: number;
+  fileUrl?: string;
+  fileName?: string;
+  fileOrder?: number;
+}
+
 export interface CheckListOptionResponse {
   checkListOptionId: number;
   optionContent: string;
@@ -22,6 +29,28 @@ export interface CheckListItemResponse {
   confirmedAt: string | null;
   templateId: number | null;
   options: CheckListOptionResponse[];
+}
+
+export interface CheckListCommentFilePayload {
+  fileName: string;
+  fileOrder: number;
+}
+
+export interface CheckListCommentRequest {
+  content: string;
+  parentCommentId?: number | null;
+  files?: CheckListCommentFilePayload[];
+}
+
+export interface CheckListCommentResponse {
+  checkListCommentId: number;
+  checkListItemId: number;
+  parentCommentId: number | null;
+  content: string;
+  createdAt: string;
+  updatedAt?: string | null;
+  authorName?: string | null;
+  attachments?: CheckListCommentFileResponse[];
 }
 
 export interface CheckListUserSummary {
