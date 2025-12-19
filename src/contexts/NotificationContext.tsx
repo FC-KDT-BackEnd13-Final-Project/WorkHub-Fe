@@ -107,6 +107,18 @@ export function NotificationProvider({ enabled, children }: { enabled: boolean; 
       if (projectId && link === `/projects/${projectId}`) {
         return `/projects/${projectId}/nodes`;
       }
+      // CS 게시글/댓글 알림: /projects/{id}/csPosts... -> 지원 페이지 경로로 매핑
+      if (link.startsWith("/projects/") && link.includes("/csPosts")) {
+        const match = link.match(/\/projects\/([^/]+)/);
+        const pid = match?.[1] ?? projectId;
+        if (pid && csPostId) {
+          return `/projects/${pid}/nodes/support/${csPostId}`;
+        }
+        if (pid) {
+          return `/projects/${pid}/nodes/support`;
+        }
+        return "/notifications";
+      }
       return link;
     }
     if (externalUrl) return externalUrl;
