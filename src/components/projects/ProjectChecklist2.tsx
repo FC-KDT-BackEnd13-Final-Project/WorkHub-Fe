@@ -161,6 +161,15 @@ export function ProjectChecklist2() {
         toast.error("다운로드할 파일 정보를 찾을 수 없습니다.");
         return;
       }
+
+      // 링크 형태의 첨부는 새 탭으로 이동만 시킨다.
+      if (/^https?:\/\//i.test(fileKey)) {
+        if (typeof window !== "undefined") {
+          window.open(fileKey, "_blank", "noopener,noreferrer");
+        }
+        return;
+      }
+
       try {
         const fileInfo = await fileApi.getDownloadUrl(fileKey, fileName);
         const targetUrl = fileInfo?.presignedUrl ?? fileInfo?.fileUrl;
