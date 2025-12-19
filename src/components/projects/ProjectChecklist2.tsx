@@ -14,6 +14,7 @@ import { fileApi, projectApi } from "../../lib/api";
 import type {
   CheckListItemPayload,
   CheckListItemResponse,
+  CheckListItemStatus,
   CheckListItemUpdatePayload,
   CheckListResponse,
   CheckListUpdateRequest,
@@ -189,6 +190,47 @@ export function ProjectChecklist2() {
     },
     [],
   );
+
+  const handleChecklistItemStatusChange = useCallback(
+    async (checkListItemId: number, nextStatus: CheckListItemStatus) => {
+      if (!projectId || !nodeId || !existingChecklistId) {
+        toast.error("체크리스트 정보를 찾을 수 없습니다.");
+        return false;
+      }
+
+      try {
+        await projectApi.updateCheckListItemStatus(
+          projectId,
+          nodeId,
+          existingChecklistId,
+          checkListItemId,
+          nextStatus,
+        );
+        setServerChecklistItems((prev) =>
+          prev.map((item) =>
+            item.checkListItemId === checkListItemId
+              ? { ...item, status: nextStatus }
+              : item,
+          ),
+        );
+        toast.success(
+          nextStatus === "AGREED"
+            ? "해당 항목을 동의로 설정했습니다."
+            : "해당 항목을 보류로 설정했습니다.",
+        );
+        return true;
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : "체크리스트 상태 변경에 실패했습니다.";
+        toast.error(message);
+        return false;
+      }
+    },
+    [existingChecklistId, nodeId, projectId, setServerChecklistItems],
+  );
+  const checklistStatusUpdater = existingChecklistId
+    ? handleChecklistItemStatusChange
+    : undefined;
   const onSubmit = async (data: ChecklistData) => {
     if (!canEditChecklist || (roleLocksChecklist && isLocked)) {
       return;
@@ -348,6 +390,7 @@ export function ProjectChecklist2() {
 
   const isFormDisabled =
     !canEditChecklist || (roleLocksChecklist && isLocked) || isSubmitting || isFetching;
+  const shouldShowDecisionButtons = Boolean(existingChecklistId) && isFormDisabled;
   const allowClientReview = false;
   const handleUnlock = (event: MouseEvent<HTMLButtonElement>) => {
     event.preventDefault();
@@ -467,6 +510,8 @@ export function ProjectChecklist2() {
                   commentAuthor={authorId}
                   saveSignal={checklistSaveSignal}
                   onRemoteFileDownload={handleChecklistAttachmentDownload}
+                  onItemStatusUpdate={checklistStatusUpdater}
+                  showDecisionButtons={shouldShowDecisionButtons}
               />
 
               {canEditChecklist && (

@@ -2,6 +2,7 @@ import axios from 'axios';
 import type { ProjectApiResponse, ProjectListParams, ProjectApiItem, UpdateProjectPayload, ProjectStatus } from '@/types/project';
 import type {
   CheckListCreateRequest,
+  CheckListItemStatus,
   CheckListResponse,
   CheckListUpdateRequest,
 } from '@/types/checkList';
@@ -447,6 +448,33 @@ export const projectApi = {
     }
 
     throw new Error(message || '체크리스트 수정에 실패했습니다.');
+  },
+
+  /**
+   * 체크리스트 항목 상태 변경
+   */
+  updateCheckListItemStatus: async (
+    projectId: string,
+    nodeId: string,
+    checkListId: number | string,
+    checkListItemId: number | string,
+    status: CheckListItemStatus,
+  ): Promise<CheckListItemStatus> => {
+    const response = await apiClient.patch(
+      `/api/v1/projects/${projectId}/nodes/${nodeId}/checkLists/${checkListId}/items/${checkListItemId}/status`,
+      null,
+      {
+        params: { status },
+      },
+    );
+
+    const { success, message, data } = response.data;
+
+    if (success === true) {
+      return data;
+    }
+
+    throw new Error(message || '체크리스트 항목 상태 변경에 실패했습니다.');
   },
 };
 
