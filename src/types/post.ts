@@ -8,6 +8,8 @@ export interface PostThreadResponse {
   contentPreview: string;
   createdAt: string;
   replies: PostThreadResponse[];
+  userId?: number;
+  userName?: string;
 }
 
 export interface PostPageResponse {
@@ -21,6 +23,7 @@ export interface PostPageResponse {
 export interface PostFileResponse {
   postFileId: number;
   fileName: string;
+  originalFileName?: string;
   fileOrder: number;
 }
 
@@ -39,6 +42,8 @@ export interface PostResponse {
   parentPostId?: number | null;
   files: PostFileResponse[];
   links: PostLinkResponse[];
+  userId?: number;
+  userName?: string;
 }
 
 export interface CommentResponse {

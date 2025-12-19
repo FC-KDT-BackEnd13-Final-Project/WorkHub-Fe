@@ -149,7 +149,7 @@ export function ProjectPost2() {
       const label = mapPostTypeToLabel(thread.postType);
       return {
         id: String(thread.postId),
-        customerName: "알 수 없음",
+        customerName: thread.userName ?? "알 수 없음",
         type: label,
         title: thread.title,
         content: thread.contentPreview,

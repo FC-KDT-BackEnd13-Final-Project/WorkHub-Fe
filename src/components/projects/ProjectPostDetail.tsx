@@ -197,24 +197,30 @@ export function ProjectPostDetail({
             });
 
     const derivedAttachmentsFromProps = useMemo(() => {
+        if (fetchedPost?.attachments && fetchedPost.attachments.length > 0) {
+            return fetchedPost.attachments;
+        }
         if (statePost?.attachments && statePost.attachments.length > 0) {
             return statePost.attachments;
         }
         if (initialPost?.attachments && initialPost.attachments.length > 0) {
             return initialPost.attachments;
         }
-        return statePost?.attachments ?? initialPost?.attachments ?? [];
-    }, [statePost?.attachments, initialPost?.attachments]);
+        return fetchedPost?.attachments ?? statePost?.attachments ?? initialPost?.attachments ?? [];
+    }, [fetchedPost?.attachments, statePost?.attachments, initialPost?.attachments]);
 
     const derivedLinksFromProps = useMemo(() => {
+        if (fetchedPost?.links && fetchedPost.links.length > 0) {
+            return fetchedPost.links;
+        }
         if (statePost?.links && statePost.links.length > 0) {
             return statePost.links;
         }
         if (initialPost?.links && initialPost.links.length > 0) {
             return initialPost.links;
         }
-        return statePost?.links ?? initialPost?.links ?? [];
-    }, [statePost?.links, initialPost?.links]);
+        return fetchedPost?.links ?? statePost?.links ?? initialPost?.links ?? [];
+    }, [fetchedPost?.links, statePost?.links, initialPost?.links]);
 
     const [postTitleState, setPostTitleState] = useState(post.title);
     const [postContentState, setPostContentState] = useState(post.content);
@@ -276,14 +282,15 @@ export function ProjectPostDetail({
     const normalizePostFiles = (files: PostResponse["files"] | undefined) =>
         (files ?? []).map((file) => ({
             id: `file-${file.postFileId}`,
-            name: file.fileName,
+            name: file.originalFileName ?? file.fileName,
             size: 0,
             dataUrl: "",
+            fileKey: file.fileName, // 백엔드에서 내려주는 저장 키를 다운로드 요청에 사용
         }));
 
     const toPostPayload = (response: PostResponse, createdAt?: string): PostPayload => ({
         id: String(response.postId),
-        customerName: "알 수 없음",
+        customerName: response.userName ?? "알 수 없음",
         type: mapPostTypeToLabel(response.postType),
         title: response.title,
         content: response.content,
@@ -300,7 +307,7 @@ export function ProjectPostDetail({
         title: response.title,
         content: response.content,
         createdAt: createdAt ?? new Date().toISOString(),
-        author: "알 수 없음",
+        author: response.userName ?? "알 수 없음",
         attachments: normalizePostFiles(response.files),
         links: normalizePostLinks(response.links),
         updatedAt: undefined,
@@ -313,7 +320,7 @@ export function ProjectPostDetail({
         title: reply.title,
         content: reply.contentPreview,
         createdAt: reply.createdAt,
-        author: "알 수 없음",
+        author: (reply as any).userName ?? "알 수 없음",
         attachments: [],
         links: [],
         updatedAt: undefined,
@@ -330,7 +337,7 @@ export function ProjectPostDetail({
                 content: comment.commentContent,
                 createdAt: comment.createAt,
                 updatedAt: comment.updateAt,
-                author: `사용자 ${comment.userId}`,
+                author: comment.userName ?? (comment.userId ? `사용자 ${comment.userId}` : "알 수 없음"),
                 attachments: [],
                 links: [],
                 parentId: comment.parentCommentId ? String(comment.parentCommentId) : null,
@@ -481,11 +488,15 @@ export function ProjectPostDetail({
                 }
 
                 const payload = toPostPayload(mainPost, parentCreatedAt ?? "");
-                setFetchedPost(payload);
-                setMainPostId(String(mainPost.postId));
-
                 const attachments = normalizePostFiles(mainPost.files);
                 const links = normalizePostLinks(mainPost.links);
+                setFetchedPost({
+                    ...payload,
+                    attachments,
+                    links,
+                });
+                setMainPostId(String(mainPost.postId));
+
                 setPostAttachments(attachments);
                 setPostLinks(links);
                 setPostEditDraft({
