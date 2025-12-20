@@ -507,6 +507,28 @@ export const projectApi = {
   },
 
   /**
+   * 체크리스트 댓글 조회
+   */
+  getCheckListComments: async (
+    projectId: string,
+    nodeId: string,
+    checkListId: number | string,
+    checkListItemId: number | string,
+  ): Promise<CheckListCommentResponse[]> => {
+    const response = await apiClient.get(
+      `/api/v1/projects/${projectId}/nodes/${nodeId}/checkLists/${checkListId}/items/${checkListItemId}/comments`,
+    );
+
+    const { success, message, data } = response.data ?? {};
+
+    if (success === true) {
+      return data ?? [];
+    }
+
+    throw new Error(message || '체크리스트 댓글 조회에 실패했습니다.');
+  },
+
+  /**
    * 체크리스트 댓글 수정
    */
   updateCheckListComment: async (
