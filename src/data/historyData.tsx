@@ -10,7 +10,10 @@ export type HistoryEvent = {
   updatedAt: string;
   updatedBy: string;
   createdBy: string;
+  updatedByProfileImg?: string | null;
   target?: string;
+  ipAddress?: string | null;
+  userAgent?: string | null;
   category?: "user" | "post" | "project" | "checklist";
   subCategory?:
     | "post"
