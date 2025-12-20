@@ -8,7 +8,7 @@ import type {
 
 export const historyApi = {
   getAdminHistories: async (params?: AdminHistoryListParams): Promise<AdminHistoryPage> => {
-    const response = await apiClient.get<AdminHistoryPageResponse>("/api/v1/admin/histories", {
+    const response = await apiClient.get<AdminHistoryPageResponse>("/api/v1/admin/histories/all", {
       params,
       paramsSerializer: {
         serialize: (rawParams) => {
