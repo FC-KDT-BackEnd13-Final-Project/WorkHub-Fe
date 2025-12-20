@@ -177,6 +177,7 @@ interface FormQuestionProps {
         fileMeta: { fileName: string; fileOrder: number }[];
     }) => Promise<CheckListCommentResponse | void>;
     onFetchComments?: (checkListItemId: number) => Promise<CheckListCommentResponse[] | void>;
+    onDeleteComment?: (payload: { checkListItemId: number; commentId: number }) => Promise<void>;
 }
 
 export interface FormQuestionHandle {
@@ -232,6 +233,7 @@ export const FormQuestion2 = forwardRef<FormQuestionHandle, FormQuestionProps>(f
         onSubmitComment,
         onUpdateComment,
         onFetchComments,
+        onDeleteComment,
     },
     ref,
 ) {
@@ -1682,52 +1684,78 @@ export const FormQuestion2 = forwardRef<FormQuestionHandle, FormQuestionProps>(f
         finalizeUpdate();
     };
 
-    const deleteComment = (groupIndex: number, commentId: number) => {
+    const deleteComment = async (groupIndex: number, commentId: number) => {
         if (!canComment) return;
         closeCommentMenu(groupIndex);
 
-        setGroups((prev) =>
-            prev.map((group, index) => {
-                if (index !== groupIndex) return group;
+        const targetGroup = groupsRef.current[groupIndex];
+        if (!targetGroup) return;
+        const targetComment = targetGroup.comments.find((c) => c.id === commentId);
+        if (!targetComment) return;
 
-                const target = group.comments.find((c) => c.id === commentId);
-                if (!target) return group;
+        const finalizeRemoval = () => {
+            setGroups((prev) =>
+                prev.map((group, index) => {
+                    if (index !== groupIndex) return group;
 
-                const commentHistory = createHistoryEntry({
-                    targetId: target.id,
-                    type: "comment",
-                    action: "deleted",
-                    author: target.author,
-                    content: target.text,
-                    parentCommentId: null,
-                });
+                    const target = group.comments.find((c) => c.id === commentId);
+                    if (!target) return group;
 
-                const replyHistories = target.replies.map((reply) =>
-                    createHistoryEntry({
-                        targetId: reply.id,
-                        type: "reply",
+                    const commentHistory = createHistoryEntry({
+                        targetId: target.id,
+                        type: "comment",
                         action: "deleted",
-                        author: reply.author,
-                        content: reply.text,
-                        parentCommentId: target.id,
-                    }),
-                );
+                        author: target.author,
+                        content: target.text,
+                        parentCommentId: null,
+                    });
 
-                const removedIds = new Set<number>([
-                    target.id,
-                    ...target.replies.map((r) => r.id),
-                ]);
+                    const replyHistories = target.replies.map((reply) =>
+                        createHistoryEntry({
+                            targetId: reply.id,
+                            type: "reply",
+                            action: "deleted",
+                            author: reply.author,
+                            content: reply.text,
+                            parentCommentId: target.id,
+                        }),
+                    );
 
-                return {
-                    ...group,
-                    comments: group.comments.filter((c) => c.id !== commentId),
-                    historyEntries: [...group.historyEntries, commentHistory, ...replyHistories],
-                    historySelectedTargetId: removedIds.has(group.historySelectedTargetId ?? -1)
-                        ? null
-                        : group.historySelectedTargetId,
-                };
-            }),
+                    const removedIds = new Set<number>([
+                        target.id,
+                        ...target.replies.map((r) => r.id),
+                    ]);
+
+                    return {
+                        ...group,
+                        comments: group.comments.filter((c) => c.id !== commentId),
+                        historyEntries: [...group.historyEntries, commentHistory, ...replyHistories],
+                        historySelectedTargetId: removedIds.has(
+                            group.historySelectedTargetId ?? -1,
+                        )
+                            ? null
+                            : group.historySelectedTargetId,
+                    };
+                }),
+            );
+        };
+
+        const shouldSyncWithServer = Boolean(
+            onDeleteComment && targetGroup.checkListItemId,
         );
+
+        if (shouldSyncWithServer) {
+            try {
+                await onDeleteComment?.({
+                    checkListItemId: targetGroup.checkListItemId!,
+                    commentId,
+                });
+            } catch (error) {
+                return;
+            }
+        }
+
+        finalizeRemoval();
     };
 
     const openReplyBox = (

@@ -342,6 +342,36 @@ export function ProjectChecklist2() {
   );
 
   const checklistCommentUpdater = existingChecklistId ? handleChecklistCommentUpdate : undefined;
+
+  const handleChecklistCommentDelete = useCallback(
+    async (params: { checkListItemId: number; commentId: number }) => {
+      if (!projectId || !nodeId || !existingChecklistId) {
+        toast.error("체크리스트 정보를 찾을 수 없습니다.");
+        throw new Error("체크리스트 정보를 찾을 수 없습니다.");
+      }
+
+      const { checkListItemId, commentId } = params;
+
+      try {
+        await projectApi.deleteCheckListComment(
+          projectId,
+          nodeId,
+          existingChecklistId,
+          checkListItemId,
+          commentId,
+        );
+        toast.success("댓글이 삭제되었습니다.");
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : "체크리스트 댓글 삭제에 실패했습니다.";
+        toast.error(message);
+        throw error instanceof Error ? error : new Error(message);
+      }
+    },
+    [existingChecklistId, nodeId, projectId],
+  );
+
+  const checklistCommentDeleter = existingChecklistId ? handleChecklistCommentDelete : undefined;
   const onSubmit = async (data: ChecklistData) => {
     if (!canEditChecklist || (roleLocksChecklist && isLocked)) {
       return;
@@ -627,6 +657,7 @@ export function ProjectChecklist2() {
                   onSubmitComment={checklistCommentSubmitter}
                   onFetchComments={checklistCommentFetcher}
                   onUpdateComment={checklistCommentUpdater}
+                  onDeleteComment={checklistCommentDeleter}
               />
 
               {canEditChecklist && (
