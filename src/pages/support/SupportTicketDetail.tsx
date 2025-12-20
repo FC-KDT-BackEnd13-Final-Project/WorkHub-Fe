@@ -368,6 +368,7 @@ export function SupportTicketDetail() {
       isInlineCommentSubmitting={isInlineCommentSubmitting}
       showStatusControls={true}
       useExternalCommentSync={true}
+      allowPostLinkAttachments={false}
     />
   );
 }
