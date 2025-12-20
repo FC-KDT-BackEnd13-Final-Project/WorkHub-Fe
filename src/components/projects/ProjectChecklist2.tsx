@@ -277,6 +277,30 @@ export function ProjectChecklist2() {
     ? handleChecklistCommentSubmit
     : undefined;
 
+  const handleChecklistCommentFetch = useCallback(
+    async (checkListItemId: number): Promise<CheckListCommentResponse[]> => {
+      if (!projectId || !nodeId || !existingChecklistId) {
+        throw new Error("체크리스트 정보를 찾을 수 없습니다.");
+      }
+
+      try {
+        return await projectApi.getCheckListComments(
+          projectId,
+          nodeId,
+          existingChecklistId,
+          checkListItemId,
+        );
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : "체크리스트 댓글 조회에 실패했습니다.";
+        throw new Error(message);
+      }
+    },
+    [existingChecklistId, nodeId, projectId],
+  );
+
+  const checklistCommentFetcher = existingChecklistId ? handleChecklistCommentFetch : undefined;
+
   const handleChecklistCommentUpdate = useCallback(
     async (
       params: {
@@ -601,6 +625,7 @@ export function ProjectChecklist2() {
                   onItemStatusUpdate={checklistStatusUpdater}
                   showDecisionButtons={shouldShowDecisionButtons}
                   onSubmitComment={checklistCommentSubmitter}
+                  onFetchComments={checklistCommentFetcher}
                   onUpdateComment={checklistCommentUpdater}
               />
 

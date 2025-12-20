@@ -4,13 +4,18 @@ export interface CheckListOptionFileResponse {
   checkListOptionFileId: number;
   fileUrl: string;
   fileName: string;
+  file_url?: string;
+  file_name?: string;
   fileOrder: number;
 }
 
 export interface CheckListCommentFileResponse {
   checkListCommentFileId?: number;
+  commentFileId?: number;
   fileUrl?: string;
   fileName?: string;
+  file_url?: string;
+  file_name?: string;
   fileOrder?: number;
 }
 
@@ -48,14 +53,20 @@ export interface CheckListCommentUpdateRequest {
 }
 
 export interface CheckListCommentResponse {
-  checkListCommentId: number;
-  checkListItemId: number;
-  parentCommentId: number | null;
-  content: string;
-  createdAt: string;
-  updatedAt?: string | null;
+  checkListCommentId?: number;
+  clCommentId?: number;
+  checkListItemId?: number;
+  userId?: number;
   authorName?: string | null;
+  userName?: string | null;
+  parentCommentId?: number | null;
+  parentClCommentId?: number | null;
+  content?: string;
+  createdAt?: string | null;
+  updatedAt?: string | null;
   attachments?: CheckListCommentFileResponse[];
+  files?: CheckListCommentFileResponse[];
+  children?: CheckListCommentResponse[];
 }
 
 export interface CheckListUserSummary {

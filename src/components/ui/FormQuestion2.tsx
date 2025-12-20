@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { ModalShell } from "../common/ModalShell";
 import type {
+    CheckListCommentFileResponse,
     CheckListCommentResponse,
     CheckListItemPayload,
     CheckListItemResponse,
@@ -62,7 +63,11 @@ interface ChecklistReply {
 
 interface CommentAttachment {
     id: number;
-    file: File;
+    file?: File;
+    fileName: string;
+    fileUrl?: string;
+    fileKey?: string;
+    isRemote?: boolean;
 }
 
 type ChecklistHistoryAction = "created" | "edited" | "deleted";
@@ -134,6 +139,10 @@ interface ChecklistGroup {
     checkListItemId: number | null;
     isStatusUpdating: boolean;
     isCommentSubmitting: boolean;
+    openCommentMenuId: number | null;
+    isCommentLoading: boolean;
+    hasFetchedComments: boolean;
+    commentError: string | null;
     historyEntries: ChecklistHistoryEntry[];
     isHistoryOpen: boolean;
     historySelectedTargetId: number | null;
@@ -167,6 +176,7 @@ interface FormQuestionProps {
         attachments: File[];
         fileMeta: { fileName: string; fileOrder: number }[];
     }) => Promise<CheckListCommentResponse | void>;
+    onFetchComments?: (checkListItemId: number) => Promise<CheckListCommentResponse[] | void>;
 }
 
 export interface FormQuestionHandle {
@@ -189,6 +199,10 @@ const createChecklistGroup = (id: number): ChecklistGroup => ({
     checkListItemId: null,
     isStatusUpdating: false,
     isCommentSubmitting: false,
+    openCommentMenuId: null,
+    isCommentLoading: false,
+    hasFetchedComments: false,
+    commentError: null,
     historyEntries: [],
     isHistoryOpen: false,
     historySelectedTargetId: null,
@@ -217,6 +231,7 @@ export const FormQuestion2 = forwardRef<FormQuestionHandle, FormQuestionProps>(f
         showDecisionButtons = true,
         onSubmitComment,
         onUpdateComment,
+        onFetchComments,
     },
     ref,
 ) {
@@ -427,16 +442,27 @@ export const FormQuestion2 = forwardRef<FormQuestionHandle, FormQuestionProps>(f
                 sortedOptions.forEach((option, optionIndex) => {
                     const evidenceKey = `preCheck-${baseGroup.id}-${optionIndex}`;
                     const remoteFiles: ChecklistRemoteFile[] = (option.files ?? []).map(
-                        (file, fileIndex) => ({
-                            id:
-                                String(
-                                    file.checkListOptionFileId ??
-                                        `${option.checkListOptionId ?? item.checkListItemId ?? baseGroup.id}-${fileIndex}`,
-                                ),
-                            fileKey: file.fileUrl,
-                            fileName:
-                                file.fileName?.trim() || file.fileUrl || `첨부-${optionIndex + 1}`,
-                        }),
+                        (file, fileIndex) => {
+                            const fileUrl = extractServerFileUrl(file);
+                            const fileName =
+                                extractServerFileName(file) ??
+                                fileUrl ??
+                                `첨부-${optionIndex + 1}`;
+
+                            return {
+                                id:
+                                    String(
+                                        file.checkListOptionFileId ??
+                                            `${
+                                                option.checkListOptionId ??
+                                                item.checkListItemId ??
+                                                baseGroup.id
+                                            }-${fileIndex}`,
+                                    ),
+                                fileKey: fileUrl ?? fileName,
+                                fileName,
+                            };
+                        },
                     );
                     evidences[evidenceKey] = {
                         files: [],
@@ -479,10 +505,210 @@ export const FormQuestion2 = forwardRef<FormQuestionHandle, FormQuestionProps>(f
     const createAttachment = (file: File): CommentAttachment => ({
         id: Date.now() + Math.floor(Math.random() * 1000),
         file,
+        fileName: file.name || "첨부파일",
     });
 
     const cloneCommentAttachments = (attachments: CommentAttachment[]) =>
         attachments.map((attachment) => ({ ...attachment }));
+
+    type ServerFilePayload = {
+        fileUrl?: string | null;
+        fileName?: string | null;
+        file_url?: string | null;
+        file_name?: string | null;
+    };
+
+    const extractServerFileUrl = (file: ServerFilePayload) => {
+        const url = typeof file.fileUrl === "string" ? file.fileUrl.trim() : "";
+        if (url) {
+            return url;
+        }
+        const snakeUrl = typeof file.file_url === "string" ? file.file_url.trim() : "";
+        return snakeUrl || undefined;
+    };
+
+    const extractServerFileName = (file: ServerFilePayload) => {
+        const name = typeof file.fileName === "string" ? file.fileName.trim() : "";
+        if (name) {
+            return name;
+        }
+        const snakeName = typeof file.file_name === "string" ? file.file_name.trim() : "";
+        return snakeName || undefined;
+    };
+
+    const mapServerAttachments = (
+        files?: CheckListCommentFileResponse[] | null,
+    ): CommentAttachment[] => {
+        if (!files || files.length === 0) {
+            return [];
+        }
+
+        const sorted = [...files].sort(
+            (a, b) => (a.fileOrder ?? 0) - (b.fileOrder ?? 0),
+        );
+
+        return sorted.map((file, index) => {
+            const resolvedId =
+                (typeof file.checkListCommentFileId === "number" && file.checkListCommentFileId > 0
+                    ? file.checkListCommentFileId
+                    : undefined) ??
+                (typeof file.commentFileId === "number" && file.commentFileId > 0
+                    ? file.commentFileId
+                    : undefined) ??
+                Date.now() + index + Math.floor(Math.random() * 1000);
+            const fileUrl = extractServerFileUrl(file);
+            const fileName = extractServerFileName(file) ?? fileUrl ?? `첨부-${index + 1}`;
+
+            return {
+                id: resolvedId,
+                fileName,
+                fileUrl: fileUrl,
+                fileKey: fileUrl ?? fileName ?? undefined,
+                isRemote: true,
+            };
+        });
+    };
+
+    const getServerFileLookupKey = (
+        file: CheckListCommentFileResponse,
+        fallbackIndex: number,
+    ): string => {
+        const primaryId =
+            file.checkListCommentFileId ?? file.commentFileId ?? null;
+        if (primaryId != null) {
+            return `id-${primaryId}`;
+        }
+
+        if (typeof file.fileOrder === "number") {
+            return `order-${file.fileOrder}`;
+        }
+
+        const normalizedUrl = extractServerFileUrl(file);
+        if (normalizedUrl) {
+            return `url-${normalizedUrl}`;
+        }
+
+        const normalizedName = extractServerFileName(file);
+        if (normalizedName) {
+            return `name-${normalizedName}`;
+        }
+
+        return `index-${fallbackIndex}`;
+    };
+
+    const mergeServerFilePayloads = (
+        primary?: CheckListCommentFileResponse[] | null,
+        fallback?: CheckListCommentFileResponse[] | null,
+    ): CheckListCommentFileResponse[] => {
+        const primaryList = Array.isArray(primary) ? primary : [];
+        const fallbackList = Array.isArray(fallback) ? fallback : [];
+        if (primaryList.length === 0) {
+            return fallbackList;
+        }
+        if (fallbackList.length === 0) {
+            return primaryList;
+        }
+
+        const primaryHasUrls = primaryList.some((file) => Boolean(extractServerFileUrl(file)));
+        if (primaryHasUrls) {
+            return primaryList;
+        }
+
+        const fallbackMap = new Map<string, CheckListCommentFileResponse>();
+        fallbackList.forEach((file, index) => {
+            fallbackMap.set(getServerFileLookupKey(file, index), file);
+        });
+
+        return primaryList.map((file, index) => {
+            const key = getServerFileLookupKey(file, index);
+            const fallbackFile = fallbackMap.get(key);
+            if (!fallbackFile) {
+                return file;
+            }
+            return {
+                ...fallbackFile,
+                ...file,
+                fileUrl: extractServerFileUrl(file) ?? extractServerFileUrl(fallbackFile),
+                fileName:
+                    extractServerFileName(file) ?? extractServerFileName(fallbackFile),
+                fileOrder: file.fileOrder ?? fallbackFile.fileOrder,
+            };
+        });
+    };
+
+    const resolveResponseFiles = (item: CheckListCommentResponse) => {
+        const attachments = Array.isArray(item.attachments) ? item.attachments : null;
+        const files = Array.isArray(item.files) ? item.files : null;
+        const mergedFiles = mergeServerFilePayloads(attachments, files);
+        return mapServerAttachments(mergedFiles);
+    };
+
+    const resolveCommentId = (item: CheckListCommentResponse): number => {
+        if (typeof item.checkListCommentId === "number") {
+            return item.checkListCommentId;
+        }
+        if (typeof item.clCommentId === "number") {
+            return item.clCommentId;
+        }
+        return Date.now() + Math.floor(Math.random() * 1000);
+    };
+
+    const resolveParentCommentId = (item: CheckListCommentResponse) => {
+        const parentId =
+            (typeof item.parentCommentId === "number" ? item.parentCommentId : null) ??
+            (typeof item.parentClCommentId === "number" ? item.parentClCommentId : null);
+        return parentId ?? null;
+    };
+
+    const resolveAuthorName = (item: CheckListCommentResponse) => {
+        const fallback = commentAuthor;
+        const raw = item.authorName ?? item.userName;
+        if (typeof raw === "string" && raw.trim().length > 0) {
+            return raw.trim();
+        }
+        return fallback;
+    };
+
+    const flattenRepliesFromTree = (
+        nodes: CheckListCommentResponse[] | undefined,
+        parentReplyId: number | null = null,
+        parentAuthor: string | null = null,
+    ): ChecklistReply[] => {
+        if (!nodes || nodes.length === 0) {
+            return [];
+        }
+
+        const replies: ChecklistReply[] = [];
+        nodes.forEach((node) => {
+            const replyId = resolveCommentId(node);
+            const replyAuthor = resolveAuthorName(node);
+            replies.push({
+                id: replyId,
+                text: node.content ?? "",
+                author: replyAuthor,
+                createdAt: node.createdAt ?? new Date().toISOString(),
+                updatedAt: node.updatedAt ?? null,
+                menuOpen: false,
+                isEditing: false,
+                editDraft: node.content ?? "",
+                parentReplyId,
+                parentAuthor,
+                attachments: resolveResponseFiles(node),
+                editAttachmentDraft: [],
+            });
+
+            const childReplies = flattenRepliesFromTree(
+                Array.isArray(node.children) ? node.children : undefined,
+                replyId,
+                replyAuthor,
+            );
+            if (childReplies.length > 0) {
+                replies.push(...childReplies);
+            }
+        });
+
+        return replies;
+    };
 
     const createLocalCommentRecord = (
         text: string,
@@ -506,6 +732,91 @@ export const FormQuestion2 = forwardRef<FormQuestionHandle, FormQuestionProps>(f
         attachments,
         editAttachmentDraft: [],
     });
+
+    const normalizeServerComments = useCallback(
+        (items?: CheckListCommentResponse[] | null) => {
+            if (!items || items.length === 0) {
+                return [];
+            }
+
+            const parseTimestamp = (value?: string | null) => {
+                if (!value) return 0;
+                const date = new Date(value);
+                return Number.isNaN(date.getTime()) ? 0 : date.getTime();
+            };
+
+            const useChildrenTree = items.some((item) => Array.isArray(item.children));
+
+            const toComment = (item: CheckListCommentResponse): ChecklistComment => ({
+                id: resolveCommentId(item),
+                text: item.content ?? "",
+                createdAt: item.createdAt ?? new Date().toISOString(),
+                author: resolveAuthorName(item),
+                updatedAt: item.updatedAt ?? null,
+                replies: [],
+                menuOpen: false,
+                isEditing: false,
+                isEditSubmitting: false,
+                editDraft: "",
+                showReplyBox: false,
+                replyDraft: "",
+                replyingToReplyId: null,
+                replyingToAuthor: null,
+                replyAttachmentDraft: [],
+                attachments: resolveResponseFiles(item),
+                editAttachmentDraft: [],
+            });
+
+            if (useChildrenTree) {
+                return items
+                    .map((item) => {
+                        const comment = toComment(item);
+                        comment.replies = flattenRepliesFromTree(
+                            Array.isArray(item.children) ? item.children : undefined,
+                        );
+                        return comment;
+                    })
+                    .sort(
+                        (a, b) => parseTimestamp(a.createdAt) - parseTimestamp(b.createdAt),
+                    );
+            }
+
+            const parents: CheckListCommentResponse[] = [];
+            const replies: CheckListCommentResponse[] = [];
+
+            items.forEach((item) => {
+                const parentId = resolveParentCommentId(item);
+                if (parentId != null) {
+                    replies.push(item);
+                } else {
+                    parents.push(item);
+                }
+            });
+
+            const replyBuckets = new Map<number, CheckListCommentResponse[]>();
+            replies.forEach((reply) => {
+                const parentId = resolveParentCommentId(reply);
+                if (parentId == null) return;
+                const bucket = replyBuckets.get(parentId) ?? [];
+                bucket.push(reply);
+                replyBuckets.set(parentId, bucket);
+            });
+
+            parents.sort(
+                (a, b) => parseTimestamp(a.createdAt) - parseTimestamp(b.createdAt),
+            );
+
+            return parents.map((parent) => {
+                const comment = toComment(parent);
+                const bucket = replyBuckets.get(resolveCommentId(parent));
+                if (bucket && bucket.length > 0) {
+                    comment.replies = flattenRepliesFromTree(bucket);
+                }
+                return comment;
+            });
+        },
+        [commentAuthor],
+    );
 
     const formatHistoryTimestamp = (value?: string | null) => {
         if (!value) return "시간 정보 없음";
@@ -727,12 +1038,105 @@ export const FormQuestion2 = forwardRef<FormQuestionHandle, FormQuestionProps>(f
         });
     };
 
-    const toggleComment = (groupIndex: number) => {
+    const loadCommentsForGroup = useCallback(
+        async (groupIndex: number) => {
+            const targetGroup = groupsRef.current[groupIndex];
+            if (
+                !targetGroup ||
+                !onFetchComments ||
+                !targetGroup.checkListItemId ||
+                targetGroup.isCommentLoading ||
+                targetGroup.hasFetchedComments
+            ) {
+                return;
+            }
+
+            setGroups((prev) =>
+                prev.map((group, index) =>
+                    index === groupIndex
+                        ? { ...group, isCommentLoading: true, commentError: null }
+                        : group,
+                ),
+            );
+
+            try {
+                const response = await onFetchComments(targetGroup.checkListItemId);
+                const normalized = normalizeServerComments(response ?? []);
+                setGroups((prev) =>
+                    prev.map((group, index) =>
+                        index === groupIndex
+                            ? {
+                                  ...group,
+                                  comments: normalized,
+                                  isCommentLoading: false,
+                                  hasFetchedComments: true,
+                                  commentError: null,
+                                  openCommentMenuId: null,
+                              }
+                            : group,
+                    ),
+                );
+            } catch (error) {
+                const message =
+                    error instanceof Error
+                        ? error.message
+                        : "댓글을 불러오지 못했습니다.";
+                setGroups((prev) =>
+                    prev.map((group, index) =>
+                        index === groupIndex
+                            ? {
+                                  ...group,
+                                  isCommentLoading: false,
+                                  commentError: message,
+                              }
+                            : group,
+                    ),
+                );
+            }
+        },
+        [normalizeServerComments, onFetchComments],
+    );
+
+    const closeCommentMenu = (groupIndex: number) => {
         setGroups((prev) =>
-            prev.map((g, i) =>
-                i === groupIndex ? { ...g, isCommentOpen: !g.isCommentOpen } : g,
-            ),
+            prev.map((group, index) => {
+                if (index !== groupIndex) return group;
+                if (group.openCommentMenuId === null) return group;
+                return {
+                    ...group,
+                    openCommentMenuId: null,
+                    comments: group.comments.map((comment) =>
+                        comment.menuOpen ? { ...comment, menuOpen: false } : comment,
+                    ),
+                };
+            }),
         );
+    };
+
+    const toggleComment = (groupIndex: number) => {
+        const targetGroup = groupsRef.current[groupIndex];
+        const willOpen = targetGroup ? !targetGroup.isCommentOpen : false;
+        setGroups((prev) =>
+            prev.map((g, i) => {
+                if (i !== groupIndex) return g;
+                const nextOpen = !g.isCommentOpen;
+                return {
+                    ...g,
+                    isCommentOpen: nextOpen,
+                    openCommentMenuId: nextOpen ? g.openCommentMenuId : null,
+                    comments: nextOpen
+                        ? g.comments
+                        : g.comments.map((comment) =>
+                              comment.menuOpen
+                                  ? { ...comment, menuOpen: false }
+                                  : comment,
+                          ),
+                };
+            }),
+        );
+        if (willOpen) {
+            void loadCommentsForGroup(groupIndex);
+        }
     };
 
     const updateCommentDraft = (groupIndex: number, value: string) => {
@@ -769,18 +1173,21 @@ export const FormQuestion2 = forwardRef<FormQuestionHandle, FormQuestionProps>(f
         ) => {
             const baseRecord = createLocalCommentRecord(
                 serverComment?.content ?? draft,
-                attachments,
+                cloneCommentAttachments(attachments),
             );
+            const resolvedAttachments = serverComment
+                ? resolveResponseFiles(serverComment)
+                : baseRecord.attachments;
             const newComment = serverComment
                 ? {
                     ...baseRecord,
-                    id: serverComment.checkListCommentId,
+                    id: resolveCommentId(serverComment),
                     text: serverComment.content ?? draft,
                     createdAt: serverComment.createdAt ?? baseRecord.createdAt,
                     updatedAt: serverComment.updatedAt ?? null,
                     author:
-                        serverComment.authorName?.trim() ||
-                        commentAuthor,
+                        resolveAuthorName(serverComment),
+                    attachments: resolvedAttachments,
                 }
                 : baseRecord;
             const historyEntry = createHistoryEntry({
@@ -804,6 +1211,9 @@ export const FormQuestion2 = forwardRef<FormQuestionHandle, FormQuestionProps>(f
                         historySelectedTargetId:
                             group.historySelectedTargetId ?? newComment.id,
                         isCommentSubmitting: false,
+                        openCommentMenuId: null,
+                        hasFetchedComments: true,
+                        commentError: null,
                     };
                 }),
             );
@@ -822,7 +1232,10 @@ export const FormQuestion2 = forwardRef<FormQuestionHandle, FormQuestionProps>(f
                     .map((attachment) => attachment.file)
                     .filter((file): file is File => Boolean(file));
                 const fileMeta = attachments.map((attachment, index) => ({
-                    fileName: attachment.file.name || `attachment-${index + 1}`,
+                    fileName:
+                        attachment.file?.name ||
+                        attachment.fileName ||
+                        `attachment-${index + 1}`,
                     fileOrder: index,
                 }));
                 const response = await onSubmitComment?.({
@@ -892,14 +1305,46 @@ export const FormQuestion2 = forwardRef<FormQuestionHandle, FormQuestionProps>(f
     };
 
     const downloadCommentAttachment = (attachment: CommentAttachment) => {
-        const url = URL.createObjectURL(attachment.file);
-        const anchor = document.createElement("a");
-        anchor.href = url;
-        anchor.download = attachment.file.name;
-        document.body.appendChild(anchor);
-        anchor.click();
-        document.body.removeChild(anchor);
-        URL.revokeObjectURL(url);
+        if (attachment.file) {
+            const url = URL.createObjectURL(attachment.file);
+            const anchor = document.createElement("a");
+            anchor.href = url;
+            anchor.download = attachment.file.name;
+            document.body.appendChild(anchor);
+            anchor.click();
+            document.body.removeChild(anchor);
+            URL.revokeObjectURL(url);
+            return;
+        }
+
+        if (attachment.isRemote && onRemoteFileDownload) {
+            const fileKey = attachment.fileKey ?? attachment.fileUrl;
+            if (fileKey) {
+                onRemoteFileDownload(fileKey, attachment.fileName);
+                return;
+            }
+        }
+
+        if (attachment.fileUrl) {
+            const anchor = document.createElement("a");
+            anchor.href = attachment.fileUrl;
+            anchor.download = attachment.fileName ?? "attachment";
+            anchor.target = "_blank";
+            anchor.rel = "noopener noreferrer";
+            document.body.appendChild(anchor);
+            anchor.click();
+            document.body.removeChild(anchor);
+        }
+    };
+
+    const canDownloadAttachment = (attachment: CommentAttachment) => {
+        if (attachment.file || attachment.fileUrl) {
+            return true;
+        }
+        if (attachment.isRemote && onRemoteFileDownload) {
+            return Boolean(attachment.fileKey || attachment.fileUrl);
+        }
+        return false;
     };
 
     const handleCommentEditAttachmentSelect = (
@@ -1068,17 +1513,26 @@ export const FormQuestion2 = forwardRef<FormQuestionHandle, FormQuestionProps>(f
         }));
     };
     const toggleCommentMenu = (groupIndex: number, commentId: number) => {
-        setCommentsForGroup(groupIndex, (comments) =>
-            comments.map((comment) => ({
-                ...comment,
-                menuOpen: comment.id === commentId ? !comment.menuOpen : false,
-            })),
+        setGroups((prev) =>
+            prev.map((group, index) => {
+                if (index !== groupIndex) return group;
+                const shouldOpen = group.openCommentMenuId !== commentId;
+                return {
+                    ...group,
+                    openCommentMenuId: shouldOpen ? commentId : null,
+                    comments: group.comments.map((comment) => ({
+                        ...comment,
+                        menuOpen:
+                            comment.id === commentId ? shouldOpen : false,
+                    })),
+                };
+            }),
         );
     };
 
     const startCommentEdit = (groupIndex: number, commentId: number) => {
         if (!canComment) return;
-
+        closeCommentMenu(groupIndex);
         updateCommentState(groupIndex, commentId, (comment) => ({
             ...comment,
             isEditing: true,
@@ -1118,13 +1572,23 @@ export const FormQuestion2 = forwardRef<FormQuestionHandle, FormQuestionProps>(f
         const updatedAttachments =
             targetComment.editAttachmentDraft ?? targetComment.attachments;
 
-        const files = updatedAttachments
-            .map((attachment) => attachment.file)
-            .filter((file): file is File => Boolean(file));
-        const fileMeta = updatedAttachments.map((attachment, index) => ({
-            fileName: attachment.file.name || `attachment-${index + 1}`,
-            fileOrder: index,
-        }));
+        const uploads = updatedAttachments.reduce(
+            (acc, attachment) => {
+                if (!attachment.file) {
+                    return acc;
+                }
+                acc.files.push(attachment.file);
+                acc.meta.push({
+                    fileName:
+                        attachment.file.name ||
+                        attachment.fileName ||
+                        `attachment-${acc.meta.length + 1}`,
+                    fileOrder: acc.meta.length,
+                });
+                return acc;
+            },
+            { files: [] as File[], meta: [] as { fileName: string; fileOrder: number }[] },
+        );
 
         const finalizeUpdate = (
             serverResponse?: CheckListCommentResponse | void,
@@ -1147,21 +1611,26 @@ export const FormQuestion2 = forwardRef<FormQuestionHandle, FormQuestionProps>(f
                             parentCommentId: null,
                         });
 
+                        const resolvedAttachments = serverResponse
+                            ? resolveResponseFiles(serverResponse)
+                            : updatedAttachments;
+
                         return {
                             ...comment,
-                            id:
-                                serverResponse?.checkListCommentId ??
-                                comment.id,
+                            id: serverResponse
+                                ? resolveCommentId(serverResponse)
+                                : comment.id,
                             text: serverResponse?.content ?? newText,
                             author:
-                                serverResponse?.authorName?.trim() ||
-                                comment.author,
+                                serverResponse
+                                    ? resolveAuthorName(serverResponse)
+                                    : comment.author,
                             updatedAt:
                                 serverResponse?.updatedAt ??
                                 new Date().toISOString(),
                             isEditing: false,
                             editDraft: "",
-                            attachments: updatedAttachments,
+                            attachments: resolvedAttachments,
                             editAttachmentDraft: [],
                             isEditSubmitting: false,
                         };
@@ -1169,14 +1638,17 @@ export const FormQuestion2 = forwardRef<FormQuestionHandle, FormQuestionProps>(f
 
                     if (!historyEntry) return group;
 
-                    return {
-                        ...group,
-                        comments: updatedComments,
-                        historyEntries: [...group.historyEntries, historyEntry],
-                    };
-                }),
-            );
-        };
+                return {
+                    ...group,
+                    comments: updatedComments,
+                    historyEntries: [...group.historyEntries, historyEntry],
+                    hasFetchedComments: true,
+                    commentError: null,
+                    openCommentMenuId: null,
+                };
+            }),
+        );
+    };
 
         const shouldSyncWithServer = Boolean(
             onUpdateComment &&
@@ -1194,8 +1666,8 @@ export const FormQuestion2 = forwardRef<FormQuestionHandle, FormQuestionProps>(f
                     checkListItemId: targetGroup.checkListItemId!,
                     commentId: targetComment.id,
                     content: newText,
-                    attachments: files,
-                    fileMeta,
+                    attachments: uploads.files,
+                    fileMeta: uploads.meta,
                 });
                 finalizeUpdate(response);
             } catch (error) {
@@ -1212,6 +1684,7 @@ export const FormQuestion2 = forwardRef<FormQuestionHandle, FormQuestionProps>(f
 
     const deleteComment = (groupIndex: number, commentId: number) => {
         if (!canComment) return;
+        closeCommentMenu(groupIndex);
 
         setGroups((prev) =>
             prev.map((group, index) => {
@@ -1262,6 +1735,7 @@ export const FormQuestion2 = forwardRef<FormQuestionHandle, FormQuestionProps>(f
         commentId: number,
         target?: { replyId?: number | null; author?: string | null },
     ) => {
+        closeCommentMenu(groupIndex);
         updateCommentState(groupIndex, commentId, (comment) => {
             const normalizedReplyId = target?.replyId ?? null;
             const normalizedAuthor = target?.author ?? null;
@@ -2305,11 +2779,29 @@ export const FormQuestion2 = forwardRef<FormQuestionHandle, FormQuestionProps>(f
                                 {group.isCommentOpen && (
                                     <div className="mt-3">
                                         <div className="space-y-2 pb-6">
+                                            {group.isCommentLoading && (
+                                                <div className="rounded-md border border-border/50 bg-muted/30 px-3 py-2 text-sm text-muted-foreground">
+                                                    댓글을 불러오는 중입니다...
+                                                </div>
+                                            )}
+                                            {group.commentError && (
+                                                <div className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+                                                    {group.commentError}
+                                                </div>
+                                            )}
+                                            {!group.isCommentLoading &&
+                                                !group.commentError &&
+                                                group.comments.length === 0 && (
+                                                    <p className="text-sm text-muted-foreground">
+                                                        아직 등록된 댓글이 없습니다.
+                                                    </p>
+                                                )}
                                             {group.comments.map((comment) => {
                                                 const isEditing =
                                                     comment.isEditing;
                                                 const isMenuOpen =
-                                                    comment.menuOpen;
+                                                    group.openCommentMenuId ===
+                                                    comment.id;
 
                                                 return (
                                                     <div
@@ -2464,7 +2956,8 @@ export const FormQuestion2 = forwardRef<FormQuestionHandle, FormQuestionProps>(f
                                                                 <div className="flex items-center gap-2 overflow-hidden text-[11px]">
                                                                     <Paperclip className="h-4 w-4 text-muted-foreground" />
                                                                     <span className="truncate !text-[11px]" style={{ fontSize: "11px" }}>
-                                                                        {attachment.file.name}
+                                                                        {attachment.file?.name ||
+                                                                            attachment.fileName}
                                                                     </span>
                                                                 </div>
                                                                 <Button2
@@ -2557,21 +3050,36 @@ export const FormQuestion2 = forwardRef<FormQuestionHandle, FormQuestionProps>(f
                                                         {!isEditing &&
                                                             (comment.attachments?.length ?? 0) > 0 && (
                                                             <div className="mt-3 space-y-2 text-xs">
-                                                                {comment.attachments?.map((attachment) => (
-                                                                    <button
-                                                                        key={attachment.id}
-                                                                        type="button"
-                                                                        className="mt-2 flex w-full items-center gap-2 overflow-hidden rounded-md border border-border/60 bg-muted/30 px-2 py-1 text-left text-xs text-primary underline-offset-2 hover:underline"
-                                                                        onClick={() =>
-                                                                            downloadCommentAttachment(
-                                                                                attachment,
-                                                                            )
-                                                                        }
-                                                                    >
-                                                                        <Paperclip className="h-4 w-4 text-muted-foreground" />
-                                                                        <span className="truncate">{attachment.file.name}</span>
-                                                                    </button>
-                                                                ))}
+                                                                {comment.attachments?.map((attachment) => {
+                                                                    const downloadable =
+                                                                        canDownloadAttachment(
+                                                                            attachment,
+                                                                        );
+                                                                    return (
+                                                                        <button
+                                                                            key={attachment.id}
+                                                                            type="button"
+                                                                            className={`mt-2 flex w-full items-center gap-2 overflow-hidden rounded-md border border-border/60 bg-muted/30 px-2 py-1 text-left text-xs underline-offset-2 ${
+                                                                                downloadable
+                                                                                    ? "text-primary hover:underline"
+                                                                                    : "cursor-not-allowed text-muted-foreground"
+                                                                            }`}
+                                                                            disabled={!downloadable}
+                                                                            onClick={() =>
+                                                                                downloadable &&
+                                                                                downloadCommentAttachment(
+                                                                                    attachment,
+                                                                                )
+                                                                            }
+                                                                        >
+                                                                            <Paperclip className="h-4 w-4 text-muted-foreground" />
+                                                                            <span className="truncate">
+                                                                                {attachment.file?.name ||
+                                                                                    attachment.fileName}
+                                                                            </span>
+                                                                        </button>
+                                                                    );
+                                                                })}
                                                             </div>
                                                         )}
 
@@ -2749,7 +3257,8 @@ export const FormQuestion2 = forwardRef<FormQuestionHandle, FormQuestionProps>(f
                                                             <div className="flex items-center gap-2 overflow-hidden text-[11px]">
                                                                 <Paperclip className="h-4 w-4 text-muted-foreground" />
                                                                 <span className="truncate !text-[11px]" style={{ fontSize: "11px" }}>
-                                                                    {attachment.file.name}
+                                                                    {attachment.file?.name ||
+                                                                        attachment.fileName}
                                                                 </span>
                                                             </div>
                                                             <Button2
@@ -2839,23 +3348,36 @@ export const FormQuestion2 = forwardRef<FormQuestionHandle, FormQuestionProps>(f
                                                                                         {!isReplyEditing &&
                                                                                             (reply.attachments?.length ?? 0) > 0 && (
                                                                                             <div className="mt-2 space-y-1 text-xs">
-                                                                                                {reply.attachments?.map((attachment) => (
-                                                                                                    <button
-                                                                                                        key={attachment.id}
-                                                                                                        type="button"
-                                                                                                        className="flex w-full items-center gap-2 overflow-hidden rounded-md border border-border/60 bg-muted/30 px-2 py-1 text-left text-xs text-primary underline-offset-2 hover:underline"
-                                                                                                        onClick={() =>
-                                                                                                            downloadCommentAttachment(
-                                                                                                                attachment,
-                                                                                                            )
-                                                                                                        }
-                                                                                                    >
-                                                                                                        <Paperclip className="h-4 w-4 text-muted-foreground" />
-                                                                                                        <span className="truncate">
-                                                                                                            {attachment.file.name}
-                                                                                                        </span>
-                                                                                                    </button>
-                                                                                                ))}
+                                                                                                {reply.attachments?.map((attachment) => {
+                                                                                                    const downloadable =
+                                                                                                        canDownloadAttachment(
+                                                                                                            attachment,
+                                                                                                        );
+                                                                                                    return (
+                                                                                                        <button
+                                                                                                            key={attachment.id}
+                                                                                                            type="button"
+                                                                                                            className={`flex w-full items-center gap-2 overflow-hidden rounded-md border border-border/60 bg-muted/30 px-2 py-1 text-left text-xs underline-offset-2 ${
+                                                                                                                downloadable
+                                                                                                                    ? "text-primary hover:underline"
+                                                                                                                    : "cursor-not-allowed text-muted-foreground"
+                                                                                                            }`}
+                                                                                                            disabled={!downloadable}
+                                                                                                            onClick={() =>
+                                                                                                                downloadable &&
+                                                                                                                downloadCommentAttachment(
+                                                                                                                    attachment,
+                                                                                                                )
+                                                                                                            }
+                                                                                                        >
+                                                                                                            <Paperclip className="h-4 w-4 text-muted-foreground" />
+                                                                                                            <span className="truncate">
+                                                                                                                {attachment.file?.name ||
+                                                                                                                    attachment.fileName}
+                                                                                                            </span>
+                                                                                                        </button>
+                                                                                                    );
+                                                                                                })}
                                                                                             </div>
                                                                                         )}
                                                                                     </div>
@@ -2917,7 +3439,8 @@ export const FormQuestion2 = forwardRef<FormQuestionHandle, FormQuestionProps>(f
                                                                 <div className="flex items-center gap-2 overflow-hidden text-[11px]">
                                                                     <Paperclip className="h-4 w-4 text-muted-foreground" />
                                                                     <span className="truncate !text-[11px]" style={{ fontSize: "11px" }}>
-                                                                        {attachment.file.name}
+                                                                        {attachment.file?.name ||
+                                                                            attachment.fileName}
                                                                     </span>
                                                                 </div>
                                                                 <Button2
@@ -3054,7 +3577,8 @@ export const FormQuestion2 = forwardRef<FormQuestionHandle, FormQuestionProps>(f
                                                                     <div className="flex items-center gap-2 overflow-hidden">
                                                                         <Paperclip className="h-4 w-4 text-muted-foreground" />
                                                                         <span className="truncate !text-[11px]" style={{ fontSize: "11px" }}>
-                                                                            {attachment.file.name}
+                                                                            {attachment.file?.name ||
+                                                                                attachment.fileName}
                                                                         </span>
                                                                     </div>
                                                                     <Button2
