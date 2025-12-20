@@ -557,6 +557,29 @@ export const projectApi = {
 
     throw new Error(message || '체크리스트 댓글 수정에 실패했습니다.');
   },
+
+  /**
+   * 체크리스트 댓글 삭제
+   */
+  deleteCheckListComment: async (
+    projectId: string,
+    nodeId: string,
+    checkListId: number | string,
+    checkListItemId: number | string,
+    commentId: number | string,
+  ): Promise<void> => {
+    const response = await apiClient.delete(
+      `/api/v1/projects/${projectId}/nodes/${nodeId}/checkLists/${checkListId}/items/${checkListItemId}/comments/${commentId}`,
+    );
+
+    const { success, message } = response.data ?? {};
+
+    if (success === true) {
+      return;
+    }
+
+    throw new Error(message || '체크리스트 댓글 삭제에 실패했습니다.');
+  },
 };
 
 export const companyApi = {
