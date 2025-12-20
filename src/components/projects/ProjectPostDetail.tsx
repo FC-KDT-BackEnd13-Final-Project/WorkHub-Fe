@@ -119,6 +119,7 @@ interface ProjectPostDetailProps {
     onUpdateInlineComment?: (payload: { content: string; commentId: string }) => Promise<PostReplyItem> | void;
     onDeleteInlineComment?: (commentId: string, options?: { skipRefresh?: boolean }) => Promise<void> | void;
     useExternalCommentSync?: boolean;
+    allowPostLinkAttachments?: boolean;
 }
 
 export function ProjectPostDetail({
@@ -140,6 +141,7 @@ export function ProjectPostDetail({
                                       onUpdateInlineComment,
                                       onDeleteInlineComment,
                                       useExternalCommentSync = false,
+                                      allowPostLinkAttachments = true,
                                   }: ProjectPostDetailProps = {}) {
     const navigate = useNavigate();
     const { projectId, nodeId, postId } = useParams<{
@@ -1257,6 +1259,7 @@ export function ProjectPostDetail({
                         handlePostDraftChange(draft);
                     }}
                     showTypeSelector={showPostTypeSelector && !post.ticketStatus}
+                    allowLinks={allowPostLinkAttachments}
                     actionButtons={({ clear }) => (
                         <div className="flex items-center gap-2">
                             <Button2
