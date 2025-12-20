@@ -1,5 +1,5 @@
 import { useLocation, useNavigate, useParams } from "react-router-dom";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import { toast } from "sonner";
 import { Card2, CardContent, CardFooter, CardHeader } from "../ui/card2";
 import { Badge2 } from "../ui/badge2";
@@ -40,6 +40,8 @@ import {
 } from "../../lib/posts";
 import type { CommentResponse, PostResponse, PostThreadResponse } from "../../types/post";
 import { fileApi } from "@/lib/api";
+import { historyApi } from "@/lib/history";
+import type { AdminActionType } from "@/types/history";
 
 export interface ReplyDraftPayload {
     title: string;
@@ -56,6 +58,8 @@ const SUPPORT_STATUS_OPTIONS: SupportTicketStatus[] = [
 ];
 
 const DEFAULT_POST_IP = "0.0.0.0";
+const COMMENT_HISTORY_PAGE_SIZE = 10;
+const POST_HISTORY_PAGE_SIZE = 10;
 
 // 단일 CS 문의/포스트를 상세 뷰 및 편집 모드로 보여줌
 interface PostPayload {
@@ -79,6 +83,8 @@ interface CommentHistoryEntry {
     content: string;
     timestamp: string;
     action?: "created" | "edited" | "deleted" | "restored";
+    author?: string;
+    targetId?: string | number;
 }
 
 interface CommentItem {
@@ -252,11 +258,19 @@ export function ProjectPostDetail({
     const [commentPage, setCommentPage] = useState(1);
     const [isCommentHistoryOpen, setIsCommentHistoryOpen] = useState(false);
     const [historyViewCommentId, setHistoryViewCommentId] = useState<string | null>(null);
+    const [commentHistoryCache, setCommentHistoryCache] = useState<Record<string, CommentHistoryEntry[]>>({});
+    const [commentHistoryLoadingTargetId, setCommentHistoryLoadingTargetId] = useState<string | null>(null);
+    const [commentHistoryError, setCommentHistoryError] = useState<string | null>(null);
+    const [postHistory, setPostHistory] = useState<PostRevision[]>([]);
+    const [postHistoryLoading, setPostHistoryLoading] = useState(false);
+    const [postHistoryError, setPostHistoryError] = useState<string | null>(null);
 
     // 게시글 수정 이력 모달 및 선택된 버전 상태
     const [isHistoryOpen, setIsHistoryOpen] = useState(false);
     const [selectedRevision, setSelectedRevision] = useState<PostRevision | null>(null);
-    const revisions = postRevisionsByPostId[post.id] ?? postRevisionsByPostId.default;
+    const revisions = postHistory.length
+        ? postHistory
+        : postRevisionsByPostId[post.id] ?? postRevisionsByPostId.default;
 
     const createEmptyReplyDraft = (): RichTextDraft => ({
         title: "",
@@ -1121,6 +1135,190 @@ export function ProjectPostDetail({
         return () => window.removeEventListener("keydown", handleKeyDown);
     }, [isHistoryOpen]);
 
+    const extractCommentContentFromHistory = (afterData?: string | null, beforeData?: string | null) => {
+        const tryParse = (raw?: string | null) => {
+            if (!raw) return null;
+            try {
+                return JSON.parse(raw);
+            } catch {
+                return raw;
+            }
+        };
+
+        const candidate = tryParse(afterData) ?? tryParse(beforeData);
+        if (typeof candidate === "string") return candidate;
+        if (candidate && typeof candidate === "object") {
+            const text =
+                (candidate as any).content ||
+                (candidate as any).text ||
+                (candidate as any).clContent ||
+                (candidate as any).comment ||
+                (candidate as any).commentContent ||
+                (candidate as any).replyContent ||
+                (candidate as any).description ||
+                (candidate as any).message ||
+                (candidate as any).body ||
+                "";
+            if (typeof text === "string") return text;
+        }
+        return afterData || beforeData || "";
+    };
+
+    const mapAdminHistoryToCommentHistoryEntry = (item: { changeLogId: number | string; actionType: AdminActionType; updatedBy?: { userName?: string | null } | null; createdBy?: { userName?: string | null } | null; updatedAt: string; afterData?: string | null; beforeData?: string | null; targetId: number | string; }): CommentHistoryEntry => ({
+        id: String(item.changeLogId),
+        content: extractCommentContentFromHistory(item.afterData, item.beforeData),
+        timestamp: item.updatedAt,
+        action: mapAdminActionToCommentHistoryAction(item.actionType),
+        author: item.updatedBy?.userName || item.createdBy?.userName || "익명",
+        targetId: item.targetId,
+    });
+
+    const fetchCommentHistory = useCallback(
+        async (commentId: string) => {
+            setCommentHistoryError(null);
+            setCommentHistoryLoadingTargetId(commentId);
+            try {
+                const data = await historyApi.getHistoriesByTarget(commentId, {
+                    historyType: "POST_COMMENT",
+                    page: 0,
+                    size: COMMENT_HISTORY_PAGE_SIZE,
+                    sort: "updatedAt,DESC",
+                });
+
+                const entries =
+                    data.content?.map((item) =>
+                        mapAdminHistoryToCommentHistoryEntry({
+                            changeLogId: item.changeLogId,
+                            actionType: item.actionType as AdminActionType,
+                            updatedBy: item.updatedBy,
+                            createdBy: item.createdBy,
+                            updatedAt: item.updatedAt,
+                            afterData: item.afterData,
+                            beforeData: item.beforeData,
+                            targetId: item.targetId,
+                        }),
+                    ) ?? [];
+
+                setCommentHistoryCache((prev) => ({
+                    ...prev,
+                    [commentId]: entries,
+                }));
+            } catch (error) {
+                const message =
+                    error instanceof Error ? error.message : "댓글 이력을 불러오지 못했습니다.";
+                setCommentHistoryError(message);
+            } finally {
+                setCommentHistoryLoadingTargetId(null);
+            }
+        },
+        [COMMENT_HISTORY_PAGE_SIZE],
+    );
+
+    useEffect(() => {
+        if (!isCommentHistoryOpen || !historyViewCommentId) return;
+        if (commentHistoryCache[historyViewCommentId]) return;
+        void fetchCommentHistory(historyViewCommentId);
+    }, [isCommentHistoryOpen, historyViewCommentId, commentHistoryCache, fetchCommentHistory]);
+
+    const parsePostBeforeData = (beforeData?: string | null): { title: string; content: string } => {
+        if (!beforeData) return { title: "", content: "" };
+        try {
+            const parsed = JSON.parse(beforeData);
+            const title =
+                parsed.title ||
+                parsed.postTitle ||
+                parsed.subject ||
+                "";
+            const content =
+                parsed.content ||
+                parsed.body ||
+                parsed.description ||
+                parsed.text ||
+                parsed.postContent ||
+                parsed.clContent ||
+                "";
+            return {
+                title: typeof title === "string" ? title : "",
+                content: typeof content === "string" ? content : "",
+            };
+        } catch {
+            return { title: "", content: beforeData };
+        }
+    };
+
+    const mapAdminHistoryToPostRevision = (
+        item: {
+            changeLogId: number | string;
+            updatedBy?: { userName?: string | null } | null;
+            createdBy?: { userName?: string | null } | null;
+            updatedAt: string;
+            beforeData?: string | null;
+            actionType?: AdminActionType;
+        },
+        index: number,
+    ): PostRevision => {
+        const { title, content } = parsePostBeforeData(item.beforeData);
+        const author = item.updatedBy?.userName || item.createdBy?.userName || "익명";
+        return {
+            id: String(item.changeLogId),
+            version: index + 1,
+            title: title || "제목 없음",
+            content: content || "",
+            author,
+            createdAt: item.updatedAt,
+            updatedAt: item.updatedAt,
+            editor: author,
+            editedAt: item.updatedAt,
+            actionType: item.actionType,
+        };
+    };
+
+    const fetchPostHistory = useCallback(
+        async () => {
+            if (!mainPostId) return;
+            setPostHistoryError(null);
+            setPostHistoryLoading(true);
+            try {
+                const data = await historyApi.getHistoriesByTarget(mainPostId, {
+                    historyType: "POST",
+                    page: 0,
+                    size: POST_HISTORY_PAGE_SIZE,
+                    sort: "updatedAt,DESC",
+                });
+
+                const entries =
+                    data.content?.map((item, index) =>
+                        mapAdminHistoryToPostRevision(
+                            {
+                                changeLogId: item.changeLogId,
+                                updatedBy: item.updatedBy,
+                                createdBy: item.createdBy,
+                                updatedAt: item.updatedAt,
+                                beforeData: item.beforeData,
+                                actionType: item.actionType as AdminActionType | undefined,
+                            },
+                            index,
+                        ),
+                    ) ?? [];
+
+                setPostHistory(entries);
+            } catch (error) {
+                const message =
+                    error instanceof Error ? error.message : "게시글 이력을 불러오지 못했습니다.";
+                setPostHistoryError(message);
+            } finally {
+                setPostHistoryLoading(false);
+            }
+        },
+        [mainPostId],
+    );
+
+    useEffect(() => {
+        if (!isHistoryOpen) return;
+        if (postHistory.length || postHistoryLoading) return;
+        void fetchPostHistory();
+    }, [isHistoryOpen, postHistory.length, postHistoryLoading, fetchPostHistory]);
+
     const handleDeletePost = async () => {
         if (onDeletePost) {
             await onDeletePost();
@@ -1958,7 +2156,7 @@ export function ProjectPostDetail({
         const timestamp = comment.deletedAt
             ? `${comment.deletedAt} (삭제됨)`
             : comment.updatedAt
-                ? `${comment.updatedAt} (수정됨)`
+                ? comment.updatedAt
                 : comment.createdAt;
         return (
             <button
@@ -2041,9 +2239,17 @@ export function ProjectPostDetail({
     const historyViewComment = historyViewCommentId
         ? comments.find((comment) => comment.id === historyViewCommentId) ?? null
         : null;
-    const historyNeedsScroll = (historyViewComment?.history?.length ?? 0) >= 5;
+    const historyTimeline = historyViewCommentId
+        ? commentHistoryCache[historyViewCommentId] ?? []
+        : [];
+    const historyNeedsScroll = historyTimeline.length >= 5;
     const currentCommentsNeedScroll = true;
-    const historyTimeline = historyViewComment?.history ?? [];
+    const isHistoryTimelineLoading =
+        historyViewCommentId != null && commentHistoryLoadingTargetId === historyViewCommentId;
+    const historyTimelineError =
+        historyViewCommentId != null && commentHistoryError
+            ? commentHistoryError
+            : null;
     const historyParentComment = historyViewComment?.parentId
         ? comments.find((comment) => comment.id === historyViewComment.parentId) ?? null
         : null;
@@ -2067,6 +2273,12 @@ export function ProjectPostDetail({
             anchor.click();
             document.body.removeChild(anchor);
         }
+    };
+
+    const mapAdminActionToCommentHistoryAction = (actionType: AdminActionType): CommentHistoryEntry["action"] => {
+        if (actionType === "DELETE") return "deleted";
+        if (actionType === "UPDATE") return "edited";
+        return "created";
     };
 
     const handleAttachmentDownload = async (attachment: AttachmentDraft) => {
@@ -2422,7 +2634,9 @@ export function ProjectPostDetail({
                             <div className="flex h-full min-h-0 flex-col space-y-2 overflow-hidden">
                                 <div className="flex items-center justify-between text-sm text-muted-foreground">
                                     <p className="font-medium">선택한 댓글의 히스토리</p>
-                                    {historyViewComment && <span>총 {historyTimeline.length}건</span>}
+                                    {historyViewComment && !isHistoryTimelineLoading && (
+                                        <span>총 {historyTimeline.length}건</span>
+                                    )}
                                 </div>
                                 <div className="flex-1 overflow-y-auto rounded-lg border bg-muted/30 p-3">
                                     <div className="space-y-3">
@@ -2442,30 +2656,47 @@ export function ProjectPostDetail({
                                                         </p>
                                                     </div>
                                                 )}
-                                                {historyTimeline.length === 0 ? (
-                                                    <p className="text-sm text-muted-foreground">수정/삭제 이력이 없습니다.</p>
-                                                ) : (
-                                                    historyTimeline.map((entry) => {
-                                                        const actionLabel = getHistoryActionLabel(entry.action);
-                                                        const isDeletedAction = entry.action === "deleted";
-                                                        return (
-                                                            <div
-                                                                key={entry.id}
-                                                                className="rounded-md border bg-background p-2 text-sm space-y-1"
-                                                            >
-                                                                <div className="flex items-center justify-between text-xs text-muted-foreground">
-                                                                    <span className={isDeletedAction ? "text-destructive" : undefined}>
-                                                                        {actionLabel}
-                                                                    </span>
-                                                                    <span className={isDeletedAction ? "text-destructive" : undefined}>
-                                                                        {entry.timestamp}
-                                                                    </span>
-                                                                </div>
-                                                                <p className="whitespace-pre-wrap">{entry.content || "내용이 없습니다."}</p>
-                                                            </div>
-                                                        );
-                                                    })
+                                                {isHistoryTimelineLoading && (
+                                                    <p className="text-sm text-muted-foreground">이력을 불러오는 중입니다...</p>
                                                 )}
+                                                {!isHistoryTimelineLoading && historyTimelineError && (
+                                                    <p className="text-sm text-destructive">{historyTimelineError}</p>
+                                                )}
+                                                {!isHistoryTimelineLoading &&
+                                                    !historyTimelineError &&
+                                                    (historyTimeline.length === 0 ? (
+                                                        <p className="text-sm text-muted-foreground">수정/삭제 이력이 없습니다.</p>
+                                                    ) : (
+                                                        historyTimeline.map((entry) => {
+                                                            const actionLabel = getHistoryActionLabel(entry.action);
+                                                            const isDeletedAction = entry.action === "deleted";
+                                                            return (
+                                                                <div
+                                                                    key={entry.id}
+                                                                    className="rounded-md border bg-background p-2 text-sm space-y-1"
+                                                                >
+                                                                    <div className="flex items-center justify-between text-xs text-muted-foreground">
+                                                                        <span className={isDeletedAction ? "text-destructive" : undefined}>
+                                                                            {actionLabel}
+                                                                        </span>
+                                                                        <span className={isDeletedAction ? "text-destructive" : undefined}>
+                                                                            {entry.timestamp}
+                                                                        </span>
+                                                                    </div>
+                                                                    <div className="flex items-start justify-between gap-2">
+                                                                        <p className="whitespace-pre-wrap flex-1">
+                                                                            {entry.content || "내용이 없습니다."}
+                                                                        </p>
+                                                                        {entry.author && (
+                                                                            <span className="text-[11px] text-muted-foreground whitespace-nowrap">
+                                                                                {entry.author}
+                                                                            </span>
+                                                                        )}
+                                                                    </div>
+                                                                </div>
+                                                            );
+                                                        })
+                                                    ))}
                                             </>
                                         )}
                                     </div>
@@ -2521,7 +2752,15 @@ export function ProjectPostDetail({
                         </Button2>
                     </CardHeader>
                     <CardContent className="flex min-h-0 flex-1 flex-col gap-6 overflow-hidden px-6 py-6">
-                        {selectedRevision ? (
+                        {postHistoryLoading && !selectedRevision && (
+                            <p className="py-8 text-center text-sm text-muted-foreground">게시글 이력을 불러오는 중입니다...</p>
+                        )}
+
+                        {!postHistoryLoading && postHistoryError && !selectedRevision && (
+                            <p className="py-8 text-center text-sm text-destructive">{postHistoryError}</p>
+                        )}
+
+                        {!postHistoryLoading && !postHistoryError && selectedRevision ? (
                             <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto pr-1">
                                 <div className="flex flex-col gap-3 text-sm sm:flex-row sm:items-center sm:justify-between">
                                     <Button2 variant="ghost" size="sm" onClick={() => setSelectedRevision(null)}>
@@ -2549,7 +2788,7 @@ export function ProjectPostDetail({
                                     />
                                 </div>
                             </div>
-                        ) : sortedRevisions.length ? (
+                        ) : !postHistoryLoading && !postHistoryError && sortedRevisions.length ? (
                             <div className="flex-1 space-y-6 overflow-y-auto pr-1">
                                 {sortedRevisions.map((revision) => {
                                     const revisionDate = getRevisionTimestamp(revision);
@@ -2561,9 +2800,21 @@ export function ProjectPostDetail({
                                             className="flex w-full flex-col rounded-lg border bg-muted/30 px-6 py-6 text-left hover:bg-muted"
                                             onClick={() => setSelectedRevision(revision)}
                                         >
-                                            <div className="mt-4 flex items-center justify-between gap-2 text-base font-semibold">
+                                            <div className="mt-4 flex items-start justify-between gap-2 text-base font-semibold">
                                                 <span className="text-foreground">{revision.title}</span>
-                                                <span className="text-sm text-muted-foreground">{revisionDate || "날짜 미정"}</span>
+                                                <div className="flex flex-col items-end gap-1 text-sm text-muted-foreground">
+                                                    {revision.actionType && (
+                                                        <span className="text-[11px] uppercase text-muted-foreground">
+                                                            {revision.actionType}
+                                                        </span>
+                                                    )}
+                                                    <span>{revisionDate || "날짜 미정"}</span>
+                                                    {revision.author && (
+                                                        <span className="text-[11px] text-muted-foreground">
+                                                            {revision.author}
+                                                        </span>
+                                                    )}
+                                                </div>
                                             </div>
                                             {previewText && (
                                                 <p className="mb-6 text-sm leading-relaxed text-muted-foreground">{previewText}</p>
@@ -2572,9 +2823,9 @@ export function ProjectPostDetail({
                                     );
                                 })}
                             </div>
-                        ) : (
+                        ) : !postHistoryLoading && !postHistoryError ? (
                             <p className="py-8 text-center text-sm text-muted-foreground">아직 수정된 이력이 없습니다.</p>
-                        )}
+                        ) : null}
                     </CardContent>
                     <CardFooter className="border-t px-6">
                         <Button2 type="button" className="w-full" onClick={closeHistory}>

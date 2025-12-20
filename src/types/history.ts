@@ -29,6 +29,7 @@ export type AdminHistoryItem = {
   updatedAt: string;
   ipAddress?: string | null;
   userAgent?: string | null;
+  afterData?: string | null;
 };
 
 export type PageableSort = {
@@ -72,4 +73,11 @@ export type AdminHistoryListParams = {
   size?: number;
   sort?: string | string[];
   types?: AdminHistoryType | AdminHistoryType[];
+};
+
+export type AdminHistoryByTargetParams = {
+  historyType: AdminHistoryType;
+  page?: number;
+  size?: number;
+  sort?: string | string[];
 };
