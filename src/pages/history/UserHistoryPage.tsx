@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { format } from "date-fns";
 import { Card, CardContent } from "../../components/ui/card";
 import { Input } from "../../components/ui/input";
@@ -11,22 +11,99 @@ import {
   SelectValue,
 } from "../../components/ui/select";
 import logoImage from "../../../image/logo.png";
-import { historyEvents, historyPalette, type HistoryEvent } from "../../data/historyData";
+import placeholderImage from "../../../image/photo.png";
+import { historyPalette, type HistoryEvent } from "../../data/historyData";
 import { Users, FileText, LayoutDashboard, CheckSquare } from "lucide-react";
 import { PaginationControls } from "../../components/common/PaginationControls";
 import { PageHeader } from "../../components/common/PageHeader";
-import { calculateTotalPages, paginate } from "../../utils/pagination";
+import { historyApi } from "@/lib/history";
+import type { AdminActionType, AdminHistoryItem, AdminHistoryType } from "@/types/history";
 
 type CategoryFilter = "user" | "post" | "project" | "checklist" | "all";
 type PostFilter = "all" | "post" | "postComment" | "csPost" | "csQna";
 type ProjectFilter = "all" | "projectAgency" | "projectClient" | "project" | "projectPhase";
 type ChecklistFilter = "all" | "checklist" | "checklistComment";
-const historyTypeLabels: Record<HistoryEvent["type"], string> = {
+const actionTypeLabels: Record<AdminActionType, string> = {
+  CREATE: "생성",
+  UPDATE: "수정",
+  DELETE: "삭제",
+};
+
+const actionPaletteMap: Record<AdminActionType, HistoryEvent["type"]> = {
+  CREATE: "create",
+  UPDATE: "update",
+  DELETE: "delete",
+};
+
+const historyTypeLabels: Record<AdminHistoryType, string> = {
+  PROJECT: "프로젝트",
+  PROJECT_NODE: "프로젝트 노드",
+  CS_POST: "CS게시글",
+  CS_QNA: "CSQNA",
+  PROJECT_CLIENT_MEMBER: "프로젝트 고객사 멤버",
+  PROJECT_DEV_MEMBER: "프로젝트 개발사 멤버",
+  POST: "게시글",
+  POST_COMMENT: "게시글 댓글",
+  CHECK_LIST_ITEM: "체크리스트 아이템",
+  CHECK_LIST_ITEM_COMMENT: "체크리스트 아이템 댓글",
+};
+
+const historyCategoryMap: Record<AdminHistoryType, CategoryFilter> = {
+  PROJECT: "project",
+  PROJECT_NODE: "project",
+  CS_POST: "post",
+  CS_QNA: "post",
+  PROJECT_CLIENT_MEMBER: "project",
+  PROJECT_DEV_MEMBER: "project",
+  POST: "post",
+  POST_COMMENT: "post",
+  CHECK_LIST_ITEM: "checklist",
+  CHECK_LIST_ITEM_COMMENT: "checklist",
+};
+
+const historySubCategoryMap: Partial<Record<AdminHistoryType, HistoryEvent["subCategory"]>> = {
+  PROJECT: "project",
+  PROJECT_NODE: "projectPhase",
+  CS_POST: "csPost",
+  CS_QNA: "csQna",
+  PROJECT_CLIENT_MEMBER: "projectClient",
+  PROJECT_DEV_MEMBER: "projectAgency",
+  POST: "post",
+  POST_COMMENT: "postComment",
+  CHECK_LIST_ITEM: "checklist",
+  CHECK_LIST_ITEM_COMMENT: "checklistComment",
+};
+
+const eventActionLabels: Record<HistoryEvent["type"], string> = {
   create: "생성",
   update: "수정",
   delete: "삭제",
   move: "이동",
   hide: "숨김",
+};
+
+const formatDateTime = (value: string) => format(new Date(value), "yyyy.MM.dd HH:mm");
+
+const mapHistoryItemToEvent = (item: AdminHistoryItem): HistoryEvent => {
+  const historyLabel = historyTypeLabels[item.historyType] ?? item.historyType;
+  const actionLabel = actionTypeLabels[item.actionType] ?? item.actionType;
+  const paletteKey = actionPaletteMap[item.actionType] ?? "update";
+
+  return {
+    id: item.changeLogId,
+    type: paletteKey,
+    message: `${historyLabel}(이)가 ${actionLabel}되었습니다`,
+    timestamp: formatDateTime(item.updatedAt),
+    updatedAt: item.updatedAt,
+    updatedBy: item.updatedBy?.userName ?? "시스템",
+    createdBy: item.updatedBy?.userName ?? "",
+    updatedByProfileImg: item.updatedBy?.profileImg,
+    target: historyLabel,
+    ipAddress: item.ipAddress,
+    userAgent: item.userAgent,
+    category: historyCategoryMap[item.historyType],
+    subCategory: historySubCategoryMap[item.historyType],
+  };
 };
 
 export function UserHistoryPage() {
@@ -37,6 +114,10 @@ export function UserHistoryPage() {
   const [postFilter, setPostFilter] = useState<PostFilter>("all");
   const [projectFilter, setProjectFilter] = useState<ProjectFilter>("all");
   const [checklistFilter, setChecklistFilter] = useState<ChecklistFilter>("all");
+  const [historyEvents, setHistoryEvents] = useState<HistoryEvent[]>([]);
+  const [totalPages, setTotalPages] = useState(1);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 10;
   const desktopInputClass =
@@ -54,12 +135,98 @@ export function UserHistoryPage() {
     return (first + (second ?? "")).slice(0, 2).toUpperCase();
   };
 
-  const getAvatarUrl = (seed?: string) => (seed ? `https://i.pravatar.cc/80?u=${encodeURIComponent(seed)}` : undefined);
   const isSystemActor = (name?: string) => {
     if (!name) return true;
     const normalized = name.toLowerCase();
     return ["시스템", "bot", "센터"].some((keyword) => normalized.includes(keyword.toLowerCase()));
   };
+  const getActorAvatar = (name?: string, profileImg?: string | null) => {
+    if (isSystemActor(name)) {
+      return { src: logoImage, alt: "WorkHub 로고" };
+    }
+    if (profileImg) {
+      return { src: profileImg, alt: name ?? "사용자" };
+    }
+    return { src: placeholderImage, alt: name ?? "기본 아바타" };
+  };
+  const renderMeta = (event: HistoryEvent) => (
+    <div className="text-xs text-muted-foreground leading-relaxed space-y-0.5">
+      <div>
+        실행자: {event.updatedBy || "시스템"} · {formatDateTime(event.updatedAt)}
+      </div>
+      {event.ipAddress && <div>IP: {event.ipAddress}</div>}
+      {event.userAgent && <div className="break-all">User Agent: {event.userAgent}</div>}
+    </div>
+  );
+
+  const fetchHistoryData = useCallback(async () => {
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const sortParam = `updatedAt,${sortOrder === "desc" ? "DESC" : "ASC"}`;
+      const params = {
+        page: currentPage - 1,
+        size: pageSize,
+        sort: sortParam,
+      };
+
+      const resolveHistoryTypes = (): AdminHistoryType[] | null => {
+        if (activeTab === "post") {
+          const map: Record<PostFilter, AdminHistoryType[]> = {
+            all: ["POST", "POST_COMMENT", "CS_POST", "CS_QNA"],
+            post: ["POST"],
+            postComment: ["POST_COMMENT"],
+            csPost: ["CS_POST"],
+            csQna: ["CS_QNA"],
+          };
+          return map[postFilter];
+        }
+        if (activeTab === "project") {
+          const map: Record<ProjectFilter, AdminHistoryType[]> = {
+            all: ["PROJECT", "PROJECT_DEV_MEMBER", "PROJECT_CLIENT_MEMBER", "PROJECT_NODE"],
+            projectAgency: ["PROJECT_DEV_MEMBER"],
+            projectClient: ["PROJECT_CLIENT_MEMBER"],
+            project: ["PROJECT"],
+            projectPhase: ["PROJECT_NODE"],
+          };
+          return map[projectFilter];
+        }
+        if (activeTab === "checklist") {
+          const map: Record<ChecklistFilter, AdminHistoryType[]> = {
+            all: ["CHECK_LIST_ITEM", "CHECK_LIST_ITEM_COMMENT"],
+            checklist: ["CHECK_LIST_ITEM"],
+            checklistComment: ["CHECK_LIST_ITEM_COMMENT"],
+          };
+          return map[checklistFilter];
+        }
+        return null;
+      };
+
+      const historyTypes = resolveHistoryTypes();
+
+      let data: Awaited<ReturnType<typeof historyApi.getAdminHistories>>;
+
+      if (activeTab === "user") {
+        data = await historyApi.getAdminHistories(params);
+      } else if (historyTypes && historyTypes.length > 0) {
+        data = await historyApi.getHistoriesByType(historyTypes, params);
+      } else {
+        data = await historyApi.getAdminHistories(params);
+      }
+
+      setTotalPages(Math.max(data.totalPages ?? 1, 1));
+      setHistoryEvents(data.content.map(mapHistoryItemToEvent));
+    } catch (fetchError) {
+      const message =
+        fetchError instanceof Error ? fetchError.message : "히스토리를 불러오지 못했습니다.";
+      setError(message);
+      setHistoryEvents([]);
+      setTotalPages(1);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [activeTab, postFilter, projectFilter, checklistFilter, currentPage, pageSize, sortOrder]);
 
   const filteredEvents = useMemo(() => {
     let events: HistoryEvent[] = [...historyEvents];
@@ -98,10 +265,12 @@ export function UserHistoryPage() {
     });
 
     return events;
-  }, [activeTab, categoryFilter, searchTerm, postFilter, projectFilter, checklistFilter, sortOrder]);
+  }, [activeTab, categoryFilter, searchTerm, postFilter, projectFilter, checklistFilter, sortOrder, historyEvents]);
 
-  const totalPages = calculateTotalPages(filteredEvents.length, pageSize);
-  const paginatedEvents = paginate(filteredEvents, currentPage, pageSize);
+  const effectiveTotalPages = searchTerm.trim()
+    ? Math.max(1, Math.ceil(filteredEvents.length / pageSize))
+    : totalPages;
+  const paginatedEvents = filteredEvents;
 
   useEffect(() => {
     setCurrentPage(1);
@@ -112,6 +281,10 @@ export function UserHistoryPage() {
       setCurrentPage(totalPages);
     }
   }, [currentPage, totalPages]);
+
+  useEffect(() => {
+    fetchHistoryData();
+  }, [fetchHistoryData]);
 
   const renderSortSelect = (className?: string, inline?: boolean) => (
     <Select value={sortOrder} onValueChange={(value: "desc" | "asc") => setSortOrder(value)}>
@@ -333,25 +506,27 @@ export function UserHistoryPage() {
 
       <Card className="rounded-2xl border border-white/70 bg-white/90 shadow-sm backdrop-blur">
         <CardContent className="px-6 pt-6 pb-5 md:px-6 md:pt-6 md:pb-6">
+          {error && (
+            <div className="mb-4 rounded-lg border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-700">
+              {error}
+            </div>
+          )}
+          {isLoading && !error && (
+            <div className="mb-4 text-sm text-muted-foreground">히스토리를 불러오는 중입니다...</div>
+          )}
           <div className="space-y-4 md:hidden">
             {paginatedEvents.map((event) => {
-              const palette = historyPalette[event.type];
+              const palette = historyPalette[event.type] ?? historyPalette.update;
+              const avatar = getActorAvatar(event.updatedBy, event.updatedByProfileImg);
               return (
                 <div key={event.id} className="rounded-xl border border-white/70 bg-white/95 p-4 shadow-sm">
                   <div className="flex items-center gap-3">
                     <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-xl border border-white/70 shadow-sm">
-                      {isSystemActor(event.updatedBy) ? (
-                        <img src={logoImage} alt="WorkHub 로고" className="h-full w-full object-cover" />
-                      ) : event.updatedBy ? (
-                        <img src={getAvatarUrl(event.updatedBy)} alt={event.updatedBy} className="h-full w-full object-cover" />
-                      ) : (
-                        <div className="flex h-full w-full items-center justify-center bg-slate-100 text-sm font-semibold text-foreground">
-                          {getInitials(event.updatedBy)}
-                        </div>
-                      )}
+                      <img src={avatar.src} alt={avatar.alt} className="h-full w-full object-cover" />
                     </div>
                     <div className="flex-1 space-y-1">
                       <p className="text-sm font-medium text-foreground">{event.message}</p>
+                      {renderMeta(event)}
                     </div>
                   </div>
                   <div className="mt-4 space-y-2 text-xs text-muted-foreground">
@@ -371,7 +546,7 @@ export function UserHistoryPage() {
                         className="inline-flex items-center justify-center rounded-md border px-2 py-0.5 text-[11px] font-medium"
                         style={{ backgroundColor: palette.iconBg, color: palette.iconColor, borderColor: palette.iconBg }}
                       >
-                        {historyTypeLabels[event.type]}
+                        {eventActionLabels[event.type]}
                       </span>
                     </div>
                     <div className="flex items-center justify-between gap-2">
@@ -412,32 +587,18 @@ export function UserHistoryPage() {
               </thead>
               <tbody className="[&_tr:last-child]:border-0">
                 {paginatedEvents.map((event) => {
-                  const palette = historyPalette[event.type];
+                  const palette = historyPalette[event.type] ?? historyPalette.update;
+                  const avatar = getActorAvatar(event.updatedBy, event.updatedByProfileImg);
                   return (
                     <tr key={event.id} className="hover:bg-muted/50 border-b transition-colors">
                       <td className="p-2 align-middle whitespace-nowrap">
                         <div className="flex items-center gap-3">
                           <div className="relative h-12 w-12 overflow-hidden rounded-xl border border-white/70 shadow-sm">
-                            {isSystemActor(event.updatedBy) ? (
-                              <img src={logoImage} alt="WorkHub 로고" className="h-full w-full object-cover" />
-                            ) : event.updatedBy ? (
-                              <img
-                                src={getAvatarUrl(event.updatedBy)}
-                                alt={event.updatedBy}
-                                className="h-full w-full object-cover"
-                              />
-                            ) : (
-                              <div className="flex h-full w-full items-center justify-center bg-slate-100 text-sm font-semibold text-foreground">
-                                {getInitials(event.updatedBy)}
-                              </div>
-                            )}
+                            <img src={avatar.src} alt={avatar.alt} className="h-full w-full object-cover" />
                           </div>
                           <div className="space-y-1">
                             <p className="font-medium text-foreground">{event.message}</p>
-                            <p className="text-xs text-muted-foreground">
-                              {event.createdBy ? `${event.createdBy} · ` : ""}
-                              {event.timestamp}
-                            </p>
+                            {renderMeta(event)}
                           </div>
                         </div>
                       </td>
@@ -450,11 +611,11 @@ export function UserHistoryPage() {
                         </span>
                       </td>
                       <td className="p-2 align-middle whitespace-nowrap text-center">
-                        <span
+                      <span
                           className="inline-flex items-center justify-center rounded-md border px-2 py-0.5 text-xs font-medium w-fit whitespace-nowrap shrink-0"
                           style={{ backgroundColor: palette.iconBg, color: palette.iconColor, borderColor: palette.iconBg }}
                         >
-                          {historyTypeLabels[event.type]}
+                          {eventActionLabels[event.type]}
                         </span>
                       </td>
                       <td className="p-2 align-middle whitespace-nowrap text-center text-sm text-muted-foreground">
@@ -480,7 +641,7 @@ export function UserHistoryPage() {
         <PaginationControls
           className="mt-4"
           currentPage={currentPage}
-          totalPages={totalPages}
+          totalPages={effectiveTotalPages}
           onPageChange={setCurrentPage}
         />
       )}
