@@ -8,6 +8,7 @@ export type PostRevision = {
   updatedAt?: string;
   editor: string;
   editedAt: string;
+  actionType?: "created" | "updated" | "deleted";
 };
 
 export const postRevisionsByPostId: Record<string, PostRevision[]> = {
@@ -22,6 +23,7 @@ export const postRevisionsByPostId: Record<string, PostRevision[]> = {
       updatedAt: "2025-11-20 11:15",
       editor: "이현우",
       editedAt: "2025-11-21 08:40",
+      actionType: "updated",
     },
     {
       id: "rev-002",
@@ -33,6 +35,7 @@ export const postRevisionsByPostId: Record<string, PostRevision[]> = {
       updatedAt: "2025-11-19 17:05",
       editor: "박서준",
       editedAt: "2025-11-19 17:05",
+      actionType: "updated",
     },
     {
       id: "rev-003",
@@ -43,6 +46,7 @@ export const postRevisionsByPostId: Record<string, PostRevision[]> = {
       createdAt: "2025-11-18 09:00",
       editor: "김지은",
       editedAt: "2025-11-18 09:00",
+      actionType: "created",
     },
   ],
   empty: [],
