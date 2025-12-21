@@ -8,7 +8,7 @@ export type PostRevision = {
   updatedAt?: string;
   editor: string;
   editedAt: string;
-  actionType?: "created" | "updated" | "deleted";
+  actionType?: "created" | "updated" | "deleted" | "moved" | "hidden";
 };
 
 export const postRevisionsByPostId: Record<string, PostRevision[]> = {
