@@ -150,11 +150,15 @@ export function ProjectPostDetail({
                                       allowPostLinkAttachments = true,
                                   }: ProjectPostDetailProps = {}) {
     const navigate = useNavigate();
-    const { projectId, nodeId, postId } = useParams<{
+    const { projectId, nodeId, postId, ticketId } = useParams<{
         projectId?: string;
         nodeId?: string;
         postId?: string;
+        ticketId?: string;
     }>();
+    console.log("projectId", projectId)
+    console.log("nodeId", nodeId)
+    console.log("ticketId", ticketId)
     const location = useLocation();
     const stateData = location.state as { post?: PostPayload; reply?: PostReplyItem; replyId?: string } | undefined;
     const statePost = stateData?.post;
@@ -1179,7 +1183,7 @@ export function ProjectPostDetail({
             setCommentHistoryLoadingTargetId(commentId);
             try {
                 const data = await historyApi.getHistoriesByTarget(commentId, {
-                    historyType: "POST_COMMENT",
+                    historyType: useExternalCommentSync ? "CS_QNA" : "POST_COMMENT",
                     page: 0,
                     size: COMMENT_HISTORY_PAGE_SIZE,
                     sort: "updatedAt,DESC",
@@ -1215,6 +1219,7 @@ export function ProjectPostDetail({
     );
 
     useEffect(() => {
+        console.log("여긴뭐니", historyViewCommentId)
         if (!isCommentHistoryOpen || !historyViewCommentId) return;
         if (commentHistoryCache[historyViewCommentId]) return;
         void fetchCommentHistory(historyViewCommentId);
@@ -1275,12 +1280,12 @@ export function ProjectPostDetail({
 
     const fetchPostHistory = useCallback(
         async () => {
-            if (!mainPostId) return;
+            if (!ticketId) return;
             setPostHistoryError(null);
             setPostHistoryLoading(true);
             try {
-                const data = await historyApi.getHistoriesByTarget(mainPostId, {
-                    historyType: "POST",
+                const data = await historyApi.getHistoriesByTarget(ticketId, {
+                    historyType: useExternalCommentSync ? "CS_POST" : "POST",
                     page: 0,
                     size: POST_HISTORY_PAGE_SIZE,
                     sort: "updatedAt,DESC",
@@ -1310,11 +1315,12 @@ export function ProjectPostDetail({
                 setPostHistoryLoading(false);
             }
         },
-        [mainPostId],
+        [mainPostId, useExternalCommentSync],
     );
 
     useEffect(() => {
         if (!isHistoryOpen) return;
+        console.log("여기니", postHistory)
         if (postHistory.length || postHistoryLoading) return;
         void fetchPostHistory();
     }, [isHistoryOpen, postHistory.length, postHistoryLoading, fetchPostHistory]);
