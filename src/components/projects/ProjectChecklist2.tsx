@@ -2,11 +2,13 @@ import { useForm } from "react-hook-form";
 import { useState, useMemo, useEffect, useRef, useCallback, type MouseEvent } from "react";
 import { useParams } from "react-router-dom";
 import { toast } from "sonner";
+import { Archive, Layers, Sparkles, Trash2 } from "lucide-react";
 import { Card2, CardContent, CardHeader, CardTitle } from "../ui/card2";
 import { Input2 } from "../ui/input2";
 import { Label2 } from "../ui/label2";
 import { Textarea2 } from "../ui/textarea2";
 import { Button2 } from "../ui/button2";
+import { Checkbox2 } from "../ui/checkbox2";
 import { FormQuestion2, type FormQuestionHandle } from "../ui/FormQuestion2";
 import { useLocalStorageValue } from "../../hooks/useLocalStorageValue";
 import { PROFILE_STORAGE_KEY, normalizeUserRole } from "../../constants/profile";
@@ -20,6 +22,131 @@ import type {
   CheckListResponse,
   CheckListUpdateRequest,
 } from "../../types/checkList";
+
+const CHECKLIST_TEMPLATE_STORAGE_KEY = "workhub:checklistTemplates:v1";
+
+type ChecklistTemplateDraft = {
+  id: string;
+  name: string;
+  memo?: string;
+  savedAt: string;
+  request: string;
+  items: CheckListItemPayload[];
+};
+
+const parseTemplateStorage = (value: string): ChecklistTemplateDraft[] => {
+  try {
+    const parsed: unknown = JSON.parse(value);
+    if (!Array.isArray(parsed)) {
+      return [];
+    }
+
+    return parsed
+      .filter((item): item is Record<string, unknown> => typeof item === "object" && item !== null)
+      .map((item) => {
+        const items = Array.isArray(item.items)
+          ? (item.items as CheckListItemPayload[])
+          : ([] as CheckListItemPayload[]);
+        return {
+          id: typeof item.id === "string" ? item.id : `template-${Date.now()}`,
+          name:
+            typeof item.name === "string"
+              ? item.name
+              : typeof item.itemTitle === "string"
+                ? (item.itemTitle as string)
+                : "템플릿",
+          memo:
+            typeof item.memo === "string"
+              ? item.memo
+              : typeof item.description === "string"
+                ? (item.description as string)
+                : "",
+          savedAt:
+            typeof item.savedAt === "string" ? item.savedAt : new Date().toISOString(),
+          request:
+            typeof item.request === "string"
+              ? item.request
+              : typeof item.description === "string"
+                ? (item.description as string)
+                : "",
+          items,
+        } satisfies ChecklistTemplateDraft;
+      })
+      .filter((item) => Array.isArray(item.items));
+  } catch (error) {
+    console.error("템플릿 정보를 불러오지 못했습니다.", error);
+    return [];
+  }
+};
+
+const cloneTemplateItems = (items: CheckListItemPayload[]): CheckListItemPayload[] =>
+  items.map((item) => ({
+    itemTitle: item.itemTitle,
+    itemOrder: item.itemOrder,
+    templateId: item.templateId ?? null,
+    options: (item.options ?? []).map((option) => ({
+      optionContent: option.optionContent,
+      optionOrder: option.optionOrder,
+      fileUrls: [...option.fileUrls],
+    })),
+  }));
+
+const extractFileNameFromUrl = (value: string): string => {
+  if (!value) return "첨부파일";
+  try {
+    const url = new URL(value);
+    const lastChunk = url.pathname.split("/").filter(Boolean).pop();
+    return decodeURIComponent(lastChunk ?? value);
+  } catch {
+    const sanitized = value.split("?")[0] ?? value;
+    const fallback = sanitized.split("/").filter(Boolean).pop();
+    return fallback ? decodeURIComponent(fallback) : value;
+  }
+};
+
+const convertTemplateItemsToResponses = (
+  items: CheckListItemPayload[],
+): CheckListItemResponse[] =>
+  items.map((item, itemIndex) => ({
+    checkListItemId: -((itemIndex + 1) * 1000),
+    itemTitle: item.itemTitle,
+    itemOrder: typeof item.itemOrder === "number" ? item.itemOrder : itemIndex,
+    status: null,
+    confirmedAt: null,
+    templateId: item.templateId ?? null,
+    options: (item.options ?? []).map((option, optionIndex) => ({
+      checkListOptionId: -((itemIndex + 1) * 1000 + optionIndex + 1),
+      optionContent: option.optionContent,
+      optionOrder: typeof option.optionOrder === "number" ? option.optionOrder : optionIndex,
+      files: (option.fileUrls ?? []).map((fileUrl, fileOrder) => ({
+        checkListOptionFileId: -(
+          (itemIndex + 1) * 100000 + optionIndex * 100 + fileOrder + 1
+        ),
+        fileUrl,
+        fileName: extractFileNameFromUrl(fileUrl),
+        fileOrder,
+      })),
+    })),
+  }));
+
+const formatTemplateTimestamp = (value: string): string => {
+  if (!value) return "";
+  try {
+    return new Intl.DateTimeFormat("ko", {
+      dateStyle: "medium",
+      timeStyle: "short",
+    }).format(new Date(value));
+  } catch {
+    return value;
+  }
+};
+
+const generateTemplateId = () => {
+  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
+    return crypto.randomUUID();
+  }
+  return `template-${Date.now()}`;
+};
 
 // 프로젝트 기본 정보를 작성하는 체크리스트 폼
 interface ChecklistData {
@@ -53,6 +180,25 @@ export function ProjectChecklist2() {
     setValue,
   } = useForm<ChecklistData>();
   const formQuestionRef = useRef<FormQuestionHandle>(null);
+  const [storedTemplates, setStoredTemplates] = useLocalStorageValue<ChecklistTemplateDraft[]>(
+    CHECKLIST_TEMPLATE_STORAGE_KEY,
+    {
+      defaultValue: [],
+      parser: parseTemplateStorage,
+      serializer: (value) => JSON.stringify(value ?? []),
+    },
+  );
+  const templates = useMemo(() => {
+    const items = Array.isArray(storedTemplates) ? storedTemplates : [];
+    return [...items].sort(
+      (a, b) => new Date(b.savedAt).getTime() - new Date(a.savedAt).getTime(),
+    );
+  }, [storedTemplates]);
+  const [isTemplateListOpen, setTemplateListOpen] = useState(false);
+  const [saveAsTemplate, setSaveAsTemplate] = useState(false);
+  const [templateName, setTemplateName] = useState("");
+  const [templateMemo, setTemplateMemo] = useState("");
+  const [shouldValidateTemplate, setShouldValidateTemplate] = useState(false);
 
   const [storedProfileSettings] = useLocalStorageValue<StoredProfileSettings | null>(
     PROFILE_STORAGE_KEY,
@@ -156,6 +302,66 @@ export function ProjectChecklist2() {
         })),
       })),
     }));
+  const templateCount = templates.length;
+
+  const persistTemplateDraft = useCallback(
+    (payload: { name: string; memo: string; request: string; items: CheckListItemPayload[] }) => {
+      const nextTemplate: ChecklistTemplateDraft = {
+        id: generateTemplateId(),
+        name: payload.name,
+        memo: payload.memo || undefined,
+        savedAt: new Date().toISOString(),
+        request: payload.request,
+        items: cloneTemplateItems(payload.items),
+      };
+      setStoredTemplates((previousTemplates) => {
+        const base = Array.isArray(previousTemplates) ? previousTemplates : [];
+        return [nextTemplate, ...base].slice(0, 20);
+      });
+      toast.success("템플릿으로 저장했습니다.");
+    },
+    [setStoredTemplates],
+  );
+
+  const handleTemplateApply = useCallback(
+    (templateId: string) => {
+      const target = templates.find((template) => template.id === templateId);
+      if (!target) {
+        toast.error("선택한 템플릿을 찾을 수 없습니다.");
+        return;
+      }
+      const convertedItems = convertTemplateItemsToResponses(target.items ?? []);
+      formQuestionRef.current?.setChecklistItems(convertedItems);
+      setValue("request", target.request ?? "", { shouldDirty: true });
+      setTemplateListOpen(false);
+      toast.success("템플릿을 적용했습니다.");
+    },
+    [setValue, templates],
+  );
+
+  const handleTemplateDelete = useCallback(
+    (templateId: string) => {
+      if (typeof window !== "undefined") {
+        const confirmed = window.confirm("선택한 템플릿을 삭제할까요?");
+        if (!confirmed) {
+          return;
+        }
+      }
+      setStoredTemplates((previousTemplates) => {
+        const base = Array.isArray(previousTemplates) ? previousTemplates : [];
+        return base.filter((template) => template.id !== templateId);
+      });
+      toast.success("템플릿을 삭제했습니다.");
+    },
+    [setStoredTemplates],
+  );
+
+  const handleTemplateToggle = useCallback((nextValue: boolean) => {
+    setSaveAsTemplate(nextValue);
+    if (!nextValue) {
+      setShouldValidateTemplate(false);
+    }
+  }, []);
 
   const handleChecklistAttachmentDownload = useCallback(
     async (fileKey: string, fileName: string) => {
@@ -395,6 +601,14 @@ export function ProjectChecklist2() {
       return;
     }
 
+    const trimmedTemplateName = templateName.trim();
+    const trimmedTemplateMemo = templateMemo.trim();
+    if (saveAsTemplate && !trimmedTemplateName) {
+      setShouldValidateTemplate(true);
+      toast.error("템플릿 제목을 입력해주세요.");
+      return;
+    }
+
     try {
       setIsSubmitting(true);
       if (!existingChecklistId) {
@@ -438,6 +652,17 @@ export function ProjectChecklist2() {
         if (roleLocksChecklist) {
           setIsLocked(true);
         }
+      }
+      if (saveAsTemplate) {
+        persistTemplateDraft({
+          name: trimmedTemplateName,
+          memo: trimmedTemplateMemo,
+          request: description,
+          items,
+        });
+        handleTemplateToggle(false);
+        setTemplateName("");
+        setTemplateMemo("");
       }
       setChecklistSaveSignal((prev) => prev + 1);
     } catch (error) {
@@ -509,6 +734,14 @@ export function ProjectChecklist2() {
     setValue("Name", localAuthor.name);
     setValue("mobile", localAuthor.phone);
   }, [existingChecklistId, localAuthor, setValue]);
+  useEffect(() => {
+    if (existingChecklistId) {
+      handleTemplateToggle(false);
+      setTemplateName("");
+      setTemplateMemo("");
+      setTemplateListOpen(false);
+    }
+  }, [existingChecklistId, handleTemplateToggle]);
 
   const [questionResetKey, setQuestionResetKey] = useState(0);
   const [unlockSignal, setUnlockSignal] = useState(0);
@@ -517,6 +750,10 @@ export function ProjectChecklist2() {
     if (!canEditChecklist || (roleLocksChecklist && isLocked) || isSubmitting || isFetching) {
       return;
     }
+    handleTemplateToggle(false);
+    setTemplateName("");
+    setTemplateMemo("");
+    setTemplateListOpen(false);
     if (existingChecklistId) {
       applyChecklistSnapshot(serverDescription, serverChecklistItems, appliedAuthor);
       if (roleLocksChecklist) {
@@ -534,6 +771,12 @@ export function ProjectChecklist2() {
   const shouldShowDecisionButtons = Boolean(existingChecklistId) && isFormDisabled;
   const allowCommentsWhileLocked = Boolean(existingChecklistId);
   const allowClientReview = false;
+  const isCreatingChecklist = !existingChecklistId;
+  const templateTitleError =
+    isCreatingChecklist && saveAsTemplate && shouldValidateTemplate && !templateName.trim().length;
+  const templateButtonLabel = templateCount ? `템플릿 가져오기 (${templateCount})` : "템플릿 가져오기";
+  const templateButtonDisabled =
+    !isCreatingChecklist || !canEditChecklist || (roleLocksChecklist && isLocked) || isSubmitting || isFetching;
   const handleUnlock = (event: MouseEvent<HTMLButtonElement>) => {
     event.preventDefault();
     event.stopPropagation();
@@ -640,6 +883,134 @@ export function ProjectChecklist2() {
                     </p>
                 )}
               </div>
+
+              {/* Template helpers */}
+              {isCreatingChecklist && (
+                <>
+                <div className="rounded-lg border border-dashed border-slate-200 bg-muted/40 p-4 space-y-4">
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="rounded-full bg-amber-100 p-1 text-amber-600">
+                        <Sparkles className="size-4" aria-hidden="true" />
+                      </div>
+                      <div>
+                        <p className="font-semibold text-sm">체크리스트 템플릿</p>
+                        <p className="text-xs text-muted-foreground">
+                          자주 쓰는 체크리스트를 저장해두고 빠르게 불러올 수 있습니다.
+                        </p>
+                      </div>
+                    </div>
+                    <Button2
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="whitespace-nowrap"
+                        onClick={() => setTemplateListOpen((prev) => !prev)}
+                        disabled={templateButtonDisabled}
+                    >
+                      <Archive className="mr-1 size-4" /> {templateButtonLabel}
+                    </Button2>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <Checkbox2
+                        id="registerAsTemplate"
+                        checked={saveAsTemplate}
+                        onCheckedChange={(checked) => handleTemplateToggle(checked === true)}
+                        disabled={isFormDisabled}
+                    />
+                    <div className="space-y-1">
+                      <Label2 htmlFor="registerAsTemplate" className="font-medium text-sm">
+                        현재 작성 중인 체크리스트를 템플릿으로 저장
+                      </Label2>
+                      <p className="text-xs text-muted-foreground">
+                        전달사항과 체크리스트 항목 구성이 그대로 복사되어 다음 작성 시 바로 사용할 수 있습니다.
+                      </p>
+                    </div>
+                  </div>
+                  {saveAsTemplate && (
+                    <div className="grid gap-4 md:grid-cols-2">
+                      <div className="space-y-2">
+                        <Label2 htmlFor="templateName">템플릿 제목</Label2>
+                        <Input2
+                            id="templateName"
+                            placeholder="예: 신규 온보딩 체크리스트"
+                            value={templateName}
+                            onChange={(event) => setTemplateName(event.target.value)}
+                            disabled={isFormDisabled}
+                            className={templateTitleError ? "border-destructive" : ""}
+                        />
+                        {templateTitleError && (
+                            <p className="text-xs text-destructive">템플릿 제목을 입력해주세요.</p>
+                        )}
+                      </div>
+                      <div className="space-y-2 md:col-span-2">
+                        <Label2 htmlFor="templateMemo" className="flex items-center justify-between gap-2">
+                          템플릿 설명
+                          <span className="text-xs text-muted-foreground">선택 사항</span>
+                        </Label2>
+                        <Textarea2
+                            id="templateMemo"
+                            rows={2}
+                            placeholder="템플릿에 대한 설명을 입력해주세요."
+                            value={templateMemo}
+                            onChange={(event) => setTemplateMemo(event.target.value)}
+                            disabled={isFormDisabled}
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+                {isTemplateListOpen && (
+                  <div className="rounded-md border border-slate-100 bg-white shadow-sm">
+                    <div className="max-h-64 overflow-y-auto divide-y">
+                      {templates.length === 0 ? (
+                        <div className="flex flex-col items-center gap-3 px-4 py-8 text-center text-muted-foreground">
+                          <div className="rounded-full border border-dashed p-4">
+                            <Layers className="size-8" aria-hidden="true" />
+                          </div>
+                          <p className="text-sm font-medium text-foreground">저장된 템플릿이 없습니다.</p>
+                          <p className="text-xs text-muted-foreground">하단의 "템플릿으로 저장" 옵션을 사용해 첫 템플릿을 만들어보세요.</p>
+                        </div>
+                      ) : (
+                        templates.map((template) => (
+                          <div key={template.id} className="flex flex-col gap-2 px-4 py-3">
+                            <div className="flex flex-col gap-1">
+                              <p className="text-sm font-semibold text-foreground">{template.name}</p>
+                              <p className="text-xs text-muted-foreground whitespace-pre-line line-clamp-3">
+                                {template.request || template.memo || "설명이 없습니다."}
+                              </p>
+                            </div>
+                            <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
+                              <span>항목 {template.items.length}개</span>
+                              <span>{formatTemplateTimestamp(template.savedAt)}</span>
+                            </div>
+                            <div className="flex flex-wrap gap-2 pt-1">
+                              <Button2
+                                  type="button"
+                                  size="sm"
+                                  className="flex-1 sm:flex-none"
+                                  onClick={() => handleTemplateApply(template.id)}
+                              >
+                                불러오기
+                              </Button2>
+                              <Button2
+                                  type="button"
+                                  size="sm"
+                                  variant="ghost"
+                                  className="text-muted-foreground"
+                                  onClick={() => handleTemplateDelete(template.id)}
+                              >
+                                <Trash2 className="mr-1 size-4" /> 삭제
+                              </Button2>
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                )}
+                </>
+              )}
 
               {/* Row 3: 체크리스트 */}
               <FormQuestion2
