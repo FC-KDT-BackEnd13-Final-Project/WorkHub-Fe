@@ -833,10 +833,19 @@ export const FormQuestion2 = forwardRef<FormQuestionHandle, FormQuestionProps>(f
         if (Number.isNaN(date.getTime())) return value;
         return date.toLocaleString();
     };
-    const mapAdminActionToHistoryAction = (actionType: AdminActionType): ChecklistHistoryAction => {
-        if (actionType === "DELETE") return "deleted";
-        if (actionType === "UPDATE") return "edited";
-        return "created";
+    const mapAdminActionToHistoryAction = (
+        actionType: AdminActionType,
+    ): ChecklistHistoryAction => {
+        switch (actionType) {
+            case "DELETE":
+            case "HIDE":
+                return "deleted";
+            case "UPDATE":
+            case "MOVE":
+                return "edited";
+            default:
+                return "created";
+        }
     };
     const extractCommentContentFromHistory = (history: AdminHistoryItem) => {
         const tryParse = (raw?: string | null) => {
@@ -851,18 +860,28 @@ export const FormQuestion2 = forwardRef<FormQuestionHandle, FormQuestionProps>(f
         const candidate = tryParse(history.afterData) ?? tryParse(history.beforeData);
         if (typeof candidate === "string") return candidate;
         if (candidate && typeof candidate === "object") {
-            const text =
-                candidate.content ||
-                candidate.text ||
-                candidate.clContent ||
-                candidate.comment ||
-                candidate.commentContent ||
-                candidate.replyContent ||
-                candidate.description ||
-                candidate.message ||
-                candidate.body ||
-                "";
-            if (typeof text === "string") return text;
+            const maybeObject = candidate as Record<string, unknown>;
+            const contentKeys = [
+                "qnaContent",
+                "content",
+                "text",
+                "clContent",
+                "comment",
+                "commentContent",
+                "replyContent",
+                "description",
+                "message",
+                "body",
+            ] as const;
+
+            for (const key of contentKeys) {
+                const value = maybeObject[key];
+                if (typeof value === "string" && value) {
+                    return value;
+                }
+            }
+
+            return "";
         }
         return history.afterData || history.beforeData || "";
     };
@@ -1358,7 +1377,7 @@ export const FormQuestion2 = forwardRef<FormQuestionHandle, FormQuestionProps>(f
     };
 
     const loadCommentsForGroup = useCallback(
-        async (groupIndex: number) => {
+        async (groupIndex: number): Promise<ChecklistComment[] | null> => {
             const targetGroup = groupsRef.current[groupIndex];
             if (
                 !targetGroup ||
@@ -1367,7 +1386,7 @@ export const FormQuestion2 = forwardRef<FormQuestionHandle, FormQuestionProps>(f
                 targetGroup.isCommentLoading ||
                 targetGroup.hasFetchedComments
             ) {
-                return;
+                return null;
             }
 
             setGroups((prev) =>
@@ -1395,6 +1414,7 @@ export const FormQuestion2 = forwardRef<FormQuestionHandle, FormQuestionProps>(f
                             : group,
                     ),
                 );
+                return normalized;
             } catch (error) {
                 const message =
                     error instanceof Error
@@ -1411,6 +1431,7 @@ export const FormQuestion2 = forwardRef<FormQuestionHandle, FormQuestionProps>(f
                             : group,
                     ),
                 );
+                return null;
             }
         },
         [normalizeServerComments, onFetchComments],
@@ -2371,15 +2392,48 @@ export const FormQuestion2 = forwardRef<FormQuestionHandle, FormQuestionProps>(f
         return "삭제됨";
     };
 
+    const ensureHistorySelection = useCallback(
+        (
+            groupIndex: number,
+            options: { comments?: ChecklistComment[] } = {},
+        ) => {
+            const targetGroup = groupsRef.current[groupIndex];
+            if (!targetGroup) return;
+
+            const sourceComments =
+                options.comments && options.comments.length > 0
+                    ? options.comments
+                    : targetGroup.comments;
+
+            const fallbackTarget =
+                targetGroup.historySelectedTargetId ??
+                sourceComments[0]?.id ??
+                targetGroup.historyEntries[targetGroup.historyEntries.length - 1]?.targetId ??
+                null;
+
+            if (fallbackTarget == null) return;
+
+            setGroups((prev) =>
+                prev.map((group, index) =>
+                    index === groupIndex
+                        ? {
+                            ...group,
+                            historySelectedTargetId: fallbackTarget,
+                        }
+                        : group,
+                ),
+            );
+
+            if (!targetGroup.commentHistoryCache[fallbackTarget]) {
+                void fetchCommentHistoryByTarget(groupIndex, fallbackTarget);
+            }
+        },
+        [fetchCommentHistoryByTarget],
+    );
+
     const openHistoryModal = (groupIndex: number) => {
         const targetGroup = groupsRef.current[groupIndex];
         if (!targetGroup) return;
-
-        const fallbackTarget =
-            targetGroup.historySelectedTargetId ??
-            targetGroup.comments[0]?.id ??
-            targetGroup.historyEntries[targetGroup.historyEntries.length - 1]?.targetId ??
-            null;
 
         setGroups((prev) =>
             prev.map((group, index) =>
@@ -2387,15 +2441,29 @@ export const FormQuestion2 = forwardRef<FormQuestionHandle, FormQuestionProps>(f
                     ? {
                         ...group,
                         isHistoryOpen: true,
-                        historySelectedTargetId: fallbackTarget,
                     }
                     : group,
             ),
         );
 
-        if (fallbackTarget != null && !targetGroup.commentHistoryCache[fallbackTarget]) {
-            void fetchCommentHistoryByTarget(groupIndex, fallbackTarget);
-        }
+        const prepareHistory = async () => {
+            let loadedComments: ChecklistComment[] | null = null;
+            const latestGroup = groupsRef.current[groupIndex];
+            if (
+                latestGroup &&
+                !latestGroup.hasFetchedComments &&
+                onFetchComments &&
+                latestGroup.checkListItemId
+            ) {
+                loadedComments = await loadCommentsForGroup(groupIndex);
+            }
+
+            ensureHistorySelection(groupIndex, {
+                comments: loadedComments ?? undefined,
+            });
+        };
+
+        void prepareHistory();
     };
 
     const closeHistoryModal = (groupIndex: number) => {
@@ -2504,40 +2572,7 @@ export const FormQuestion2 = forwardRef<FormQuestionHandle, FormQuestionProps>(f
             }
         });
 
-        const targetValues = Array.from(targetMap.values());
-
         const activeComments = group.comments;
-
-        const deletedTargets = targetValues.filter((meta) => meta.isDeleted);
-        const deletedComments = deletedTargets.filter(
-            (meta) => meta.type === "comment",
-        );
-        const deletedReplies = deletedTargets.filter(
-            (meta) => meta.type === "reply",
-        );
-
-        const deletedCommentIds = new Set(
-            deletedComments.map((meta) => meta.id),
-        );
-
-        // 삭제된 댓글 중, 부모도 삭제된 댓글 아래에 들어갈 reply 정리
-        const orphanDeletedReplies: HistoryTargetMeta[] = [];
-
-        const deletedRepliesByParent = deletedReplies.reduce<
-            Map<number, HistoryTargetMeta[]>
-        >((map, meta) => {
-            const parentId = meta.parentCommentId ?? -1;
-
-            if (!deletedCommentIds.has(parentId)) {
-                orphanDeletedReplies.push(meta);
-                return map;
-            }
-
-            const list = map.get(parentId) ?? [];
-            list.push(meta);
-            map.set(parentId, list);
-            return map;
-        }, new Map());
 
         const activeCount =
             activeComments.length +
@@ -2545,8 +2580,6 @@ export const FormQuestion2 = forwardRef<FormQuestionHandle, FormQuestionProps>(f
                 (sum, c) => sum + c.replies.length,
                 0,
             );
-
-        const deletedCount = deletedTargets.length;
 
         const selectedTarget =
             group.historySelectedTargetId !== null
@@ -2706,33 +2739,6 @@ export const FormQuestion2 = forwardRef<FormQuestionHandle, FormQuestionProps>(f
                                     </div>
                                 </div>
 
-                                <div className="space-y-2">
-                                    <div className="flex items-center justify-between text-sm text-muted-foreground">
-                                        <p className="font-medium text-muted-foreground">삭제된 댓글</p>
-                                        <span>총 {deletedCount}건</span>
-                                    </div>
-                                    <div className="space-y-2">
-                                        {deletedCount === 0 ? (
-                                            <p className="text-sm text-muted-foreground">삭제된 댓글이 없습니다.</p>
-                                        ) : (
-                                            <div className="space-y-2">
-                                                {deletedComments.map((meta) => (
-                                                    <div key={`history-del-${meta.id}`} className="space-y-1">
-                                                        {renderHistoryButton(meta)}
-                                                        {(deletedRepliesByParent.get(meta.id) ?? []).map((reply) => (
-                                                            <div key={`history-del-reply-${reply.id}`} className="pl-5">
-                                                                {renderHistoryButton(reply)}
-                                                            </div>
-                                                        ))}
-                                                    </div>
-                                                ))}
-                                                {orphanDeletedReplies.map((reply) => (
-                                                    <div key={`history-orphan-${reply.id}`}>{renderHistoryButton(reply)}</div>
-                                                ))}
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
                             </div>
 
                             <div className="flex h-full min-h-0 flex-col space-y-2 overflow-hidden">
