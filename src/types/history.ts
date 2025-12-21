@@ -10,7 +10,7 @@ export type AdminHistoryType =
   | "CHECK_LIST_ITEM"
   | "CHECK_LIST_ITEM_COMMENT";
 
-export type AdminActionType = "CREATE" | "UPDATE" | "DELETE";
+export type AdminActionType = "CREATE" | "UPDATE" | "DELETE" | "MOVE" | "HIDE";
 
 export type AdminHistoryUser = {
   userId: number;

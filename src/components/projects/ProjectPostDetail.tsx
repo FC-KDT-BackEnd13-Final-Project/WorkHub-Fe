@@ -82,7 +82,7 @@ interface CommentHistoryEntry {
     id: string;
     content: string;
     timestamp: string;
-    action?: "created" | "edited" | "deleted" | "restored";
+    action?: "created" | "edited" | "deleted" | "restored" | "moved" | "hidden";
     author?: string;
     targetId?: string | number;
 }
@@ -150,10 +150,11 @@ export function ProjectPostDetail({
                                       allowPostLinkAttachments = true,
                                   }: ProjectPostDetailProps = {}) {
     const navigate = useNavigate();
-    const { projectId, nodeId, postId } = useParams<{
+    const { projectId, nodeId, postId, ticketId } = useParams<{
         projectId?: string;
         nodeId?: string;
         postId?: string;
+        ticketId?: string;
     }>();
     const location = useLocation();
     const stateData = location.state as { post?: PostPayload; reply?: PostReplyItem; replyId?: string } | undefined;
@@ -636,7 +637,6 @@ export function ProjectPostDetail({
     const [newComment, setNewComment] = useState("");
 
     const activeComments = comments.filter((comment) => comment.status !== "deleted");
-    const deletedComments = comments.filter((comment) => comment.status === "deleted");
     const topLevelComments = activeComments.filter((c) => (c.parentId ?? null) === null);
 
     const fallbackCommentPages = calculateTotalPages(topLevelComments.length, COMMENTS_PER_PAGE);
@@ -1149,6 +1149,7 @@ export function ProjectPostDetail({
         if (typeof candidate === "string") return candidate;
         if (candidate && typeof candidate === "object") {
             const text =
+                (candidate as any).qnaContent ||
                 (candidate as any).content ||
                 (candidate as any).text ||
                 (candidate as any).clContent ||
@@ -1179,7 +1180,7 @@ export function ProjectPostDetail({
             setCommentHistoryLoadingTargetId(commentId);
             try {
                 const data = await historyApi.getHistoriesByTarget(commentId, {
-                    historyType: "POST_COMMENT",
+                    historyType: useExternalCommentSync ? "CS_QNA" : "POST_COMMENT",
                     page: 0,
                     size: COMMENT_HISTORY_PAGE_SIZE,
                     sort: "updatedAt,DESC",
@@ -1269,18 +1270,18 @@ export function ProjectPostDetail({
             updatedAt: item.updatedAt,
             editor: author,
             editedAt: item.updatedAt,
-            actionType: item.actionType,
+            actionType: mapAdminActionToPostRevisionAction(item.actionType),
         };
     };
 
     const fetchPostHistory = useCallback(
         async () => {
-            if (!mainPostId) return;
+            if (!ticketId) return;
             setPostHistoryError(null);
             setPostHistoryLoading(true);
             try {
-                const data = await historyApi.getHistoriesByTarget(mainPostId, {
-                    historyType: "POST",
+                const data = await historyApi.getHistoriesByTarget(ticketId, {
+                    historyType: useExternalCommentSync ? "CS_POST" : "POST",
                     page: 0,
                     size: POST_HISTORY_PAGE_SIZE,
                     sort: "updatedAt,DESC",
@@ -1310,7 +1311,7 @@ export function ProjectPostDetail({
                 setPostHistoryLoading(false);
             }
         },
-        [mainPostId],
+        [mainPostId, useExternalCommentSync],
     );
 
     useEffect(() => {
@@ -2210,30 +2211,6 @@ export function ProjectPostDetail({
         ));
     };
 
-    const renderDeletedCommentList = () => {
-        const deletedOnly = comments.filter((comment) => comment.status === "deleted");
-        if (deletedOnly.length === 0) {
-            return (
-                <p className="text-sm text-muted-foreground">삭제된 댓글이 없습니다.</p>
-            );
-        }
-
-        return deletedOnly
-            .sort((a, b) => {
-                const aTime = a.deletedAt ? new Date(a.deletedAt).getTime() : 0;
-                const bTime = b.deletedAt ? new Date(b.deletedAt).getTime() : 0;
-                return bTime - aTime;
-            })
-            .map((comment) => {
-                const parent = comment.parentId
-                    ? comments.find((root) => root.id === comment.parentId)
-                    : undefined;
-                return (
-                    <div key={`history-deleted-${comment.id}`}>{historyCommentButton(comment, parent)}</div>
-                );
-            });
-    };
-
     // ───────────── 메인 렌더 ─────────────
 
     const historyViewComment = historyViewCommentId
@@ -2257,6 +2234,8 @@ export function ProjectPostDetail({
         if (action === "deleted") return "삭제됨";
         if (action === "created") return "등록됨";
         if (action === "restored") return "복구됨";
+        if (action === "moved") return "이동됨";
+        if (action === "hidden") return "숨김됨";
         return "수정됨";
     };
 
@@ -2278,6 +2257,17 @@ export function ProjectPostDetail({
     const mapAdminActionToCommentHistoryAction = (actionType: AdminActionType): CommentHistoryEntry["action"] => {
         if (actionType === "DELETE") return "deleted";
         if (actionType === "UPDATE") return "edited";
+        if (actionType === "MOVE") return "moved";
+        if (actionType === "HIDE") return "hidden";
+        return "created";
+    };
+
+    const mapAdminActionToPostRevisionAction = (actionType?: AdminActionType): PostRevision["actionType"] => {
+        if (!actionType) return undefined;
+        if (actionType === "DELETE") return "deleted";
+        if (actionType === "UPDATE") return "updated";
+        if (actionType === "MOVE") return "moved";
+        if (actionType === "HIDE") return "hidden";
         return "created";
     };
 
@@ -2622,13 +2612,6 @@ export function ProjectPostDetail({
                                         <span>총 {activeComments.length}건</span>
                                     </div>
                                     <div className="space-y-2">{renderHistoryCommentList()}</div>
-                                </div>
-                                <div className="space-y-2">
-                                    <div className="flex items-center justify-between text-sm text-muted-foreground">
-                                        <p className="font-medium text-muted-foreground">삭제된 댓글</p>
-                                        <span>총 {deletedComments.length}건</span>
-                                    </div>
-                                    <div className="space-y-2">{renderDeletedCommentList()}</div>
                                 </div>
                             </div>
                             <div className="flex h-full min-h-0 flex-col space-y-2 overflow-hidden">
