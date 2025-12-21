@@ -1276,11 +1276,12 @@ export function ProjectPostDetail({
 
     const fetchPostHistory = useCallback(
         async () => {
-            if (!ticketId) return;
+            const targetId = useExternalCommentSync ? ticketId : mainPostId ?? postId;
+            if (!targetId) return;
             setPostHistoryError(null);
             setPostHistoryLoading(true);
             try {
-                const data = await historyApi.getHistoriesByTarget(ticketId, {
+                const data = await historyApi.getHistoriesByTarget(targetId, {
                     historyType: useExternalCommentSync ? "CS_POST" : "POST",
                     page: 0,
                     size: POST_HISTORY_PAGE_SIZE,
@@ -1311,7 +1312,7 @@ export function ProjectPostDetail({
                 setPostHistoryLoading(false);
             }
         },
-        [mainPostId, useExternalCommentSync],
+        [mainPostId, postId, ticketId, useExternalCommentSync],
     );
 
     useEffect(() => {
