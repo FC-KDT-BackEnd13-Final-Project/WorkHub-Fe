@@ -53,6 +53,24 @@ interface Ticket {
   attachments: AttachmentDraft[];
 }
 
+const getUpdatedDateIfEdited = (createdAt?: string, updatedAt?: string): string => {
+  const normalizedUpdated = updatedAt?.trim();
+  if (!normalizedUpdated) return "";
+
+  const normalizedCreated = createdAt?.trim();
+  if (!normalizedCreated) return normalizedUpdated;
+
+  const createdTime = Date.parse(normalizedCreated);
+  const updatedTime = Date.parse(normalizedUpdated);
+
+  const bothValid = !Number.isNaN(createdTime) && !Number.isNaN(updatedTime);
+  if (bothValid) {
+    return createdTime === updatedTime ? "" : normalizedUpdated;
+  }
+
+  return normalizedCreated === normalizedUpdated ? "" : normalizedUpdated;
+};
+
 const convertApiItemToTicket = (item: CsPostApiItem): Ticket => ({
   id: String(item.csPostId),
   customerName: item.userName ?? item.customerName,
@@ -60,7 +78,7 @@ const convertApiItemToTicket = (item: CsPostApiItem): Ticket => ({
   title: item.title,
   content: item.content,
   createdDate: item.createdAt,
-  updatedDate: item.updatedAt,
+  updatedDate: getUpdatedDateIfEdited(item.createdAt, item.updatedAt),
   isOwner: true,
   attachments: mapCsPostFilesToAttachments(item.files, `cs-file-${item.csPostId}`),
 });
@@ -414,8 +432,14 @@ export function SupportPage() {
                                           </p>
                                           <p className="text-xs text-muted-foreground">
                                             생성일 · {formatDateOnly(ticket.createdDate)}
+                                            {ticket.updatedDate && (
+                                              <>
+                                                <span className="mx-2">·</span>
+                                                수정일 · {formatDateOnly(ticket.updatedDate)}
+                                              </>
+                                            )}
                                           </p>
-                                        </div>
+                                      </div>
                                         {ticket.status && (
                                             <span
                                                 className="inline-flex items-center justify-center rounded-md border px-2 py-0.5 text-xs font-medium whitespace-nowrap"
@@ -432,9 +456,6 @@ export function SupportPage() {
                                       <p className="text-sm text-muted-foreground line-clamp-2">
                                         {contentPreview || "내용이 없습니다."}
                                       </p>
-                                    </div>
-                                    <div className="mt-4 flex items-center justify-between text-[11px] text-muted-foreground">
-                                      <span>수정일 · {formatDateOnly(ticket.updatedDate)}</span>
                                     </div>
                                   </div>
                               );
@@ -538,7 +559,7 @@ export function SupportPage() {
                                 </TableCell>
 
                                 <TableCell className="px-3 py-2 whitespace-nowrap">
-                                  {formatDateOnly(ticket.updatedDate)}
+                                  {ticket.updatedDate ? formatDateOnly(ticket.updatedDate) : ""}
                                 </TableCell>
                               </TableRow>
                             );
