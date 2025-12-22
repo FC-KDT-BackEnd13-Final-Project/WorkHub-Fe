@@ -38,6 +38,7 @@ import {
   type NodeStatus,
   type ApprovalStatus,
 } from "@/utils/nodeMapper";
+import type { NodeCategory } from "@/types/projectNode";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
 import { cn } from "../ui/utils";
 import { ModalShell } from "../common/ModalShell";
@@ -117,6 +118,7 @@ const defaultNodes: Node[] = [
 const createWorkflowFormState = () => ({
   title: "",
   description: "",
+  nodeCategory: "" as NodeCategory | "",
   developer: "",
   developerUserId: undefined as number | undefined,
   startDate: "",
@@ -138,6 +140,20 @@ const statusOptions: NodeStatus[] = ["NOT_STARTED", "IN_PROGRESS", "PENDING_REVI
 const approvalStatusOptions: ApprovalStatus[] = ["PENDING", "APPROVED", "REJECTED"];
 const approvalFilterOptions = ["전체", ...approvalStatusOptions] as const;
 const statusesWithoutApproval: NodeStatus[] = ["NOT_STARTED", "IN_PROGRESS"];
+
+const nodeCategoryLabels: Record<NodeCategory, string> = {
+  PLANNING: "기획",
+  DESIGN: "디자인 / 설계",
+  DEVELOPMENT: "개발",
+  QA: "QA",
+  RELEASE: "배포",
+  MAINTENANCE: "운영 / 유지보수",
+  ETC: "기타",
+};
+
+const nodeCategoryOptions = (Object.entries(nodeCategoryLabels) as [NodeCategory, string][]).map(
+  ([value, label]) => ({ value, label }),
+);
 type ApprovalFilter = (typeof approvalFilterOptions)[number];
 type StatusBadgeStyles = {
   background: string;
@@ -607,6 +623,7 @@ useEffect(() => {
       setNewWorkflow({
         title: node.title,
         description: node.description,
+        nodeCategory: node.nodeCategory || "",
         developer: node.developer,
         developerUserId: matchedDeveloper
           ? Number(matchedDeveloper.id)
@@ -761,6 +778,34 @@ useEffect(() => {
                         }
                         className="h-9 rounded-md border border-border bg-input-background px-3 py-1 focus:bg-white focus:border-primary transition-colors"
                       />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="workflowCategory" className="text-gray-700">
+                          카테고리
+                        </Label>
+                        <Select
+                          value={newWorkflow.nodeCategory || ""}
+                          onValueChange={(value) =>
+                            setNewWorkflow((prev) => ({
+                              ...prev,
+                              nodeCategory: value as NodeCategory,
+                            }))
+                          }
+                        >
+                          <SelectTrigger
+                            id="workflowCategory"
+                            className="h-9 rounded-md border border-border bg-input-background px-3 py-1 focus:bg-white focus:border-primary transition-colors"
+                          >
+                            <SelectValue placeholder="카테고리를 선택하세요" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {nodeCategoryOptions.map((option) => (
+                              <SelectItem key={option.value} value={option.value}>
+                                {option.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                       </div>
                       <div className="space-y-2">
                         <Label htmlFor="workflowDescription" className="text-gray-700">

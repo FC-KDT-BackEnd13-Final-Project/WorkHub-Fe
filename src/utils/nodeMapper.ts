@@ -3,6 +3,7 @@ import type {
   NodeApiItem,
   NodeStatus as ApiNodeStatus,
 } from "../types/projectNodeList";
+import type { NodeCategory } from "../types/projectNode";
 
 // ProjectNodesBoard의 Node 타입
 export type NodeStatus = "NOT_STARTED" | "IN_PROGRESS" | "PENDING_REVIEW" | "ON_HOLD" | "DONE";
@@ -13,6 +14,7 @@ export interface Node {
   projectNodeId: number;
   title: string;
   description: string;
+  nodeCategory?: NodeCategory;
   tags: string[];
   filesCount: number;
   linksCount: number;
@@ -79,6 +81,7 @@ export function mapApiNodeToUiNode(apiNode: NodeApiItem): Node {
     projectNodeId: apiNode.projectNodeId,
     title: apiNode.title,
     description: apiNode.description,
+    nodeCategory: apiNode.nodeCategory,
     status: mapApiStatusToUiStatus(apiNode.nodeStatus),
     updatedAt: apiNode.updatedAt,
     startDate: apiNode.starDate, // API의 오타(starDate)를 그대로 사용
