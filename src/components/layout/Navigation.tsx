@@ -1,4 +1,4 @@
-import { useState, ReactNode, useMemo } from "react";
+import { useState, ReactNode, useMemo, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useTheme } from "next-themes";
 import { Button } from "../ui/button";
@@ -21,8 +21,10 @@ export function Navigation({ mobileMenuContent }: NavigationProps = {}) {
   const { resolvedTheme, setTheme } = useTheme();
   const isDark = resolvedTheme === "dark";
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [remainingMs, setRemainingMs] = useState<number | null>(null);
   const location = useLocation();
   const navigate = useNavigate();
+  const SESSION_DURATION_MS = 30 * 60 * 1000;
 
   type StoredSettings = {
     profile?: {
@@ -54,12 +56,24 @@ export function Navigation({ mobileMenuContent }: NavigationProps = {}) {
   }, [storedSettings, storedUser]);
 
   const navItems: NavigationItem[] = buildNavigationItems(userRole);
-  const [, setAuthState, removeAuthState] = useLocalStorageValue<boolean>("workhub:auth", {
+  const [isAuthenticated, setAuthState, removeAuthState] = useLocalStorageValue<boolean>("workhub:auth", {
     defaultValue: false,
     parser: (value) => value === "true",
     serializer: (value) => (value ? "true" : "false"),
-    listen: false,
+    listen: true,
   });
+  const [sessionExpiry, setSessionExpiry, removeSessionExpiry] = useLocalStorageValue<number | null>(
+    "workhub:auth:expiry",
+    {
+      defaultValue: null,
+      parser: (value) => {
+        const parsed = Number(value);
+        return Number.isFinite(parsed) ? parsed : null;
+      },
+      serializer: (value) => (value == null ? "" : String(value)),
+      listen: true,
+    },
+  );
 
   const toggleTheme = () => {
     setTheme(isDark ? "light" : "dark");
@@ -68,8 +82,47 @@ export function Navigation({ mobileMenuContent }: NavigationProps = {}) {
   const handleLogout = () => {
     setAuthState(false);
     removeAuthState();
+    removeSessionExpiry();
     window.location.href = "/";
   };
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      setRemainingMs(null);
+      removeSessionExpiry();
+      return;
+    }
+
+    const now = Date.now();
+    const expiry = sessionExpiry && sessionExpiry > now ? sessionExpiry : now + SESSION_DURATION_MS;
+    if (expiry !== sessionExpiry) {
+      setSessionExpiry(expiry);
+    }
+
+    const tick = () => {
+      const diff = expiry - Date.now();
+      if (diff <= 0) {
+        setRemainingMs(0);
+        handleLogout();
+      } else {
+        setRemainingMs(diff);
+      }
+    };
+
+    tick();
+    const interval = setInterval(tick, 1000);
+    return () => clearInterval(interval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAuthenticated, sessionExpiry]);
+
+  const formatRemaining = () => {
+    if (remainingMs == null) return null;
+    const totalSeconds = Math.max(0, Math.floor(remainingMs / 1000));
+    const minutes = String(Math.floor(totalSeconds / 60)).padStart(2, "0");
+    const seconds = String(totalSeconds % 60).padStart(2, "0");
+    return `${minutes}:${seconds}`;
+  };
+  const formattedRemaining = formatRemaining();
 
   return (
       <nav className="sticky top-0 z-[200] w-full border-b border-border bg-white shadow-sm">
@@ -82,19 +135,25 @@ export function Navigation({ mobileMenuContent }: NavigationProps = {}) {
           </div>
 
           <div className="hidden md:flex items-center space-x-8">
-            {[
-              { label: "Home", id: "home" },
-              { label: "About", id: "about" },
-              { label: "Team", id: "team" },
-            ].map((item) => (
-              <button
-                key={item.id}
-                onClick={() => navigate(`/#${item.id}`)}
-                className="text-muted-foreground hover:text-foreground transition-colors"
-              >
-                {item.label}
-              </button>
-            ))}
+            {!isAuthenticated &&
+              [
+                { label: "Home", id: "home" },
+                { label: "About", id: "about" },
+                { label: "Team", id: "team" },
+              ].map((item) => (
+                <button
+                  key={item.id}
+                  onClick={() => navigate(`/#${item.id}`)}
+                  className="text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  {item.label}
+                </button>
+              ))}
+            {isAuthenticated && formattedRemaining && (
+              <span className="text-xs font-semibold" style={{ color: "var(--point-color)" }}>
+                세션 만료까지 {formattedRemaining}
+              </span>
+            )}
             <Button
               variant="ghost"
               size="sm"
@@ -106,6 +165,11 @@ export function Navigation({ mobileMenuContent }: NavigationProps = {}) {
           </div>
 
           <div className="md:hidden flex items-center space-x-2">
+            {isAuthenticated && formattedRemaining && (
+              <span className="text-xs font-semibold" style={{ color: "var(--point-color)" }}>
+                {formattedRemaining}
+              </span>
+            )}
             <Button
               variant="ghost"
               size="sm"
