@@ -353,6 +353,7 @@ export function SupportTicketDetail() {
       initialPost={ticketWithStatusLabel}
       backPath={backPath}
       showBackButton={true}
+      showReplyButton={false}
       startInEditMode={false}
       onSubmitPostEdit={handleUpdateTicket}
       onChangeTicketStatus={handleStatusChange}

@@ -110,6 +110,7 @@ interface ProjectPostDetailProps {
     initialPost?: PostPayload;
     backPath?: string;
     showBackButton?: boolean;
+    showReplyButton?: boolean;
     startInEditMode?: boolean;
     onDeletePost?: () => Promise<void> | void;
     isDeletingPost?: boolean;
@@ -132,6 +133,7 @@ export function ProjectPostDetail({
                                       initialPost,
                                       backPath,
                                       showBackButton = true,
+                                      showReplyButton = true,
                                       startInEditMode = false,
                                       onDeletePost,
                                       isDeletingPost = false,
@@ -2714,22 +2716,28 @@ export function ProjectPostDetail({
             </ModalShell>
 
             {/* 하단 버튼들 */}
-            {showBackButton && (
-                <div className="mt-2 flex w-full justify-between">
-                    <Button2
-                        variant="outline"
-                        onClick={startReplying}
-                        className="ml-auto w-auto"
-                    >
-                        답글쓰기
-                    </Button2>
-                    <Button2
-                        variant="outline"
-                        onClick={navigateBackToList}
-                        className="ml-auto w-auto"
-                    >
-                        목록으로
-                    </Button2>
+            {(showReplyButton || showBackButton) && (
+                <div className="mt-2 flex w-full">
+                    <div className="ml-auto flex justify-end gap-2">
+                        {showReplyButton && (
+                            <Button2
+                                variant="outline"
+                                onClick={startReplying}
+                                className="w-auto"
+                            >
+                                답글쓰기
+                            </Button2>
+                        )}
+                        {showBackButton && (
+                            <Button2
+                                variant="outline"
+                                onClick={navigateBackToList}
+                                className="w-auto"
+                            >
+                                목록으로
+                            </Button2>
+                        )}
+                    </div>
                 </div>
             )}
 
