@@ -18,7 +18,7 @@ const alignmentClass: Record<Alignment, string> = {
 
 export function FilterToolbar({ leading, children, className, align = "end" }: FilterToolbarProps) {
   return (
-    <div className={cn("rounded-2xl bg-white p-6 shadow-sm space-y-4", className)}>
+    <div className={cn("rounded-2xl bg-white p-4 shadow-sm space-y-4", className)}>
       {leading ? <div className="flex flex-wrap items-center gap-2">{leading}</div> : null}
       {children ? (
         <div

@@ -77,35 +77,37 @@ export function NotificationsPage() {
           onChange={(event) => setSearchTerm(event.target.value)}
           className="md:flex-1"
         />
-        <Select value={eventFilter} onValueChange={(value) => setEventFilter(value as typeof eventFilter)}>
-          <SelectTrigger className="md:w-52">
-            <SelectValue placeholder="전체 유형" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">전체 유형</SelectItem>
-            <SelectItem value="REVIEW_REQUEST">검토 요청</SelectItem>
-            <SelectItem value="REVIEW_COMPLETED">검토 완료</SelectItem>
-            <SelectItem value="REVIEW_REJECTED">검토 반려</SelectItem>
-            <SelectItem value="STATUS_CHANGED">상태 변경 안내</SelectItem>
-            <SelectItem value="POST_CREATED">게시글 등록</SelectItem>
-            <SelectItem value="POST_COMMENT_CREATED">게시글 댓글 등록</SelectItem>
-            <SelectItem value="CS_QNA_CREATED">CS 질문 등록</SelectItem>
-            <SelectItem value="CS_QNA_ANSWERED">CS 답변 완료</SelectItem>
-          </SelectContent>
-        </Select>
-        <Select value={readFilter} onValueChange={(value) => setReadFilter(value as typeof readFilter)}>
-          <SelectTrigger className="md:w-52">
-            <SelectValue placeholder="읽지 않은 알림 조회" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">전체 알림 보기</SelectItem>
-            <SelectItem value="unread">읽지 않은 알림 조회</SelectItem>
-          </SelectContent>
-        </Select>
-        <Button className="md:w-auto flex items-center gap-2" variant="default" onClick={markAllRead}>
-          <CheckSquare className="h-4 w-4" />
-          전체 읽음 처리
-        </Button>
+        <div className="flex flex-col gap-3 md:flex-row md:flex-none md:items-center md:gap-2">
+          <Select value={eventFilter} onValueChange={(value) => setEventFilter(value as typeof eventFilter)}>
+            <SelectTrigger className="md:w-52">
+              <SelectValue placeholder="전체 유형" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">전체 유형</SelectItem>
+              <SelectItem value="REVIEW_REQUEST">검토 요청</SelectItem>
+              <SelectItem value="REVIEW_COMPLETED">검토 완료</SelectItem>
+              <SelectItem value="REVIEW_REJECTED">검토 반려</SelectItem>
+              <SelectItem value="STATUS_CHANGED">상태 변경 안내</SelectItem>
+              <SelectItem value="POST_CREATED">게시글 등록</SelectItem>
+              <SelectItem value="POST_COMMENT_CREATED">게시글 댓글 등록</SelectItem>
+              <SelectItem value="CS_QNA_CREATED">CS 질문 등록</SelectItem>
+              <SelectItem value="CS_QNA_ANSWERED">CS 답변 완료</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={readFilter} onValueChange={(value) => setReadFilter(value as typeof readFilter)}>
+            <SelectTrigger className="md:w-52">
+              <SelectValue placeholder="읽지 않은 알림 조회" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">전체 알림 보기</SelectItem>
+              <SelectItem value="unread">읽지 않은 알림 조회</SelectItem>
+            </SelectContent>
+          </Select>
+          <Button className="flex items-center gap-2 md:w-auto" variant="default" onClick={markAllRead}>
+            <CheckSquare className="h-4 w-4" />
+            전체 읽음 처리
+          </Button>
+        </div>
       </FilterToolbar>
 
       {loading && (
