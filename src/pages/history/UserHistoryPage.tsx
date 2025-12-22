@@ -150,12 +150,20 @@ export function UserHistoryPage() {
     return { src: placeholderImage, alt: name ?? "기본 아바타" };
   };
   const renderMeta = (event: HistoryEvent) => (
-    <div className="text-xs text-muted-foreground leading-relaxed space-y-0.5">
+    <div className="text-xs text-muted-foreground leading-relaxed space-y-0.5 break-words">
       <div>
         실행자: {event.updatedBy || "시스템"} · {formatDateTime(event.updatedAt)}
       </div>
       {event.ipAddress && <div>IP: {event.ipAddress}</div>}
-      {event.userAgent && <div className="break-all">User Agent: {event.userAgent}</div>}
+      {event.userAgent && (
+        <div
+          className="break-all text-wrap overflow-hidden text-ellipsis"
+          style={{ display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}
+          title={`User Agent: ${event.userAgent}`}
+        >
+          User Agent: {event.userAgent}
+        </div>
+      )}
     </div>
   );
 
@@ -309,6 +317,7 @@ export function UserHistoryPage() {
           placeholder="작업을 검색하세요"
           value={searchTerm}
           onChange={(event) => setSearchTerm(event.target.value)}
+          className="md:text-sm text-sm"
         />
         <div className={`flex w-full gap-3 ${hasAdditional ? "flex-row" : "flex-col"}`}>
           {controls.map((control, index) => (
@@ -505,7 +514,7 @@ export function UserHistoryPage() {
       </div>
 
       <Card className="rounded-2xl border border-white/70 bg-white/90 shadow-sm backdrop-blur">
-        <CardContent className="px-6 pt-6 pb-5 md:px-6 md:pt-6 md:pb-6">
+        <CardContent className="px-6 pt-6 pb-6 md:px-6 md:pt-6 md:pb-6">
           {error && (
             <div className="mb-4 rounded-lg border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-700">
               {error}
@@ -514,73 +523,92 @@ export function UserHistoryPage() {
           {isLoading && !error && (
             <div className="mb-4 text-sm text-muted-foreground">히스토리를 불러오는 중입니다...</div>
           )}
-          <div className="space-y-4 md:hidden">
-            {paginatedEvents.map((event) => {
-              const palette = historyPalette[event.type] ?? historyPalette.update;
-              const avatar = getActorAvatar(event.updatedBy, event.updatedByProfileImg);
-              return (
-                <div key={event.id} className="rounded-xl border border-white/70 bg-white/95 p-4 shadow-sm">
-                  <div className="flex items-center gap-3">
-                    <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-xl border border-white/70 shadow-sm">
-                      <img src={avatar.src} alt={avatar.alt} className="h-full w-full object-cover" />
+          <div className="md:hidden">
+            <div className="relative w-full pr-1">
+              <div className="space-y-4">
+                {paginatedEvents.map((event) => {
+                  const palette = historyPalette[event.type] ?? historyPalette.update;
+                  const avatar = getActorAvatar(event.updatedBy, event.updatedByProfileImg);
+                  return (
+                    <div key={event.id} className="rounded-xl border border-white/70 bg-white/95 p-4 shadow-sm cursor-default">
+                      <div className="flex items-center gap-3">
+                        <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-xl border border-white/70 shadow-sm">
+                          <img src={avatar.src} alt={avatar.alt} className="h-full w-full object-cover" />
+                        </div>
+                        <div className="flex-1 space-y-1">
+                          <p className="text-sm font-medium text-foreground">{event.message}</p>
+                          {renderMeta(event)}
+                        </div>
+                      </div>
+                      <div className="mt-4 space-y-2 text-xs text-muted-foreground">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <div className="flex items-center gap-2 flex-1 min-w-0 sm:min-w-[140px]">
+                            <span className="text-[11px] text-slate-400 w-16 shrink-0">대상</span>
+                            <span className="font-medium text-foreground break-words flex-1 text-right">
+                              {event.target ?? "—"}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2 flex-1 justify-end min-w-0 sm:min-w-[140px]">
+                            <span className="text-[11px] text-slate-400 w-16 text-right">실행자</span>
+                            <span className="inline-flex items-center justify-center rounded-md border border-transparent bg-secondary px-2 py-0.5 text-[11px] font-medium text-secondary-foreground w-fit whitespace-nowrap shrink-0">
+                              {event.updatedBy ?? "시스템"}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <div className="flex items-center gap-2 flex-1 min-w-0 sm:min-w-[140px]">
+                            <span className="text-[11px] text-slate-400 w-16 shrink-0">작업 유형</span>
+                            <span
+                              className="inline-flex items-center justify-start rounded-md border px-2 py-0.5 text-[11px] font-medium w-fit whitespace-nowrap shrink-0"
+                              style={{ backgroundColor: palette.iconBg, color: palette.iconColor, borderColor: palette.iconBg }}
+                            >
+                              {eventActionLabels[event.type]}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2 flex-1 justify-end min-w-0 sm:min-w-[140px]">
+                            <span className="text-[11px] text-slate-400 w-16 text-right">발생 시각</span>
+                            <span className="break-words text-right flex-1">
+                              {format(new Date(event.updatedAt), "yyyy.MM.dd HH:mm")}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
                     </div>
-                    <div className="flex-1 space-y-1">
-                      <p className="text-sm font-medium text-foreground">{event.message}</p>
-                      {renderMeta(event)}
-                    </div>
+                  );
+                })}
+                {paginatedEvents.length === 0 && (
+                  <div className="px-4 py-4 text-center text-sm text-muted-foreground">
+                    조건에 맞는 히스토리가 없습니다. 필터를 조정해 다시 시도해 주세요.
                   </div>
-                  <div className="mt-4 space-y-2 text-xs text-muted-foreground">
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="text-[11px] text-slate-400">대상</span>
-                      <span className="font-medium text-foreground text-right">{event.target ?? "—"}</span>
-                    </div>
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="text-[11px] text-slate-400">실행자</span>
-                      <span className="inline-flex items-center justify-center rounded-md border border-transparent bg-secondary px-2 py-0.5 text-[11px] font-medium text-secondary-foreground">
-                        {event.updatedBy ?? "시스템"}
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="text-[11px] text-slate-400">작업 유형</span>
-                      <span
-                        className="inline-flex items-center justify-center rounded-md border px-2 py-0.5 text-[11px] font-medium"
-                        style={{ backgroundColor: palette.iconBg, color: palette.iconColor, borderColor: palette.iconBg }}
-                      >
-                        {eventActionLabels[event.type]}
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="text-[11px] text-slate-400">발생 시각</span>
-                      <span>{format(new Date(event.updatedAt), "yyyy.MM.dd HH:mm")}</span>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-            {paginatedEvents.length === 0 && (
-              <div className="px-4 py-4 text-center text-sm text-muted-foreground">
-                조건에 맞는 히스토리가 없습니다. 필터를 조정해 다시 시도해 주세요.
+                )}
               </div>
-            )}
+            </div>
           </div>
 
           <div className="relative hidden w-full overflow-x-auto md:block">
-            <table className="w-full caption-bottom text-sm">
+            <table className="table-fixed w-full caption-bottom text-sm">
+              <colgroup>
+                <col style={{ width: "57%" }} />
+                <col style={{ width: "10%" }} />
+                <col style={{ width: "10%" }} />
+                <col style={{ width: "10%" }} />
+                <col style={{ width: "13%" }} />
+              </colgroup>
               <thead className="[&_tr]:border-b">
                 <tr className="hover:bg-muted/50 border-b transition-colors">
-                  <th className="text-foreground h-10 px-2 text-left align-middle font-medium whitespace-nowrap w-2/5">
+                  <th className="text-foreground h-10 px-2 text-left align-middle font-medium whitespace-nowrap">
                     활동 내용
                   </th>
-                  <th className="text-foreground h-10 px-2 align-middle font-medium whitespace-nowrap w-1/5 text-center">
+                  <th className="text-foreground h-10 px-2 align-middle font-medium whitespace-nowrap text-center">
                     대상
                   </th>
-                  <th className="text-foreground h-10 px-2 align-middle font-medium whitespace-nowrap w-1/6 text-center">
+                  <th className="text-foreground h-10 px-2 align-middle font-medium whitespace-nowrap text-center">
                     실행자
                   </th>
-                  <th className="text-foreground h-10 px-2 align-middle font-medium whitespace-nowrap w-1/6 text-center">
+                  <th className="text-foreground h-10 px-2 align-middle font-medium whitespace-nowrap text-center">
                     작업 유형
                   </th>
-                  <th className="text-foreground h-10 px-2 align-middle font-medium whitespace-nowrap w-1/6 text-center">
+                  <th className="text-foreground h-10 px-2 align-middle font-medium whitespace-nowrap text-center">
                     발생 시각
                   </th>
                 </tr>
@@ -591,13 +619,15 @@ export function UserHistoryPage() {
                   const avatar = getActorAvatar(event.updatedBy, event.updatedByProfileImg);
                   return (
                     <tr key={event.id} className="hover:bg-muted/50 border-b transition-colors">
-                      <td className="p-2 align-middle whitespace-nowrap">
-                        <div className="flex items-center gap-3">
+                      <td className="p-2 align-middle whitespace-normal break-words">
+                        <div className="flex items-center gap-3 min-w-0">
                           <div className="relative h-12 w-12 overflow-hidden rounded-xl border border-white/70 shadow-sm">
                             <img src={avatar.src} alt={avatar.alt} className="h-full w-full object-cover" />
                           </div>
-                          <div className="space-y-1">
-                            <p className="font-medium text-foreground">{event.message}</p>
+                          <div className="space-y-1 min-w-0">
+                            <p className="font-medium text-foreground truncate" title={event.message}>
+                              {event.message}
+                            </p>
                             {renderMeta(event)}
                           </div>
                         </div>
