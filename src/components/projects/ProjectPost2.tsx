@@ -318,51 +318,104 @@ export function ProjectPost2() {
                 paginatedRows.map((customer) => {
                   const normalizedContent = stripHtml(customer.content);
                   const statusStyle = statusStyles[customer.type];
+                  const thread = threads.find((item) => String(item.postId) === customer.id);
+                  const replies = thread ? flattenPostReplies(thread.replies ?? []) : [];
                   return (
-                      <div
-                          key={customer.id}
-                          className="rounded-2xl border border-white/70 bg-white/95 p-4 shadow-sm"
-                          role="button"
-                          tabIndex={0}
-                          onClick={() => navigateToDetail(customer.id)}
-                          onKeyDown={(event) => {
-                            if (event.key === "Enter" || event.key === " ") {
-                              event.preventDefault();
-                              navigateToDetail(customer.id);
-                            }
-                          }}
-                      >
-                        <div className="space-y-3">
-                          <div className="flex items-start justify-between gap-3">
-                            <div className="space-y-1">
-                              <p className="text-xs text-muted-foreground">
-                                작성자 · {customer.customerName}
-                              </p>
-                              <p className="text-base font-semibold text-foreground">
-                                {customer.title}
-                              </p>
-                              <p className="text-xs text-muted-foreground">
-                                생성일 · {formatPostDate(customer.createdDate)}
-                              </p>
+                      <div key={customer.id} className="space-y-3">
+                        <div
+                            className="rounded-2xl border border-white/70 bg-white/95 p-4 shadow-sm"
+                            role="button"
+                            tabIndex={0}
+                            onClick={() => navigateToDetail(customer.id)}
+                            onKeyDown={(event) => {
+                              if (event.key === "Enter" || event.key === " ") {
+                                event.preventDefault();
+                                navigateToDetail(customer.id);
+                              }
+                            }}
+                        >
+                          <div className="space-y-3">
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="space-y-1">
+                                <p className="text-xs text-muted-foreground">
+                                  작성자 · {customer.customerName}
+                                </p>
+                                <p className="text-base font-semibold text-foreground">
+                                  {customer.title}
+                                </p>
+                                <p className="text-xs text-muted-foreground">
+                                  생성일 · {formatPostDate(customer.createdDate)}
+                                  <span className="mx-1">·</span>
+                                  수정일 · {formatPostDate(customer.updatedDate)}
+                                </p>
+                              </div>
+                              <span
+                                  className="inline-flex items-center rounded-md border px-2 py-0.5 text-xs font-medium whitespace-nowrap"
+                                  style={{
+                                    backgroundColor: statusStyle.background,
+                                    color: statusStyle.text,
+                                    borderColor: statusStyle.border,
+                                  }}
+                              >
+                                {customer.type}
+                              </span>
                             </div>
-                            <span
-                                className="inline-flex items-center rounded-md border px-2 py-0.5 text-xs font-medium whitespace-nowrap"
-                                style={{
-                                  backgroundColor: statusStyle.background,
-                                  color: statusStyle.text,
-                                  borderColor: statusStyle.border,
-                                }}
-                            >
-                              {customer.type}
-                            </span>
+                            <p className="text-sm text-muted-foreground line-clamp-2">
+                              {normalizedContent || "내용이 없습니다."}
+                            </p>
                           </div>
-                          <p className="text-sm text-muted-foreground line-clamp-2">
-                            {normalizedContent || "내용이 없습니다."}
-                          </p>
                         </div>
-                        <div className="mt-4 flex items-center justify-between text-[11px] text-muted-foreground">
-                          <span>수정일 · {formatPostDate(customer.updatedDate)}</span>
-                        </div>
+                        {replies.map((reply) => {
+                          const replyTitle = reply.title || "무제 답글";
+                          const replyPreview = stripHtml(reply.contentPreview || "") || "내용 없음";
+                          const formattedDate = formatReplyDate(reply.createdAt) || reply.createdAt;
+                          return (
+                            <div key={`${customer.id}-${reply.postId}`} className="mt-4 flex items-start gap-2">
+                              <CornerDownRight className="h-4 w-4 text-primary mt-1" />
+                              <button
+                                type="button"
+                                className="flex-1 rounded-2xl border border-white/70 bg-white/90 p-4 text-left shadow-sm"
+                                onClick={(event) => {
+                                  event.preventDefault();
+                                  navigateToDetail(customer.id, String(reply.postId));
+                                }}
+                                onKeyDown={(event) => {
+                                  if (event.key === "Enter" || event.key === " ") {
+                                    event.preventDefault();
+                                    navigateToDetail(customer.id, String(reply.postId));
+                                  }
+                                }}
+                              >
+                                <div className="flex items-start justify-between gap-3">
+                                  <div className="space-y-1">
+                                    <p className="text-xs text-muted-foreground">
+                                      답글 · {reply.userName ?? customer.customerName}
+                                    </p>
+                                    <p className="text-base font-semibold text-foreground">
+                                      {replyTitle}
+                                    </p>
+                                    <p className="text-xs text-muted-foreground">
+                                      작성일 · {formattedDate}
+                                    </p>
+                                  </div>
+                                  <span
+                                      className="inline-flex items-center rounded-md border px-2 py-0.5 text-xs font-medium whitespace-nowrap"
+                                      style={{
+                                        backgroundColor: replyTypeStyle.background,
+                                        color: replyTypeStyle.text,
+                                        borderColor: replyTypeStyle.border,
+                                      }}
+                                  >
+                                    답글
+                                  </span>
+                                </div>
+                                <p className="mt-2 text-sm text-muted-foreground line-clamp-2">
+                                  {replyPreview}
+                                </p>
+                              </button>
+                            </div>
+                          );
+                        })}
                       </div>
                   );
                 })}
