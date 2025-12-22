@@ -264,14 +264,22 @@ export function ProjectChecklist2() {
     [localAuthor],
   );
 
+  const appliedAuthorRef = useRef(appliedAuthor);
+  const resetRef = useRef(reset);
+
+  useEffect(() => {
+    appliedAuthorRef.current = appliedAuthor;
+    resetRef.current = reset;
+  }, [appliedAuthor, reset]);
+
   const applyChecklistSnapshot = useCallback(
     (description: string, items?: CheckListItemResponse[], authorFields?: AuthorFields) => {
       const normalizedDescription = description ?? "";
-      const resolvedAuthor = authorFields ?? appliedAuthor;
+      const resolvedAuthor = authorFields ?? appliedAuthorRef.current;
       setServerDescription(normalizedDescription);
       setServerChecklistItems(items ?? []);
       setAppliedAuthor(resolvedAuthor);
-      reset({
+      resetRef.current({
         Name: resolvedAuthor.name,
         mobile: resolvedAuthor.phone,
         request: normalizedDescription,
@@ -282,7 +290,7 @@ export function ProjectChecklist2() {
         formQuestionRef.current.setChecklistItems(nextItems);
       }
     },
-    [appliedAuthor, reset],
+    [],
   );
 
   const buildCreateCommands = (items: CheckListItemPayload[]): CheckListItemUpdatePayload[] =>
