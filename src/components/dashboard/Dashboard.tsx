@@ -1,11 +1,18 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { format } from "date-fns";
 import { useNavigate } from "react-router-dom";
-import { LayoutDashboard, Users, CheckCircle, TrendingUp } from "lucide-react";
+import { LayoutDashboard, Users, CheckCircle, TrendingUp, CheckSquare } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { companyUsers } from "../admin/userData";
 import logoImage from "../../../image/logo.png";
 import { historyEvents, historyPalette } from "../../data/historyData";
+import {
+  PROFILE_STORAGE_KEY,
+  type UserRole,
+  normalizeUserRole,
+} from "@/constants/profile";
+import { useLocalStorageValue } from "@/hooks/useLocalStorageValue";
 
 const statusSlices = [
   { label: "Planning", value: 12, color: "#0ea5e9" },
@@ -30,6 +37,29 @@ const donutSegments = (() => {
 
 const totalUsers = companyUsers.length;
 const totalCompanies = Array.from(new Set(companyUsers.map((user) => user.company).filter(Boolean))).length;
+
+type StoredSettings = {
+  profile?: {
+    id?: string;
+    email?: string;
+    role?: string;
+  };
+};
+
+type StoredUser = {
+  id?: string;
+  loginId?: string;
+  name?: string;
+  email?: string;
+  role?: string;
+};
+
+type SummaryMetric = {
+  title: string;
+  value: string;
+  change: string;
+  icon: LucideIcon;
+};
 const totalProjects = (() => {
   const ids = new Set<string>();
   companyUsers.forEach((user) => {
@@ -46,7 +76,7 @@ const summaryMetrics = [
   { title: "총 유저", value: totalUsers.toLocaleString("ko-KR"), change: "등록된 전체 사용자", icon: Users },
   { title: "총 회사", value: totalCompanies.toLocaleString("ko-KR"), change: "등록된 고객사 수", icon: LayoutDashboard },
   { title: "총 프로젝트", value: totalProjects.toLocaleString("ko-KR"), change: "진행/완료 포함", icon: CheckCircle },
-];
+] satisfies SummaryMetric[];
 
 const trendMonths = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
@@ -86,40 +116,6 @@ export function Dashboard() {
     return ["시스템", "bot", "센터"].some((keyword) => normalized.includes(keyword.toLowerCase()));
   };
 
-  useEffect(() => {
-    const scrollContainer = scrollContainerRef.current;
-    const sentinel = sentinelRef.current;
-
-    if (!scrollContainer || !sentinel) {
-      return;
-    }
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting) {
-            setVisibleHistoryCount((prev) => {
-              if (prev >= todayHistoryEvents.length) {
-                return prev;
-              }
-              return Math.min(todayHistoryEvents.length, prev + HISTORY_BATCH_SIZE);
-            });
-          }
-        });
-      },
-      {
-        root: scrollContainer,
-        threshold: 1,
-      }
-    );
-
-    observer.observe(sentinel);
-
-    return () => observer.disconnect();
-  }, []);
-
-  const visibleHistoryEvents = todayHistoryEvents.slice(0, visibleHistoryCount);
-  const enableHistoryScroll = visibleHistoryEvents.length > 5;
   const activeTrend = trendSeries[trendTab];
   const chartLeft = 35;
   const chartRight = 380;
@@ -141,6 +137,149 @@ export function Dashboard() {
       ? `${pathPoints} ${linePoints[linePoints.length - 1].x},${chartBottom} ${linePoints[0].x},${chartBottom}`
       : "";
   const trendPalette = trendColors[trendTab];
+  const [storedSettings] = useLocalStorageValue<StoredSettings | null>(PROFILE_STORAGE_KEY, {
+    defaultValue: null,
+    parser: (value) => JSON.parse(value),
+    listen: true,
+  });
+  const [storedUser] = useLocalStorageValue<StoredUser | null>("user", {
+    defaultValue: null,
+    parser: (value) => JSON.parse(value),
+    listen: true,
+  });
+
+  const userRole = useMemo<UserRole>(() => {
+    const profileRole = normalizeUserRole(storedSettings?.profile?.role);
+    if (profileRole) return profileRole;
+
+    const storedUserRole = normalizeUserRole(storedUser?.role);
+    return storedUserRole ?? "DEVELOPER";
+  }, [storedSettings, storedUser]);
+
+  const currentUser = useMemo(() => {
+    const normalizedEmail = storedSettings?.profile?.email?.toLowerCase() ?? storedUser?.email?.toLowerCase();
+    const normalizedId =
+      storedSettings?.profile?.id?.toLowerCase() ??
+      storedUser?.name?.toLowerCase() ??
+      storedUser?.loginId?.toLowerCase() ??
+      storedUser?.id?.toLowerCase();
+
+    return companyUsers.find((user) => {
+      if (normalizedEmail && user.email?.toLowerCase() === normalizedEmail) {
+        return true;
+      }
+      if (normalizedId && (user.id?.toLowerCase() === normalizedId || user.name?.toLowerCase() === normalizedId)) {
+        return true;
+      }
+      return false;
+    });
+  }, [storedSettings, storedUser]);
+
+  const relevantHistoryEvents = useMemo(() => {
+    if (userRole !== "CLIENT" && userRole !== "DEVELOPER") {
+      return todayHistoryEvents;
+    }
+
+    const candidates = [
+      currentUser?.name,
+      storedSettings?.profile?.id,
+      storedSettings?.profile?.email,
+      storedUser?.name,
+      storedUser?.loginId,
+      storedUser?.email,
+    ]
+      .map((value) => value?.toLowerCase())
+      .filter(Boolean) as string[];
+
+    if (candidates.length === 0) return todayHistoryEvents;
+
+    const matchesCurrentUser = (value?: string | null) => Boolean(value && candidates.includes(value.toLowerCase()));
+
+    const filtered = todayHistoryEvents.filter(
+      (event) => matchesCurrentUser(event.updatedBy) || matchesCurrentUser(event.createdBy)
+    );
+
+    return filtered.length > 0 ? filtered : todayHistoryEvents;
+  }, [currentUser, storedSettings, storedUser, todayHistoryEvents, userRole]);
+
+  useEffect(() => {
+    const scrollContainer = scrollContainerRef.current;
+    const sentinel = sentinelRef.current;
+
+    if (!scrollContainer || !sentinel) {
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            setVisibleHistoryCount((prev) => {
+              if (prev >= relevantHistoryEvents.length) {
+                return prev;
+              }
+              return Math.min(relevantHistoryEvents.length, prev + HISTORY_BATCH_SIZE);
+            });
+          }
+        });
+      },
+      {
+        root: scrollContainer,
+        threshold: 1,
+      }
+    );
+
+    observer.observe(sentinel);
+
+    return () => observer.disconnect();
+  }, [relevantHistoryEvents.length]);
+
+  useEffect(() => {
+    setVisibleHistoryCount(
+      relevantHistoryEvents.length === 0 ? 0 : Math.min(INITIAL_HISTORY_COUNT, relevantHistoryEvents.length)
+    );
+  }, [INITIAL_HISTORY_COUNT, relevantHistoryEvents.length]);
+
+  const visibleHistoryEvents = relevantHistoryEvents.slice(0, visibleHistoryCount);
+  const enableHistoryScroll = visibleHistoryEvents.length > 5;
+
+  const approvalProjectMetrics = useMemo<SummaryMetric[]>(() => {
+    if (userRole !== "DEVELOPER" && userRole !== "CLIENT") {
+      return [];
+    }
+
+    const projects = currentUser?.projects ?? [];
+    const approvalKeywords = ["review", "검토", "승인"];
+    const progressKeywords = ["progress", "진행", "완료", "complete", "done"];
+
+    const approvalRequestCount = projects.filter((project) => {
+      const status = project.status?.toLowerCase() ?? "";
+      return approvalKeywords.some((keyword) => status.includes(keyword));
+    }).length;
+
+    const projectCount = projects.filter((project) => {
+      const status = project.status?.toLowerCase() ?? "";
+      return progressKeywords.some((keyword) => status.includes(keyword));
+    }).length;
+
+    return [
+      {
+        title: "승인 요청",
+        value: approvalRequestCount.toLocaleString("ko-KR"),
+        change: "내가 포함된 승인 요청 건수",
+        icon: CheckSquare,
+      },
+      {
+        title: "총 프로젝트",
+        value: projectCount.toLocaleString("ko-KR"),
+        change: "진행/완료 포함 전체",
+        icon: CheckCircle,
+      },
+    ];
+  }, [currentUser, userRole]);
+
+  const metricsToRender: SummaryMetric[] =
+    userRole === "DEVELOPER" || userRole === "CLIENT" ? approvalProjectMetrics : summaryMetrics;
 
   return (
     <div className="space-y-8 pb-12">
@@ -151,8 +290,8 @@ export function Dashboard() {
         </p>
       </div>
       <div className="space-y-4">
-        <div className="grid gap-4 md:grid-cols-3">
-          {summaryMetrics.map((stat) => (
+        <div className={`grid gap-4 ${metricsToRender.length === 2 ? "md:grid-cols-2" : "md:grid-cols-3"}`}>
+          {metricsToRender.map((stat) => (
             <Card key={stat.title} className="text-card-foreground flex flex-col gap-6 rounded-xl border border-white/70 bg-white/90 shadow-sm backdrop-blur">
               <CardHeader className="flex flex-row items-center justify-between pb-2">
                 <div>
@@ -169,9 +308,9 @@ export function Dashboard() {
               </Card>
             ))}
           </div>
-
-        <div className="grid gap-4 lg:grid-cols-2 py-6">
-          <Card className="rounded-xl border border-white/70 bg-white/90 shadow-sm backdrop-blur">
+        {userRole === "ADMIN" && (
+          <div className="grid gap-4 lg:grid-cols-2 py-6">
+            <Card className="rounded-xl border border-white/70 bg-white/90 shadow-sm backdrop-blur">
             <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-4 border-b border-white/60 pb-4">
               <div>
                 <CardTitle className="text-xl font-semibold text-foreground">사용자 & 프로젝트 트렌드</CardTitle>
@@ -298,58 +437,59 @@ export function Dashboard() {
                 ) : null}
               </div>
             </CardContent>
-          </Card>
-        <Card className="rounded-xl border border-white/70 bg-white/90 shadow-sm backdrop-blur">
-          <CardHeader className="flex flex-row items-center justify-between pb-4 border-b border-white/60">
-            <div>
-              <CardTitle className="text-xl font-semibold text-foreground">Project Status Distribution</CardTitle>
-              <p className="text-xs text-muted-foreground">현재 진행 중인 프로젝트 단계별 비율입니다.</p>
-            </div>
-          </CardHeader>
-          <CardContent className="pt-6 flex flex-col gap-4">
-            <div className="relative mx-auto h-32 w-32">
-              <svg viewBox="0 0 36 36" className="h-full w-full">
-                <circle cx="18" cy="18" r="14.5" fill="none" stroke="#e2e8f0" strokeWidth="4" />
-                {donutSegments.map(({ slice, dasharray, dashoffset }) => (
-                  <circle
-                    key={slice.label}
-                    cx="18"
-                    cy="18"
-                    r="15.915"
-                    fill="none"
-                    stroke={slice.color}
-                    strokeWidth="4"
-                    strokeDasharray={dasharray}
-                    strokeDashoffset={dashoffset}
-                    transform="rotate(-90 18 18)"
-                  />
-                ))}
-              </svg>
-              <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-                <div className="rounded-full bg-white px-4 py-3 text-center shadow-sm">
-                  <p className="text-xs text-muted-foreground">총 프로젝트</p>
-                  <p className="text-xl font-semibold text-foreground">{donutTotal}</p>
+            </Card>
+            <Card className="rounded-xl border border-white/70 bg-white/90 shadow-sm backdrop-blur">
+              <CardHeader className="flex flex-row items-center justify-between pb-4 border-b border-white/60">
+                <div>
+                  <CardTitle className="text-xl font-semibold text-foreground">Project Status Distribution</CardTitle>
+                  <p className="text-xs text-muted-foreground">현재 진행 중인 프로젝트 단계별 비율입니다.</p>
                 </div>
-              </div>
-            </div>
-            <div className="space-y-3">
-              {statusSlices.map((slice) => {
-                const percent = Math.round((slice.value / donutTotal) * 100);
-                return (
-                  <div key={slice.label} className="flex items-center gap-3 px-4 py-3 rounded-xl bg-white/90 shadow-sm text-sm">
-                    <span className="h-2 w-2 rounded-full" style={{ backgroundColor: slice.color }} />
-                    <span className="w-28">{slice.label}</span>
-                    <div className="flex-1 h-2 rounded-full bg-muted overflow-hidden">
-                      <div className="h-full rounded-full" style={{ backgroundColor: slice.color, width: `${percent}%` }} />
+              </CardHeader>
+              <CardContent className="pt-6 flex flex-col gap-4">
+                <div className="relative mx-auto h-32 w-32">
+                  <svg viewBox="0 0 36 36" className="h-full w-full">
+                    <circle cx="18" cy="18" r="14.5" fill="none" stroke="#e2e8f0" strokeWidth="4" />
+                    {donutSegments.map(({ slice, dasharray, dashoffset }) => (
+                      <circle
+                        key={slice.label}
+                        cx="18"
+                        cy="18"
+                        r="15.915"
+                        fill="none"
+                        stroke={slice.color}
+                        strokeWidth="4"
+                        strokeDasharray={dasharray}
+                        strokeDashoffset={dashoffset}
+                        transform="rotate(-90 18 18)"
+                      />
+                    ))}
+                  </svg>
+                  <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+                    <div className="rounded-full bg-white px-4 py-3 text-center shadow-sm">
+                      <p className="text-xs text-muted-foreground">총 프로젝트</p>
+                      <p className="text-xl font-semibold text-foreground">{donutTotal}</p>
                     </div>
-                    <span className="w-12 text-right text-xs text-muted-foreground">{percent}%</span>
                   </div>
-                );
-              })}
-            </div>
-          </CardContent>
-        </Card>
-        </div>
+                </div>
+                <div className="space-y-3">
+                  {statusSlices.map((slice) => {
+                    const percent = Math.round((slice.value / donutTotal) * 100);
+                    return (
+                      <div key={slice.label} className="flex items-center gap-3 px-4 py-3 rounded-xl bg-white/90 shadow-sm text-sm">
+                        <span className="h-2 w-2 rounded-full" style={{ backgroundColor: slice.color }} />
+                        <span className="w-28">{slice.label}</span>
+                        <div className="flex-1 h-2 rounded-full bg-muted overflow-hidden">
+                          <div className="h-full rounded-full" style={{ backgroundColor: slice.color, width: `${percent}%` }} />
+                        </div>
+                        <span className="w-12 text-right text-xs text-muted-foreground">{percent}%</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
 
         <Card className="rounded-xl border border-white/70 bg-white/90 shadow-sm backdrop-blur">
           <CardHeader className="flex flex-row items-center justify-between gap-4 pb-2">
