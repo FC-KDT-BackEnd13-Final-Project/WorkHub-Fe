@@ -430,8 +430,8 @@ export function ProjectPost2() {
                 <Table2 className="table-fixed w-full">
                   <colgroup>
                     <col style={{ width: "8%" }} />
-                    <col style={{ width: "12%" }} />
-                    <col style={{ width: "12%" }} />
+                    <col style={{ width: "14%" }} />
+                    <col style={{ width: "10%" }} />
                     <col style={{ width: "28%" }} />
                     <col style={{ width: "28%" }} />
                     <col style={{ width: "6%" }} />

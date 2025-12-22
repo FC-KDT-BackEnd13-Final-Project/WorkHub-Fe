@@ -26,19 +26,21 @@ export function PaginationControls({ currentPage, totalPages, onPageChange, clas
     onPageChange(clamped);
   };
 
-  // 페이지 번호는 10개 단위로만 보여준다 (1~10, 11~20 ...)
-  const startPage = Math.floor((currentPage - 1) / 10) * 10 + 1;
-  const endPage = Math.min(startPage + 9, totalPages);
-  const pageNumbers = Array.from({ length: endPage - startPage + 1 }, (_, index) => startPage + index);
+  const windowSize = 5;
+  const startPage = Math.floor((currentPage - 1) / windowSize) * windowSize + 1;
+  const endPage = Math.min(startPage + windowSize - 1, totalPages);
+  const totalPageCount = endPage - startPage + 1;
+  const visibleCount = Math.min(totalPageCount, windowSize);
+  const pageNumbers = Array.from({ length: visibleCount }, (_, index) => startPage + index);
 
   return (
-    <div className={cn("flex items-center justify-center gap-2", className)}>
+    <div className={cn("flex flex-wrap items-center justify-center gap-2", className)}>
       <button
         type="button"
         className={cn(buttonBaseClass, navButtonClass)}
-        onClick={() => goToPage(startPage - 10)}
+        onClick={() => goToPage(startPage - windowSize)}
         disabled={startPage === 1}
-        aria-label="이전 10페이지"
+        aria-label="이전 5페이지"
       >
         <ChevronsLeft className="h-4 w-4" aria-hidden />
       </button>
@@ -77,9 +79,9 @@ export function PaginationControls({ currentPage, totalPages, onPageChange, clas
       <button
         type="button"
         className={cn(buttonBaseClass, navButtonClass)}
-        onClick={() => goToPage(startPage + 10)}
+        onClick={() => goToPage(startPage + windowSize)}
         disabled={endPage === totalPages}
-        aria-label="다음 10페이지"
+        aria-label="다음 5페이지"
       >
         <ChevronsRight className="h-4 w-4" aria-hidden />
       </button>

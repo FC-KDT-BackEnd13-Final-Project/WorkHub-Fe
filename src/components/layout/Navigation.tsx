@@ -62,18 +62,7 @@ export function Navigation({ mobileMenuContent }: NavigationProps = {}) {
     serializer: (value) => (value ? "true" : "false"),
     listen: true,
   });
-  const [sessionExpiry, setSessionExpiry, removeSessionExpiry] = useLocalStorageValue<number | null>(
-    "workhub:auth:expiry",
-    {
-      defaultValue: null,
-      parser: (value) => {
-        const parsed = Number(value);
-        return Number.isFinite(parsed) ? parsed : null;
-      },
-      serializer: (value) => (value == null ? "" : String(value)),
-      listen: true,
-    },
-  );
+  const [sessionExpiry, setSessionExpiry] = useState<number | null>(null);
 
   const toggleTheme = () => {
     setTheme(isDark ? "light" : "dark");
@@ -82,25 +71,33 @@ export function Navigation({ mobileMenuContent }: NavigationProps = {}) {
   const handleLogout = () => {
     setAuthState(false);
     removeAuthState();
-    removeSessionExpiry();
+    setSessionExpiry(null);
     window.location.href = "/";
   };
 
   useEffect(() => {
     if (!isAuthenticated) {
       setRemainingMs(null);
-      removeSessionExpiry();
+      return;
+    }
+
+    setSessionExpiry(Date.now() + SESSION_DURATION_MS);
+  }, [isAuthenticated]);
+
+  useEffect(() => {
+    if (!isAuthenticated || sessionExpiry == null) {
+      setRemainingMs(null);
       return;
     }
 
     const now = Date.now();
-    const expiry = sessionExpiry && sessionExpiry > now ? sessionExpiry : now + SESSION_DURATION_MS;
-    if (expiry !== sessionExpiry) {
-      setSessionExpiry(expiry);
+    if (sessionExpiry <= now) {
+      handleLogout();
+      return;
     }
 
     const tick = () => {
-      const diff = expiry - Date.now();
+      const diff = sessionExpiry - Date.now();
       if (diff <= 0) {
         setRemainingMs(0);
         handleLogout();
