@@ -478,16 +478,25 @@ export function SupportPage() {
               <div className="hidden md:block">
                 <Card2 className="overflow-hidden">
                   <CardContent className="p-0">
-                    <Table2>
+                    <Table2 className="table-fixed w-full">
+                      <colgroup>
+                        <col style={{ width: "8%" }} />
+                        <col style={{ width: "8%" }} />
+                        <col style={{ width: "8%" }} />
+                        <col style={{ width: "28%" }} />
+                        <col style={{ width: "28%" }} />
+                        <col style={{ width: "10%" }} />
+                        <col style={{ width: "10%" }} />
+                      </colgroup>
                       <TableHeader>
                         <TableRow>
                           <TableHead className="px-2 w-[56px] text-center">No</TableHead>
-                          <TableHead>작성자</TableHead>
-                          <TableHead>상태</TableHead>
-                          <TableHead>제목</TableHead>
-                          <TableHead>내용</TableHead>
-                          <TableHead>생성일</TableHead>
-                          <TableHead>수정일</TableHead>
+                          <TableHead className="text-center">작성자</TableHead>
+                          <TableHead className="text-center">상태</TableHead>
+                          <TableHead className="text-center">제목</TableHead>
+                          <TableHead className="text-center">내용</TableHead>
+                          <TableHead className="text-center">생성일</TableHead>
+                          <TableHead className="text-center">수정일</TableHead>
                         </TableRow>
                       </TableHeader>
 
@@ -527,11 +536,11 @@ export function SupportPage() {
                                   {currentPage * ITEMS_PER_PAGE + index + 1}
                                 </TableCell>
 
-                                <TableCell className="px-3 py-2 whitespace-nowrap">
+                                <TableCell className="px-3 py-2 whitespace-nowrap text-center">
                                   {ticket.customerName}
                                 </TableCell>
 
-                                <TableCell className="px-3 py-2 whitespace-nowrap">
+                                <TableCell className="px-3 py-2 whitespace-nowrap text-center">
                                   {hasStatus && statusStyle && (
                                     <span
                                       className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium border"
@@ -547,22 +556,22 @@ export function SupportPage() {
                                 </TableCell>
 
                                 <TableCell className="px-3 py-2 whitespace-normal">
-                                  <div className="w-[200px]" title={ticket.title}>
+                                  <div className="truncate text-center" title={ticket.title}>
                                     {truncatedTitle}
                                   </div>
                                 </TableCell>
 
                                 <TableCell className="px-3 py-2 whitespace-normal">
-                                  <div className="w-[260px] truncate" title={normalizedContent}>
+                                  <div className="truncate text-center" title={normalizedContent}>
                                     {truncatedContent}
                                   </div>
                                 </TableCell>
 
-                                <TableCell className="px-3 py-2 whitespace-nowrap">
+                                <TableCell className="px-3 py-2 whitespace-nowrap text-center">
                                   {formatDateOnly(ticket.createdDate)}
                                 </TableCell>
 
-                                <TableCell className="px-3 py-2 whitespace-nowrap">
+                                <TableCell className="px-3 py-2 whitespace-nowrap text-center">
                                   {ticket.updatedDate ? formatDateOnly(ticket.updatedDate) : ""}
                                 </TableCell>
                               </TableRow>

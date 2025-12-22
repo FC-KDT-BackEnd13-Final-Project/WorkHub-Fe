@@ -26,14 +26,21 @@ export function NotificationList({ notifications, onMarkRead, onOpen }: Notifica
       <div className="min-h-0 rounded-2xl border border-white/70 bg-white/90 p-6 shadow-sm backdrop-blur">
         <div className="min-h-0 md:max-h-[700px] md:overflow-y-auto md:pr-1">
           <div className="hidden md:block">
-            <Table>
+            <Table className="table-fixed w-full">
+              <colgroup>
+                <col style={{ width: "36%" }} />
+                <col style={{ width: "22%" }} />
+                <col style={{ width: "14%" }} />
+                <col style={{ width: "14%" }} />
+                <col style={{ width: "14%" }} />
+              </colgroup>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="w-1/3">알림</TableHead>
-                  <TableHead className="w-1/6 text-center">유형</TableHead>
-                  <TableHead className="w-1/6 text-center">상태</TableHead>
-                  <TableHead className="w-1/6 text-center">수신 시각</TableHead>
-                  <TableHead className="w-1/6 text-center">확인</TableHead>
+                  <TableHead className="w-[36%]">알림</TableHead>
+                  <TableHead className="w-[22%] text-center">유형</TableHead>
+                  <TableHead className="w-[14%] text-center">상태</TableHead>
+                  <TableHead className="w-[14%] text-center">수신 시각</TableHead>
+                  <TableHead className="w-[14%] text-center">확인</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
