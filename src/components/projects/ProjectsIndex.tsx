@@ -1764,6 +1764,7 @@ export function ProjectsIndex() {
                             >
                               <Badge
                                   variant="outline"
+                                  className="px-3 py-1 text-xs"
                                   style={{
                                     backgroundColor: badgeColors.background,
                                     color: badgeColors.text,
