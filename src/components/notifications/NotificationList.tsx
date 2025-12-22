@@ -7,13 +7,12 @@ import { calculateTotalPages, paginate } from "../../utils/pagination";
 interface NotificationListProps {
   notifications: Notification[];
   onMarkRead: (id: string) => void;
-  onRemove: (id: string) => void;
   onOpen?: (notification: Notification) => void;
 }
 
 const PAGE_SIZE = 10;
 
-export function NotificationList({ notifications, onMarkRead, onRemove, onOpen }: NotificationListProps) {
+export function NotificationList({ notifications, onMarkRead, onOpen }: NotificationListProps) {
   const [currentPage, setCurrentPage] = useState(1);
 
   const totalPages = calculateTotalPages(notifications.length, PAGE_SIZE);
@@ -39,13 +38,7 @@ export function NotificationList({ notifications, onMarkRead, onRemove, onOpen }
               </TableHeader>
               <TableBody>
                 {paginatedNotifications.map((notification) => (
-                  <NotificationItem
-                    key={notification.id}
-                    notification={notification}
-                    onMarkRead={onMarkRead}
-                    onRemove={onRemove}
-                    onOpen={onOpen}
-                  />
+                  <NotificationItem key={notification.id} notification={notification} onMarkRead={onMarkRead} onOpen={onOpen} />
                 ))}
               </TableBody>
             </Table>
@@ -57,14 +50,7 @@ export function NotificationList({ notifications, onMarkRead, onRemove, onOpen }
           </div>
           <div className="flex flex-col gap-3 md:hidden">
             {paginatedNotifications.map((notification) => (
-              <NotificationItem
-                key={notification.id}
-                notification={notification}
-                onMarkRead={onMarkRead}
-                onRemove={onRemove}
-                onOpen={onOpen}
-                variant="card"
-              />
+              <NotificationItem key={notification.id} notification={notification} onMarkRead={onMarkRead} onOpen={onOpen} variant="card" />
             ))}
             {paginatedNotifications.length === 0 && (
               <p className="py-8 text-center text-sm text-muted-foreground">
