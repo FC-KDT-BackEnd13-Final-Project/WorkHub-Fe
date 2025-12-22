@@ -427,7 +427,16 @@ export function ProjectPost2() {
           <Card2 className="text-card-foreground flex flex-col gap-6 rounded-2xl border border-white/70 bg-white/90 shadow-sm backdrop-blur overflow-hidden">
             <CardContent className="p-0">
               <div className="w-full">
-                <Table2>
+                <Table2 className="table-fixed w-full">
+                  <colgroup>
+                    <col style={{ width: "8%" }} />
+                    <col style={{ width: "12%" }} />
+                    <col style={{ width: "12%" }} />
+                    <col style={{ width: "28%" }} />
+                    <col style={{ width: "28%" }} />
+                    <col style={{ width: "6%" }} />
+                    <col style={{ width: "6%" }} />
+                  </colgroup>
                   <TableHeader>
                     <TableRow>
                       <TableHead className="text-foreground h-10 align-middle font-medium whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] px-2 w-[56px] text-center">
@@ -475,17 +484,14 @@ export function ProjectPost2() {
                               </TableCell>
 
                               {/* 작성자 */}
-                              <TableCell className="p-2 align-middle [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] px-3 py-2 whitespace-nowrap">
-                                <div
-                                    className="w-[80px] truncate"
-                                    title={customer.customerName}
-                                >
+                              <TableCell className="p-2 align-middle [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] px-3 py-2 whitespace-nowrap text-center">
+                                <div className="truncate" title={customer.customerName}>
                                   {customer.customerName}
                                 </div>
                               </TableCell>
 
                               {/* 타입 - 색 배지 */}
-                              <TableCell className="p-2 align-middle [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] px-3 py-2 whitespace-nowrap">
+                              <TableCell className="p-2 align-middle [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] px-3 py-2 whitespace-nowrap text-center">
                             <span
                                 className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium border"
                                 style={{
@@ -500,25 +506,25 @@ export function ProjectPost2() {
 
                               {/* 제목 (말줄임표) */}
                               <TableCell className="p-2 align-middle [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] px-3 py-2 whitespace-normal">
-                                <div className="w-[200px]" title={customer.title}>
+                                <div className="truncate text-center" title={customer.title}>
                                   {truncatedTitle}
                                 </div>
                               </TableCell>
 
                               {/* 내용 (말줄임표) */}
                               <TableCell className="p-2 align-middle [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] px-3 py-2 whitespace-normal">
-                                <div className="w-[260px] truncate" title={normalizedContent}>
+                                <div className="truncate text-center" title={normalizedContent}>
                                   {truncatedContent}
                                 </div>
                               </TableCell>
 
                               {/* 생성일 */}
-                              <TableCell className="p-2 align-middle [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] px-3 py-2 whitespace-nowrap">
+                              <TableCell className="p-2 align-middle [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] px-3 py-2 whitespace-nowrap text-center">
                                 {formatPostDate(customer.createdDate)}
                               </TableCell>
 
                               {/* 수정일 */}
-                              <TableCell className="p-2 align-middle [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] px-3 py-2 whitespace-nowrap">
+                              <TableCell className="p-2 align-middle [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] px-3 py-2 whitespace-nowrap text-center">
                                 {formatPostDate(customer.updatedDate)}
                               </TableCell>
                             </TableRow>

@@ -1,4 +1,4 @@
-import { Bell, ArrowRight } from "lucide-react";
+import { Bell } from "lucide-react";
 import { NotificationBadge } from "./NotificationBadge";
 import { TableCell, TableRow } from "../ui/table";
 import { cn } from "../ui/utils";
@@ -155,14 +155,18 @@ export function NotificationItem({ notification, onMarkRead, onOpen, variant = "
       className={cn("transition-colors", isNew ? "bg-primary/5" : undefined, onOpen && "cursor-pointer")}
       onClick={() => onOpen?.(notification)}
     >
-      <TableCell className="p-2 align-middle">
-        <div className="flex items-center gap-3">
+      <TableCell className="p-2 align-middle whitespace-normal break-words">
+        <div className="flex items-center gap-3 min-w-0">
           {avatarElement}
-          <div>
-            <p className="font-semibold">{title}</p>
-            <p className="text-xs text-muted-foreground">{description}</p>
+          <div className="min-w-0 space-y-1">
+            <p className="font-semibold truncate w-full" title={title}>
+              {title}
+            </p>
+            <p className="text-xs text-muted-foreground truncate w-full" title={description}>
+              {description}
+            </p>
             {actorName && (
-              <p className="mt-1 text-[11px] text-muted-foreground">
+              <p className="mt-1 text-[11px] text-muted-foreground truncate w-full" title={actorName}>
                 {actorName}
                 {userId ? ` · ${userId}` : null}
               </p>
