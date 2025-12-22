@@ -1,4 +1,5 @@
 import { useMemo, useState, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import { CheckSquare } from "lucide-react";
 import type { NotificationTab } from "../../components/notifications/NotificationTabs";
 import { NotificationList } from "../../components/notifications/NotificationList";
@@ -18,7 +19,8 @@ import { useNotificationCenter } from "../../contexts/NotificationContext";
 
 // 알림 목록/필터/읽음 처리를 제공하는 알림 페이지
 export function NotificationsPage() {
-  const { notifications, markRead, markAllRead, loading, error, refresh } = useNotificationCenter();
+  const { notifications, markRead, markAllRead, loading, error, refresh, resolveLink } = useNotificationCenter();
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<NotificationTab>("All");
   const [searchTerm, setSearchTerm] = useState("");
   const [eventFilter, setEventFilter] = useState<NotificationEventFilter>("all");
@@ -41,6 +43,15 @@ export function NotificationsPage() {
       markRead(id);
     },
     [markRead],
+  );
+
+  const handleOpen = useCallback(
+    (notification: Notification) => {
+      handleMarkRead(notification.id);
+      const target = resolveLink(notification);
+      navigate(target);
+    },
+    [handleMarkRead, navigate, resolveLink],
   );
 
   return (
@@ -110,6 +121,10 @@ export function NotificationsPage() {
               <SelectItem value="STATUS_CHANGED">상태 변경 안내</SelectItem>
               <SelectItem value="POST_CREATED">게시글 등록</SelectItem>
               <SelectItem value="POST_COMMENT_CREATED">게시글 댓글 등록</SelectItem>
+              <SelectItem value="CHECKLIST_CREATED">체크리스트 생성</SelectItem>
+              <SelectItem value="CHECKLIST_UPDATED">체크리스트 수정</SelectItem>
+              <SelectItem value="CHECKLIST_ITEM_STATUS_CHANGED">체크리스트 항목 상태 변경</SelectItem>
+              <SelectItem value="CHECKLIST_COMMENT_CREATED">체크리스트 댓글 등록</SelectItem>
               <SelectItem value="CS_QNA_CREATED">CS 질문 등록</SelectItem>
               <SelectItem value="CS_QNA_ANSWERED">CS 답변 완료</SelectItem>
             </SelectContent>
@@ -142,7 +157,7 @@ export function NotificationsPage() {
         </div>
       )}
 
-      <NotificationList notifications={filteredNotifications} onMarkRead={handleMarkRead} />
+      <NotificationList notifications={filteredNotifications} onMarkRead={handleMarkRead} onOpen={handleOpen} />
     </div>
   );
 }

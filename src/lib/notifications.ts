@@ -41,6 +41,10 @@ const NOTIFICATION_EVENT_TYPES: NotificationEventType[] = [
   "CS_QNA_ANSWERED",
   "CS_POST_CREATED",
   "CS_POST_UPDATED",
+  "CHECKLIST_CREATED",
+  "CHECKLIST_UPDATED",
+  "CHECKLIST_ITEM_STATUS_CHANGED",
+  "CHECKLIST_COMMENT_CREATED",
 ];
 
 export async function fetchUnreadAndRecent(): Promise<NotificationDto[]> {
@@ -173,8 +177,24 @@ export function normalizeNotification(dto: NotificationDto): Notification {
   const csPostId = dto.csPostId ? String(dto.csPostId) : undefined;
   const csQnaId = dto.csQnaId ? String(dto.csQnaId) : undefined;
   const commentId = dto.commentId ? String(dto.commentId) : undefined;
-  const linkCandidate = dto.link ?? dto.relatedUrl ?? dto.externalUrl;
-  const link = linkCandidate && linkCandidate.startsWith("/api/") ? undefined : linkCandidate;
+  let linkCandidate = dto.link ?? dto.relatedUrl ?? dto.externalUrl;
+  if (linkCandidate && linkCandidate.startsWith("/api/")) {
+    const checklistMatch = linkCandidate.match(/\/api\/v1\/projects\/([^/]+)\/nodes\/([^/]+)\/checkLists/i);
+    const nodeMatch = linkCandidate.match(/\/api\/v1\/projects\/([^/]+)\/nodes\/([^/]+)/i);
+    if (checklistMatch) {
+      const [, pid, nid] = checklistMatch;
+      linkCandidate = `/projects/${pid}/nodes/${nid}`;
+    } else if (nodeMatch) {
+      const [, pid, nid] = nodeMatch;
+      linkCandidate = `/projects/${pid}/nodes/${nid}`;
+    } else {
+      linkCandidate = undefined;
+    }
+  }
+  const link =
+    linkCandidate && /\/checklists$/i.test(linkCandidate)
+      ? linkCandidate.replace(/\/checklists$/i, "")
+      : linkCandidate;
 
   return {
     id: String(dto.id),

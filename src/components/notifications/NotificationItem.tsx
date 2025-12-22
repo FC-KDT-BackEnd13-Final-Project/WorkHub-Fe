@@ -20,7 +20,11 @@ export type NotificationEventType =
   | "CS_QNA_CREATED"
   | "CS_QNA_ANSWERED"
   | "CS_POST_CREATED"
-  | "CS_POST_UPDATED";
+  | "CS_POST_UPDATED"
+  | "CHECKLIST_CREATED"
+  | "CHECKLIST_UPDATED"
+  | "CHECKLIST_ITEM_STATUS_CHANGED"
+  | "CHECKLIST_COMMENT_CREATED";
 
 export interface Notification {
   id: string;
