@@ -34,6 +34,18 @@ type ChecklistTemplateDraft = {
   items: CheckListItemPayload[];
 };
 
+const sanitizeTemplateItems = (items: CheckListItemPayload[]): CheckListItemPayload[] =>
+  items.map((item) => ({
+    itemTitle: item.itemTitle,
+    itemOrder: item.itemOrder,
+    templateId: item.templateId ?? null,
+    options: (item.options ?? []).map((option) => ({
+      optionContent: option.optionContent,
+      optionOrder: option.optionOrder,
+      fileUrls: [],
+    })),
+  }));
+
 const parseTemplateStorage = (value: string): ChecklistTemplateDraft[] => {
   try {
     const parsed: unknown = JSON.parse(value);
@@ -45,7 +57,7 @@ const parseTemplateStorage = (value: string): ChecklistTemplateDraft[] => {
       .filter((item): item is Record<string, unknown> => typeof item === "object" && item !== null)
       .map((item) => {
         const items = Array.isArray(item.items)
-          ? (item.items as CheckListItemPayload[])
+          ? sanitizeTemplateItems(item.items as CheckListItemPayload[])
           : ([] as CheckListItemPayload[]);
         return {
           id: typeof item.id === "string" ? item.id : `template-${Date.now()}`,
@@ -80,16 +92,7 @@ const parseTemplateStorage = (value: string): ChecklistTemplateDraft[] => {
 };
 
 const cloneTemplateItems = (items: CheckListItemPayload[]): CheckListItemPayload[] =>
-  items.map((item) => ({
-    itemTitle: item.itemTitle,
-    itemOrder: item.itemOrder,
-    templateId: item.templateId ?? null,
-    options: (item.options ?? []).map((option) => ({
-      optionContent: option.optionContent,
-      optionOrder: option.optionOrder,
-      fileUrls: [...option.fileUrls],
-    })),
-  }));
+  sanitizeTemplateItems(items);
 
 const extractFileNameFromUrl = (value: string): string => {
   if (!value) return "첨부파일";
@@ -106,8 +109,9 @@ const extractFileNameFromUrl = (value: string): string => {
 
 const convertTemplateItemsToResponses = (
   items: CheckListItemPayload[],
-): CheckListItemResponse[] =>
-  items.map((item, itemIndex) => ({
+): CheckListItemResponse[] => {
+  const sanitizedItems = sanitizeTemplateItems(items);
+  return sanitizedItems.map((item, itemIndex) => ({
     checkListItemId: -((itemIndex + 1) * 1000),
     itemTitle: item.itemTitle,
     itemOrder: typeof item.itemOrder === "number" ? item.itemOrder : itemIndex,
@@ -118,16 +122,11 @@ const convertTemplateItemsToResponses = (
       checkListOptionId: -((itemIndex + 1) * 1000 + optionIndex + 1),
       optionContent: option.optionContent,
       optionOrder: typeof option.optionOrder === "number" ? option.optionOrder : optionIndex,
-      files: (option.fileUrls ?? []).map((fileUrl, fileOrder) => ({
-        checkListOptionFileId: -(
-          (itemIndex + 1) * 100000 + optionIndex * 100 + fileOrder + 1
-        ),
-        fileUrl,
-        fileName: extractFileNameFromUrl(fileUrl),
-        fileOrder,
-      })),
+      // 템플릿 적용 시 첨부파일은 제외 (S3 URL 충돌 방지)
+      files: [],
     })),
   }));
+};
 
 const formatTemplateTimestamp = (value: string): string => {
   if (!value) return "";
@@ -626,6 +625,9 @@ export function ProjectChecklist2() {
           {
             description,
             items,
+            saveAsTemplate: saveAsTemplate ? true : false,
+            templateTitle: saveAsTemplate ? trimmedTemplateName : undefined,
+            templateDescription: saveAsTemplate ? trimmedTemplateMemo : undefined,
           },
           files,
         );
@@ -662,6 +664,8 @@ export function ProjectChecklist2() {
         }
       }
       if (saveAsTemplate) {
+        // 서버에 템플릿 저장 요청은 이미 API로 전송됨
+        // 추가로 로컬 스토리지에도 저장 (백업용)
         persistTemplateDraft({
           name: trimmedTemplateName,
           memo: trimmedTemplateMemo,

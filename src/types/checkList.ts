@@ -107,6 +107,9 @@ export interface CheckListItemPayload {
 export interface CheckListCreateRequest {
   description: string;
   items: CheckListItemPayload[];
+  saveAsTemplate?: boolean;
+  templateTitle?: string;
+  templateDescription?: string;
 }
 
 export type CheckListUpdateCommandType = "CREATE" | "UPDATE" | "DELETE";
