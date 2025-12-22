@@ -216,7 +216,7 @@ export function UserHistoryPage() {
       let data: Awaited<ReturnType<typeof historyApi.getAdminHistories>>;
 
       if (activeTab === "user") {
-        data = await historyApi.getAdminHistories(params);
+        data = await historyApi.getAllAdminHistories(params);
       } else if (historyTypes && historyTypes.length > 0) {
         data = await historyApi.getHistoriesByType(historyTypes, params);
       } else {
