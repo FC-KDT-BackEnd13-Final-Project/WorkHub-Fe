@@ -330,6 +330,212 @@ export function ProjectChecklist2() {
         })),
       })),
     }));
+
+  /**
+   * 부분 업데이트: 실제 변경된 항목만 감지하여 UPDATE/CREATE/DELETE 명령 생성
+   *
+   * 매칭 전략:
+   * - itemOrder 기준으로 매칭 (같은 위치 = 같은 항목)
+   * - itemOrder가 기존 범위를 벗어나면 CREATE
+   * - 기존 항목 중 새 목록에 없는 것은 DELETE
+   */
+  const buildUpdateCommands = (
+    existingItems: CheckListItemResponse[],
+    newItems: CheckListItemPayload[],
+  ): CheckListItemUpdatePayload[] => {
+    const commands: CheckListItemUpdatePayload[] = [];
+    const processedIds = new Set<number>();
+
+    // 1. 새 항목들을 순회하면서 CREATE 또는 UPDATE 판단
+    newItems.forEach((newItem, newIndex) => {
+      // 같은 순서(index)의 기존 항목이 있는지 확인
+      const existingItem = existingItems[newIndex];
+
+      if (!existingItem || existingItem.checkListItemId < 0) {
+        // CREATE: 기존 항목이 없거나 임시 ID인 경우
+        commands.push({
+          changeType: "CREATE",
+          itemTitle: newItem.itemTitle,
+          itemOrder: newIndex,
+          templateId: newItem.templateId ?? null,
+          options: (newItem.options ?? []).map((option, optionOrder) => ({
+            changeType: "CREATE",
+            optionContent: option.optionContent,
+            optionOrder,
+            files: option.fileUrls.map((fileUrl, fileOrder) => ({
+              changeType: "CREATE" as const,
+              fileUrl,
+              fileOrder,
+            })),
+          })),
+        });
+      } else {
+        // UPDATE: 기존 항목 수정
+        const itemId = existingItem.checkListItemId;
+        processedIds.add(itemId);
+
+        const titleChanged = existingItem.itemTitle !== newItem.itemTitle;
+        const orderChanged = existingItem.itemOrder !== newIndex;
+        const templateChanged = (existingItem.templateId ?? null) !== (newItem.templateId ?? null);
+
+        // 옵션 변경 감지
+        const optionCommands = buildOptionUpdateCommands(
+          existingItem.options ?? [],
+          newItem.options ?? []
+        );
+
+        // 항목이나 옵션이 변경된 경우에만 UPDATE 명령 추가
+        if (titleChanged || orderChanged || templateChanged || optionCommands.length > 0) {
+          commands.push({
+            changeType: "UPDATE",
+            checkListItemId: itemId,
+            itemTitle: titleChanged ? newItem.itemTitle : undefined,
+            itemOrder: orderChanged ? newIndex : undefined,
+            templateId: templateChanged ? (newItem.templateId ?? null) : undefined,
+            options: optionCommands.length > 0 ? optionCommands : undefined,
+          });
+        }
+      }
+    });
+
+    // 2. 삭제된 항목 찾기 (새 목록보다 기존 목록이 더 긴 경우)
+    for (let i = newItems.length; i < existingItems.length; i++) {
+      const item = existingItems[i];
+      if (item.checkListItemId > 0 && !processedIds.has(item.checkListItemId)) {
+        commands.push({
+          changeType: "DELETE",
+          checkListItemId: item.checkListItemId,
+        });
+      }
+    }
+
+    return commands;
+  };
+
+  /**
+   * 옵션 변경 감지 및 명령 생성
+   */
+  const buildOptionUpdateCommands = (
+    existingOptions: CheckListOptionResponse[],
+    newOptions: CheckListOptionPayload[],
+  ) => {
+    const commands: any[] = [];
+    const existingOptionsMap = new Map(
+      existingOptions.map((opt) => [opt.checkListOptionId, opt])
+    );
+    const processedIds = new Set<number>();
+
+    // 1. 새 옵션들을 순회하면서 CREATE 또는 UPDATE 판단
+    newOptions.forEach((newOption, optionOrder) => {
+      const existingOption = existingOptions.find(
+        (opt) => opt.optionContent === newOption.optionContent && opt.optionOrder === optionOrder
+      );
+
+      if (!existingOption || existingOption.checkListOptionId < 0) {
+        // CREATE: 새 옵션 추가
+        commands.push({
+          changeType: "CREATE",
+          optionContent: newOption.optionContent,
+          optionOrder,
+          files: newOption.fileUrls.map((fileUrl, fileOrder) => ({
+            changeType: "CREATE" as const,
+            fileUrl,
+            fileOrder,
+          })),
+        });
+      } else {
+        // UPDATE: 기존 옵션 수정
+        const optionId = existingOption.checkListOptionId;
+        processedIds.add(optionId);
+
+        const contentChanged = existingOption.optionContent !== newOption.optionContent;
+        const orderChanged = existingOption.optionOrder !== optionOrder;
+
+        // 파일 변경 감지
+        const fileCommands = buildFileUpdateCommands(
+          existingOption.files ?? [],
+          newOption.fileUrls ?? []
+        );
+
+        if (contentChanged || orderChanged || fileCommands.length > 0) {
+          commands.push({
+            changeType: "UPDATE",
+            checkListOptionId: optionId,
+            optionContent: contentChanged ? newOption.optionContent : undefined,
+            optionOrder: orderChanged ? optionOrder : undefined,
+            files: fileCommands.length > 0 ? fileCommands : undefined,
+          });
+        }
+      }
+    });
+
+    // 2. 삭제된 옵션 찾기
+    existingOptions.forEach((option) => {
+      if (option.checkListOptionId > 0 && !processedIds.has(option.checkListOptionId)) {
+        commands.push({
+          changeType: "DELETE",
+          checkListOptionId: option.checkListOptionId,
+        });
+      }
+    });
+
+    return commands;
+  };
+
+  /**
+   * 파일 변경 감지 및 명령 생성
+   */
+  const buildFileUpdateCommands = (
+    existingFiles: CheckListOptionFileResponse[],
+    newFileUrls: string[],
+  ) => {
+    const commands: any[] = [];
+    const existingFileUrlsMap = new Map(
+      existingFiles.map((file) => [file.fileUrl, file])
+    );
+    const processedIds = new Set<number>();
+
+    // 1. 새 파일들을 순회
+    newFileUrls.forEach((fileUrl, fileOrder) => {
+      const existingFile = existingFiles.find((file) => file.fileUrl === fileUrl);
+
+      if (!existingFile) {
+        // CREATE: 새 파일 추가
+        commands.push({
+          changeType: "CREATE" as const,
+          fileUrl,
+          fileOrder,
+        });
+      } else {
+        // UPDATE: 파일 순서 변경 체크
+        const fileId = existingFile.checkListOptionFileId;
+        processedIds.add(fileId);
+
+        if (existingFile.fileOrder !== fileOrder) {
+          commands.push({
+            changeType: "UPDATE" as const,
+            checkListOptionFileId: fileId,
+            fileUrl: undefined, // URL은 변경 안 함
+            fileOrder,
+          });
+        }
+        // 순서도 안 변경된 경우 명령 생성 안 함 (기존 유지)
+      }
+    });
+
+    // 2. 삭제된 파일 찾기
+    existingFiles.forEach((file) => {
+      if (!processedIds.has(file.checkListOptionFileId)) {
+        commands.push({
+          changeType: "DELETE" as const,
+          checkListOptionFileId: file.checkListOptionFileId,
+        });
+      }
+    });
+
+    return commands;
+  };
+
   const templateCount = templates.length;
 
   const persistTemplateDraft = useCallback(
@@ -661,18 +867,11 @@ export function ProjectChecklist2() {
           setIsLocked(true);
         }
       } else {
-        const deleteCommands: CheckListItemUpdatePayload[] = serverChecklistItems
-          .map((item) => item.checkListItemId)
-          .filter((id): id is number => typeof id === "number")
-          .map((id) => ({
-            changeType: "DELETE" as const,
-            checkListItemId: id,
-          }));
-
-        const createCommands = buildCreateCommands(items);
+        // 부분 업데이트: 실제 변경된 항목만 감지하여 전송
+        const updateCommands = buildUpdateCommands(serverChecklistItems, items);
         const payload: CheckListUpdateRequest = {
           description,
-          items: [...deleteCommands, ...createCommands],
+          items: updateCommands,
         };
 
         const response = await projectApi.updateCheckList(projectId!, nodeId!, payload, files);
