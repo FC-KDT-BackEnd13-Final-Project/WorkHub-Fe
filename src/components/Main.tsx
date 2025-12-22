@@ -268,12 +268,12 @@ function SkillsSection() {
   ];
 
   const mainSkills = [
-    { name: "React/Tailwind CSS", level: 30 },
-    { name: "TypeScript", level: 20 },
-    { name: "Java21", level: 10 },
-    { name: "Python", level: 15 },
-    { name: "PostgreSQL", level: 5 },
-    { name: "Docker", level: 20 },
+    { name: "CSS", level: 6.8 },
+    { name: "TypeScript", level: 93.2 },
+    { name: "Java21", level: 100 },
+    // { name: "Python", level: 15 },
+    // { name: "PostgreSQL", level: 5 },
+    // { name: "Docker", level: 20 },
   ];
 
   return (
