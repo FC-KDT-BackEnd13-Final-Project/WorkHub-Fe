@@ -1,3 +1,5 @@
+import type { NodeCategory } from "./projectNode";
+
 // API 응답 타입 (projectApi.getNodes는 data 배열을 반환)
 export type NodeListApiResponse = NodeApiItem[];
 
@@ -6,6 +8,7 @@ export interface NodeApiItem {
     projectNodeId: number;
     title: string;
     description: string;
+    nodeCategory?: NodeCategory;
     nodeStatus: NodeStatus;
     confirmStatus: ConfirmStatus;
     rejectText?: string | null;
