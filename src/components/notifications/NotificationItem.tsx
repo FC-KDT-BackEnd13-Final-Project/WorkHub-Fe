@@ -1,4 +1,4 @@
-import { Bell, Check, X } from "lucide-react";
+import { Bell, ArrowRight } from "lucide-react";
 import { NotificationBadge } from "./NotificationBadge";
 import { TableCell, TableRow } from "../ui/table";
 import { cn } from "../ui/utils";
@@ -51,12 +51,11 @@ export interface Notification {
 interface NotificationItemProps {
   notification: Notification;
   onMarkRead: (id: string) => void;
-  onRemove: (id: string) => void;
   onOpen?: (notification: Notification) => void;
   variant?: "table" | "card";
 }
 
-export function NotificationItem({ notification, onMarkRead, onRemove, onOpen, variant = "table" }: NotificationItemProps) {
+export function NotificationItem({ notification, onMarkRead, onOpen, variant = "table" }: NotificationItemProps) {
   const {
     id,
     title,
@@ -98,30 +97,19 @@ export function NotificationItem({ notification, onMarkRead, onRemove, onOpen, v
       <div
         className={cn(
           "rounded-2xl border border-white/70 bg-white/95 p-4 shadow-sm transition-colors",
-          isNew ? "ring-1 ring-primary/30" : undefined,
+          isNew ? "border-transparent bg-primary/5" : undefined,
           onOpen && "cursor-pointer hover:border-primary/50",
         )}
         onClick={() => onOpen?.(notification)}
       >
-        <div className="flex items-start gap-3">
-          {avatarElement}
-          <div className="flex-1 space-y-1">
-            <div className="flex flex-wrap items-center gap-2">
-              <p className="flex-1 text-sm font-semibold text-foreground">{title}</p>
-              <span className="text-xs text-muted-foreground">{timeAgo}</span>
-            </div>
-            <p className="text-xs text-muted-foreground">{description}</p>
-            {actorName && (
-              <p className="text-[11px] text-muted-foreground">
-                {actorName}
-                {userId ? ` · ${userId}` : null}
-              </p>
-            )}
-            <div className="flex flex-wrap items-center gap-2 pt-2">
-              <NotificationBadge eventType={eventType} className="px-2.5 py-0.5 text-[11px] font-semibold" />
+        <div className="flex h-full flex-col gap-4">
+          <div className="flex items-center justify-between text-xs">
+            <span className="text-muted-foreground">{timeAgo}</span>
+            <div className="flex items-center gap-2">
+              <NotificationBadge eventType={eventType} className="px-2 py-0.5 text-[10px] font-semibold" />
               <span
                 className={cn(
-                  "inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold",
+                  "inline-flex items-center justify-center rounded-full px-2 py-0.5 text-xs font-medium",
                   read ? "bg-muted text-muted-foreground" : "bg-primary text-primary-foreground",
                 )}
               >
@@ -129,32 +117,34 @@ export function NotificationItem({ notification, onMarkRead, onRemove, onOpen, v
               </span>
             </div>
           </div>
-        </div>
-        <div className="mt-3 flex items-center justify-end gap-2">
+          <div className="flex items-start gap-3">
+            {avatarElement}
+            <div className="flex-1 space-y-1">
+              {actorName && (
+                <p className="text-xs text-muted-foreground">
+                  보낸 사람 · {actorName}
+                  {userId ? ` · ${userId}` : null}
+                </p>
+              )}
+              <p className="text-base font-semibold leading-tight text-foreground">{title}</p>
+              <p className="mt-1 text-sm leading-snug text-muted-foreground">{description}</p>
+              
+            </div>
+          </div>
           {!read && (
-            <button
-              type="button"
-              onClick={(event) => {
-                event.stopPropagation();
-                onMarkRead(id);
-              }}
-              className="inline-flex items-center gap-1 rounded-full border border-border px-3 py-1 text-xs font-medium text-muted-foreground transition-colors hover:border-primary hover:text-primary"
-            >
-              <Check className="h-3.5 w-3.5" />
-              읽음 처리
-            </button>
+            <div className="mt-auto flex items-center justify-end text-[10px]">
+              <button
+                type="button"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onMarkRead(id);
+                }}
+                className="ml-auto inline-flex min-w-[80px] items-center justify-center gap-0.5 rounded-full border border-border px-2 py-0.5 text-xs font-medium text-muted-foreground transition-colors hover:border-primary hover:text-primary"
+              >
+                확인하기
+              </button>
+            </div>
           )}
-          <button
-            type="button"
-            onClick={(event) => {
-              event.stopPropagation();
-              onRemove(id);
-            }}
-            className="inline-flex items-center gap-1 rounded-full border border-border px-3 py-1 text-xs font-medium text-muted-foreground transition-colors hover:border-destructive hover:text-destructive"
-          >
-            <X className="h-3.5 w-3.5" />
-            삭제
-          </button>
         </div>
       </div>
     );
@@ -167,21 +157,7 @@ export function NotificationItem({ notification, onMarkRead, onRemove, onOpen, v
     >
       <TableCell className="p-2 align-middle">
         <div className="flex items-center gap-3">
-          {actorType === "system" ? (
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-muted text-muted-foreground">
-              <Bell className="h-5 w-5" />
-            </div>
-          ) : avatarUrl ? (
-            <img
-              src={avatarUrl}
-              alt={actorName ?? initials ?? "Notification"}
-              className="h-12 w-12 rounded-xl object-cover"
-            />
-          ) : (
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-muted text-sm font-semibold text-muted-foreground">
-              {initials ?? "NH"}
-            </div>
-          )}
+          {avatarElement}
           <div>
             <p className="font-semibold">{title}</p>
             <p className="text-xs text-muted-foreground">{description}</p>
@@ -209,7 +185,7 @@ export function NotificationItem({ notification, onMarkRead, onRemove, onOpen, v
       </TableCell>
       <TableCell className="p-2 align-middle text-center text-sm text-muted-foreground">{timeAgo}</TableCell>
       <TableCell className="p-2 align-middle">
-        <div className="flex items-center justify-center gap-2">
+        <div className="flex items-center justify-center">
           {!read && (
             <button
               type="button"
@@ -217,23 +193,12 @@ export function NotificationItem({ notification, onMarkRead, onRemove, onOpen, v
                 event.stopPropagation();
                 onMarkRead(id);
               }}
-              className="rounded-full p-1 text-muted-foreground transition-colors hover:bg-muted/40 hover:text-foreground"
+              className="rounded-full border border-border px-3 py-1 text-xs font-medium text-muted-foreground transition-colors hover:border-primary hover:text-primary"
               aria-label="읽음으로 표시"
             >
-              <Check className="h-4 w-4" />
+              확인하기
             </button>
           )}
-          <button
-            type="button"
-            onClick={(event) => {
-              event.stopPropagation();
-              onRemove(id);
-            }}
-            className="rounded-full p-1 text-muted-foreground transition-colors hover:bg-muted/40 hover:text-foreground"
-            aria-label="알림 삭제"
-          >
-            <X className="h-4 w-4" />
-          </button>
         </div>
       </TableCell>
     </TableRow>

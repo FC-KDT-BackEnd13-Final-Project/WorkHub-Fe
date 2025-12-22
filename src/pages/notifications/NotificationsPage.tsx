@@ -1,9 +1,7 @@
 import { useMemo, useState, useCallback } from "react";
 import { CheckSquare } from "lucide-react";
-import { useNavigate } from "react-router-dom";
 import type { NotificationTab } from "../../components/notifications/NotificationTabs";
 import { NotificationList } from "../../components/notifications/NotificationList";
-import type { Notification } from "../../components/notifications/NotificationItem";
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
 import {
@@ -20,9 +18,7 @@ import { useNotificationCenter } from "../../contexts/NotificationContext";
 
 // 알림 목록/필터/읽음 처리를 제공하는 알림 페이지
 export function NotificationsPage() {
-  const navigate = useNavigate();
-  const { notifications, markRead, markAllRead, removeNotification, resolveLink, loading, error, refresh } =
-    useNotificationCenter();
+  const { notifications, markRead, markAllRead, loading, error, refresh } = useNotificationCenter();
   const [activeTab, setActiveTab] = useState<NotificationTab>("All");
   const [searchTerm, setSearchTerm] = useState("");
   const [eventFilter, setEventFilter] = useState<NotificationEventFilter>("all");
@@ -47,22 +43,6 @@ export function NotificationsPage() {
     [markRead],
   );
 
-  const handleRemove = useCallback(
-    (id: string) => {
-      removeNotification(id);
-    },
-    [removeNotification],
-  );
-
-  const handleOpen = useCallback(
-    (notification: Notification) => {
-      handleMarkRead(notification.id);
-      const target = resolveLink(notification);
-      navigate(target);
-    },
-    [handleMarkRead, navigate, resolveLink],
-  );
-
   return (
     <div className="space-y-6 pb-12 min-h-0">
       <PageHeader
@@ -71,16 +51,16 @@ export function NotificationsPage() {
       />
 
       <FilterToolbar align="between">
-        <div className="flex flex-col gap-3 md:hidden">
+        <div className="flex flex-col gap-2 md:hidden">
           <Input
             placeholder="보고 싶은 알림을 키워드로 찾아보세요"
             value={searchTerm}
             onChange={(event) => setSearchTerm(event.target.value)}
             className="file:text-foreground placeholder:text-muted-foreground selection:bg-primary selection:text-primary-foreground dark:bg-input/30 border-input flex h-9 w-full rounded-md border bg-input-background px-3 py-1 text-sm outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
           />
-          <div className="flex flex-col gap-2">
+          <div className="flex items-center gap-2">
             <Select value={eventFilter} onValueChange={(value) => setEventFilter(value as typeof eventFilter)}>
-              <SelectTrigger className="border-input data-[placeholder]:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 h-9 w-full rounded-md border bg-input-background px-3 py-1 text-sm outline-none focus-visible:ring-[3px]">
+              <SelectTrigger className="border-input data-[placeholder]:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 h-9 w-full rounded-md border bg-input-background px-3 py-1 text-xs outline-none focus-visible:ring-[3px]">
                 <SelectValue placeholder="전체 유형" />
               </SelectTrigger>
               <SelectContent>
@@ -96,7 +76,7 @@ export function NotificationsPage() {
               </SelectContent>
             </Select>
             <Select value={readFilter} onValueChange={(value) => setReadFilter(value as typeof readFilter)}>
-              <SelectTrigger className="border-input data-[placeholder]:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 h-9 w-full rounded-md border bg-input-background px-3 py-1 text-sm outline-none focus-visible:ring-[3px]">
+              <SelectTrigger className="border-input data-[placeholder]:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 h-9 w-full rounded-md border bg-input-background px-3 py-1 text-xs outline-none focus-visible:ring-[3px]">
                 <SelectValue placeholder="읽지 않은 알림 조회" />
               </SelectTrigger>
               <SelectContent>
@@ -105,7 +85,7 @@ export function NotificationsPage() {
               </SelectContent>
             </Select>
           </div>
-          <Button className="h-9 px-4 text-sm" variant="default" onClick={markAllRead}>
+          <Button className="h-9 w-full px-4 text-sm" variant="default" onClick={markAllRead}>
             <CheckSquare className="h-4 w-4" />
             전체 읽음 처리
           </Button>
@@ -162,12 +142,7 @@ export function NotificationsPage() {
         </div>
       )}
 
-      <NotificationList
-        notifications={filteredNotifications}
-        onMarkRead={handleMarkRead}
-        onRemove={handleRemove}
-        onOpen={handleOpen}
-      />
+      <NotificationList notifications={filteredNotifications} onMarkRead={handleMarkRead} />
     </div>
   );
 }
