@@ -119,6 +119,27 @@ export function NotificationProvider({ enabled, children }: { enabled: boolean; 
         }
         return "/notifications";
       }
+      if (link.startsWith("/projects/") && link.includes("/nodes/") && link.includes("/posts/")) {
+        return link;
+      }
+      if (link.startsWith("/projects/") && link.includes("/nodes/")) {
+        return link;
+      }
+      if (link.startsWith("/projects/") && link.toLowerCase().includes("/checklists")) {
+        if (/\/checklists$/i.test(link)) {
+          return link.replace(/\/checklists$/i, "");
+        }
+        const parts = link.split("/");
+        const pid = parts[2] || projectId;
+        const nid = parts[4] || projectNodeId || nodeId;
+        if (pid && nid) {
+          return `/projects/${pid}/nodes/${nid}`;
+        }
+        return link;
+      }
+      if (link.startsWith("/projects/")) {
+        return `${link}/nodes`;
+      }
       return link;
     }
     if (externalUrl) return externalUrl;

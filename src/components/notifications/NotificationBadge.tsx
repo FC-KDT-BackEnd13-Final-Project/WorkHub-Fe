@@ -111,6 +111,30 @@ const typeStyles: Partial<
     color: "#365314",
     border: "#E3EAD7",
   },
+  CHECKLIST_CREATED: {
+    label: "체크리스트 생성",
+    bg: "#FFF7ED",
+    color: "#9A3412",
+    border: "#FED7AA",
+  },
+  CHECKLIST_UPDATED: {
+    label: "체크리스트 수정",
+    bg: "#FFF7ED",
+    color: "#9A3412",
+    border: "#FED7AA",
+  },
+  CHECKLIST_ITEM_STATUS_CHANGED: {
+    label: "항목 상태 변경",
+    bg: "#F7FEE7",
+    color: "#3F6212",
+    border: "#D9F99D",
+  },
+  CHECKLIST_COMMENT_CREATED: {
+    label: "체크리스트 댓글",
+    bg: "#ECFEFF",
+    color: "#155E75",
+    border: "#BAE6FD",
+  },
 };
 
 export function NotificationBadge({ eventType, className }: NotificationBadgeProps) {
