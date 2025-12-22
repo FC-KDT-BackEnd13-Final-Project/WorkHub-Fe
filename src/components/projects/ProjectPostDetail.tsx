@@ -110,6 +110,7 @@ interface ProjectPostDetailProps {
     initialPost?: PostPayload;
     backPath?: string;
     showBackButton?: boolean;
+    showReplyButton?: boolean;
     startInEditMode?: boolean;
     onDeletePost?: () => Promise<void> | void;
     isDeletingPost?: boolean;
@@ -132,6 +133,7 @@ export function ProjectPostDetail({
                                       initialPost,
                                       backPath,
                                       showBackButton = true,
+                                      showReplyButton = true,
                                       startInEditMode = false,
                                       onDeletePost,
                                       isDeletingPost = false,
@@ -663,6 +665,23 @@ export function ProjectPostDetail({
         return `${year}.${month}.${day}`;
     };
 
+    const formatCommentDateTime = (value?: string) => {
+        if (!value) return "";
+        const parsed = new Date(value);
+        if (Number.isNaN(parsed.getTime())) return value;
+        const year = parsed.getFullYear();
+        const month = String(parsed.getMonth() + 1).padStart(2, "0");
+        const day = String(parsed.getDate()).padStart(2, "0");
+        const hours = String(parsed.getHours()).padStart(2, "0");
+        const minutes = String(parsed.getMinutes()).padStart(2, "0");
+        return `${year}.${month}.${day} ${hours}:${minutes}`;
+    };
+
+    const formatDisplayTimestamp = (value?: string | null) => {
+        if (!value) return "";
+        return formatCommentDateTime(value ?? undefined);
+    };
+
     const postMetaItems = [
         post.customerName ? `작성자: ${post.customerName}` : undefined,
         post.createdDate ? `작성일: ${formatDateOnly(post.createdDate)}` : undefined,
@@ -675,11 +694,7 @@ export function ProjectPostDetail({
         type: postTypeState,
     };
 
-    const formatReplyDisplayDate = (value: string) => {
-        if (!value) return "";
-        const parsed = new Date(value);
-        return Number.isNaN(parsed.getTime()) ? value : parsed.toLocaleString("ko-KR");
-    };
+    const formatReplyDisplayDate = (value: string) => formatCommentDateTime(value);
 
     const getReplyUpdatedLabel = (reply: PostReplyItem) => {
         if (!reply.updatedAt) return null;
@@ -1576,7 +1591,7 @@ export function ProjectPostDetail({
             }
         }
 
-        const createdAt = new Date().toLocaleString("ko-KR");
+        const createdAt = new Date().toISOString();
         const now = Date.now();
         const newCommentId = `c-${now}`;
         const initialHistory: CommentHistoryEntry = {
@@ -1684,7 +1699,7 @@ export function ProjectPostDetail({
 
     const handleUpdateComment = async (id: string, content: string) => {
         if (!onUpdateInlineComment && !(useProjectApi && projectId && nodeId && mainPostId)) {
-            const updatedAt = new Date().toLocaleString("ko-KR");
+            const updatedAt = new Date().toISOString();
             setComments((prev) =>
                 prev.map((comment) =>
                     comment.id === id
@@ -1826,7 +1841,7 @@ export function ProjectPostDetail({
                 c.id === targetId ? { ...c, showReply: false, replyContent: "" } : c,
             );
 
-            const createdAt = new Date().toLocaleString("ko-KR");
+            const createdAt = new Date().toISOString();
             const now = Date.now();
             const replyId = `${rootId}-reply-${now}`;
             const newReply: CommentItem = {
@@ -1876,11 +1891,11 @@ export function ProjectPostDetail({
                         <div className="flex items-start justify-between gap-3">
                             <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                                 <span className="font-semibold text-foreground text-sm">{comment.author}</span>
-                                <span>{comment.createdAt}</span>
+                                <span>{formatCommentDateTime(comment.createdAt)}</span>
                                 {comment.updatedAt && (
                                     <span className="text-[11px] text-muted-foreground">
-                    · 수정: {comment.updatedAt}
-                  </span>
+                                        · 수정: {formatCommentDateTime(comment.updatedAt)}
+                                    </span>
                                 )}
                             </div>
 
@@ -2018,11 +2033,11 @@ export function ProjectPostDetail({
                     <span className="font-semibold text-foreground text-sm">
                       {reply.author}
                     </span>
-                                        <span>{reply.createdAt}</span>
+                                        <span>{formatCommentDateTime(reply.createdAt)}</span>
                                         {reply.updatedAt && (
                                             <span className="text-[11px] text-muted-foreground">
-                        · 수정: {reply.updatedAt}
-                      </span>
+                                                · 수정: {formatCommentDateTime(reply.updatedAt)}
+                                            </span>
                                         )}
                                     </div>
 
@@ -2155,11 +2170,15 @@ export function ProjectPostDetail({
     const historyCommentButton = (comment: CommentItem, parent?: CommentItem) => {
         const isSelected = historyViewCommentId === comment.id;
         const isDeleted = comment.status === "deleted";
-        const timestamp = comment.deletedAt
-            ? `${comment.deletedAt} (삭제됨)`
+        const timestampRaw = comment.deletedAt
+            ? comment.deletedAt
             : comment.updatedAt
                 ? comment.updatedAt
                 : comment.createdAt;
+        const formattedTimestamp = formatDisplayTimestamp(timestampRaw);
+        const timestampLabel = comment.deletedAt && formattedTimestamp
+            ? `${formattedTimestamp} (삭제됨)`
+            : formattedTimestamp;
         return (
             <button
                 key={comment.id}
@@ -2177,7 +2196,7 @@ export function ProjectPostDetail({
                         </span>
                         {isDeleted && <Badge2 variant="outline">삭제됨</Badge2>}
                     </span>
-                    <span className={isDeleted ? "text-destructive" : undefined}>{timestamp}</span>
+                    <span className={isDeleted ? "text-destructive" : undefined}>{timestampLabel}</span>
                 </div>
                 <p className="mt-1 line-clamp-2 whitespace-pre-wrap text-foreground">
                     {comment.content}
@@ -2659,12 +2678,12 @@ export function ProjectPostDetail({
                                                                     key={entry.id}
                                                                     className="rounded-md border bg-background p-2 text-sm space-y-1"
                                                                 >
-                                                                    <div className="flex items-center justify-between text-xs text-muted-foreground">
+                                                                    <div className="flex items-center justify-between текст-xs text-muted-foreground">
                                                                         <span className={isDeletedAction ? "text-destructive" : undefined}>
                                                                             {actionLabel}
                                                                         </span>
                                                                         <span className={isDeletedAction ? "text-destructive" : undefined}>
-                                                                            {entry.timestamp}
+                                                                            {formatDisplayTimestamp(entry.timestamp)}
                                                                         </span>
                                                                     </div>
                                                                     <div className="flex items-start justify-between gap-2">
@@ -2697,22 +2716,28 @@ export function ProjectPostDetail({
             </ModalShell>
 
             {/* 하단 버튼들 */}
-            {showBackButton && (
-                <div className="mt-2 flex w-full justify-between">
-                    <Button2
-                        variant="outline"
-                        onClick={startReplying}
-                        className="ml-auto w-auto"
-                    >
-                        답글쓰기
-                    </Button2>
-                    <Button2
-                        variant="outline"
-                        onClick={navigateBackToList}
-                        className="ml-auto w-auto"
-                    >
-                        목록으로
-                    </Button2>
+            {(showReplyButton || showBackButton) && (
+                <div className="mt-2 flex w-full">
+                    <div className="ml-auto flex justify-end gap-2">
+                        {showReplyButton && (
+                            <Button2
+                                variant="outline"
+                                onClick={startReplying}
+                                className="w-auto"
+                            >
+                                답글쓰기
+                            </Button2>
+                        )}
+                        {showBackButton && (
+                            <Button2
+                                variant="outline"
+                                onClick={navigateBackToList}
+                                className="w-auto"
+                            >
+                                목록으로
+                            </Button2>
+                        )}
+                    </div>
                 </div>
             )}
 
@@ -2760,15 +2785,17 @@ export function ProjectPostDetail({
                                             content: selectedRevision.content,
                                             type: post.type,
                                         }}
-                                        metaItems={[
-                                            selectedRevision.author && `작성자: ${selectedRevision.author}`,
-                                            (selectedRevision.updatedAt || selectedRevision.editedAt || selectedRevision.createdAt) &&
-                                                `수정일: ${
-                                                    selectedRevision.updatedAt ??
+                                        metaItems={(() => {
+                                            const dateLabel = formatDisplayTimestamp(
+                                                selectedRevision.updatedAt ??
                                                     selectedRevision.editedAt ??
-                                                    selectedRevision.createdAt
-                                                }`,
-                                        ].filter(Boolean) as string[]}
+                                                    selectedRevision.createdAt,
+                                            );
+                                            return [
+                                                selectedRevision.author && `작성자: ${selectedRevision.author}`,
+                                                dateLabel && `수정일: ${dateLabel}`,
+                                            ].filter(Boolean) as string[];
+                                        })()}
                                     />
                                 </div>
                             </div>
@@ -2776,6 +2803,7 @@ export function ProjectPostDetail({
                             <div className="flex-1 space-y-6 overflow-y-auto pr-1">
                                 {sortedRevisions.map((revision) => {
                                     const revisionDate = getRevisionTimestamp(revision);
+                                    const formattedRevisionDate = formatDisplayTimestamp(revisionDate) || "날짜 미정";
                                     const previewText = getRevisionPreview(revision.content);
                                     return (
                                         <button
@@ -2792,7 +2820,7 @@ export function ProjectPostDetail({
                                                             {revision.actionType}
                                                         </span>
                                                     )}
-                                                    <span>{revisionDate || "날짜 미정"}</span>
+                                                    <span>{formattedRevisionDate}</span>
                                                     {revision.author && (
                                                         <span className="text-[11px] text-muted-foreground">
                                                             {revision.author}
