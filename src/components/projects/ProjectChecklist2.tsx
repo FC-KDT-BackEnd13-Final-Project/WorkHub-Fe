@@ -13,6 +13,8 @@ import { FormQuestion2, type FormQuestionHandle } from "../ui/FormQuestion2";
 import { useLocalStorageValue } from "../../hooks/useLocalStorageValue";
 import { PROFILE_STORAGE_KEY, normalizeUserRole } from "../../constants/profile";
 import { fileApi, projectApi } from "../../lib/api";
+import { createPortal } from "react-dom";
+import type { ConfirmStatus, NodeApiItem } from "../../types/projectNodeList";
 import type {
   CheckListCommentResponse,
   CheckListItemPayload,
@@ -212,6 +214,7 @@ export function ProjectChecklist2() {
     () => normalizeUserRole(storedProfileSettings?.profile?.role) ?? null,
     [storedProfileSettings?.profile?.role],
   );
+  const isClient = userRole === "CLIENT";
   const authorName = storedProfileSettings?.profile?.id?.trim() ?? "";
   const authorPhone = storedProfileSettings?.profile?.phone?.trim() ?? "";
   const localAuthor = useMemo<AuthorFields>(
@@ -227,13 +230,31 @@ export function ProjectChecklist2() {
   const [checklistSaveSignal, setChecklistSaveSignal] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isFetching, setIsFetching] = useState(false);
+  const [isConfirmingFinalApproval, setIsConfirmingFinalApproval] = useState(false);
+  const [nodeConfirmStatus, setNodeConfirmStatus] = useState<ConfirmStatus | null>(null);
+  const [nodeRejectText, setNodeRejectText] = useState<string | null>(null);
+  const [isRejectModalOpen, setRejectModalOpen] = useState(false);
+  const [rejectReason, setRejectReason] = useState("");
   const [apiError, setApiError] = useState<string | null>(null);
+  useEffect(() => {
+    if (!isRejectModalOpen) return;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setRejectModalOpen(false);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isRejectModalOpen]);
   const [existingChecklistId, setExistingChecklistId] = useState<number | null>(null);
   const [serverChecklistItems, setServerChecklistItems] = useState<CheckListItemResponse[]>([]);
   const [serverDescription, setServerDescription] = useState("");
   const [appliedAuthor, setAppliedAuthor] = useState<AuthorFields>(localAuthor);
   const authorId = localAuthor.name || "작성자";
   const hasRouteContext = Boolean(projectId && nodeId);
+  const nodeInfoRef = useRef<NodeApiItem | null>(null);
 
   const deriveAuthorFields = useCallback(
     (response?: CheckListResponse | null): AuthorFields => {
@@ -692,6 +713,7 @@ export function ProjectChecklist2() {
       setApiError(null);
       setIsLocked(false);
       applyChecklistSnapshot("", [], localAuthor);
+      nodeInfoRef.current = null;
       return;
     }
 
@@ -739,6 +761,45 @@ export function ProjectChecklist2() {
   }, [hasRouteContext, projectId, nodeId, roleLocksChecklist]);
 
   useEffect(() => {
+    if (!hasRouteContext) {
+      nodeInfoRef.current = null;
+      return;
+    }
+
+    let cancelled = false;
+
+    const fetchNodeInfo = async () => {
+      try {
+        const nodeData = await projectApi.getNode(projectId!, nodeId!);
+        if (cancelled) return;
+        if (typeof nodeData === "object" && nodeData !== null) {
+          const normalizedRejectText =
+            typeof nodeData.rejectText === "string"
+              ? nodeData.rejectText.trim() || null
+              : nodeData.rejectText ?? null;
+          nodeInfoRef.current = { ...nodeData, rejectText: normalizedRejectText };
+          setNodeRejectText(normalizedRejectText);
+        } else {
+          nodeInfoRef.current = nodeData;
+          setNodeRejectText(null);
+        }
+        const fetchedStatus =
+          typeof nodeData === "string" ? nodeData : nodeData?.confirmStatus ?? null;
+        setNodeConfirmStatus(fetchedStatus);
+      } catch (error) {
+        if (cancelled) return;
+        console.error("노드 정보 조회 실패", error);
+      }
+    };
+
+    fetchNodeInfo();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [hasRouteContext, projectId, nodeId]);
+
+  useEffect(() => {
     if (existingChecklistId) {
       return;
     }
@@ -780,7 +841,9 @@ export function ProjectChecklist2() {
 
   const isFormDisabled =
     !canEditChecklist || (roleLocksChecklist && isLocked) || isSubmitting || isFetching;
-  const shouldShowDecisionButtons = Boolean(existingChecklistId) && isFormDisabled;
+  const shouldShowDecisionButtons =
+    Boolean(existingChecklistId) && isFormDisabled && !canEditChecklist;
+  const shouldShowStatusBadges = Boolean(existingChecklistId);
   const allowCommentsWhileLocked = Boolean(existingChecklistId);
   const allowClientReview = false;
   const isCreatingChecklist = !existingChecklistId;
@@ -789,6 +852,27 @@ export function ProjectChecklist2() {
   const templateButtonLabel = templateCount ? `템플릿 가져오기 (${templateCount})` : "템플릿 가져오기";
   const templateButtonDisabled =
     !isCreatingChecklist || !canEditChecklist || (roleLocksChecklist && isLocked) || isSubmitting || isFetching;
+  const allItemsAgreed = useMemo(
+    () =>
+      serverChecklistItems.length > 0 &&
+      serverChecklistItems.every((item) => (item.status ?? "PENDING") === "AGREED"),
+    [serverChecklistItems],
+  );
+  const normalizedConfirmStatus = useMemo(() => {
+    const source =
+      nodeConfirmStatus ??
+      (typeof nodeInfoRef.current === "string"
+        ? nodeInfoRef.current
+        : nodeInfoRef.current?.confirmStatus ?? null);
+    return typeof source === "string" ? source.toUpperCase() : "";
+  }, [nodeConfirmStatus]);
+  const isNodeApproved = normalizedConfirmStatus === "APPROVED";
+  const isNodePending = normalizedConfirmStatus === "PENDING";
+  const shouldShowFinalApprovalButton =
+    canEditChecklist && Boolean(existingChecklistId) && isLocked && allItemsAgreed;
+  const shouldShowClientApprovalButtons = !canEditChecklist && isNodePending;
+  const shouldShowRejectNotice =
+    canEditChecklist && normalizedConfirmStatus === "REJECTED" && Boolean(nodeRejectText);
   const handleUnlock = (event: MouseEvent<HTMLButtonElement>) => {
     event.preventDefault();
     event.stopPropagation();
@@ -799,7 +883,80 @@ export function ProjectChecklist2() {
     setUnlockSignal((prev) => prev + 1);
   };
 
+  const handleFinalApprovalRequest = useCallback(async () => {
+    if (!projectId || !nodeId || !existingChecklistId) {
+      toast.error("체크리스트 정보를 찾을 수 없습니다.");
+      return;
+    }
+    if (isConfirmingFinalApproval || isSubmitting || isFetching) {
+      return;
+    }
+    const confirmed = window.confirm("최종 승인 요청을 보내시겠습니까?");
+    if (!confirmed) return;
+    try {
+      setIsConfirmingFinalApproval(true);
+      await projectApi.requestNodeFinalApproval(projectId, nodeId, {
+        confirmStatus: "PENDING",
+        rejectMessage: null,
+      });
+      toast.success("최종 승인 요청을 보냈습니다.");
+      setNodeConfirmStatus("PENDING");
+      nodeInfoRef.current =
+        typeof nodeInfoRef.current === "object" && nodeInfoRef.current !== null
+          ? { ...nodeInfoRef.current, confirmStatus: "PENDING" }
+          : { confirmStatus: "PENDING" };
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "최종 승인 요청에 실패했습니다.";
+      toast.error(message);
+    } finally {
+      setIsConfirmingFinalApproval(false);
+    }
+  }, [existingChecklistId, isConfirmingFinalApproval, isFetching, isSubmitting, nodeId, projectId]);
+
+  const handleClientApproval = useCallback(
+    async (nextStatus: ConfirmStatus, rejectMessage: string | null) => {
+      if (!projectId || !nodeId) {
+        toast.error("프로젝트 또는 노드 정보를 찾을 수 없습니다.");
+        return;
+      }
+      if (isConfirmingFinalApproval || isSubmitting || isFetching) {
+        return;
+      }
+
+      try {
+        setIsConfirmingFinalApproval(true);
+        await projectApi.requestNodeFinalApproval(projectId, nodeId, {
+          confirmStatus: nextStatus,
+          rejectMessage,
+        });
+        setNodeConfirmStatus(nextStatus);
+        nodeInfoRef.current =
+          typeof nodeInfoRef.current === "object" && nodeInfoRef.current !== null
+            ? {
+                ...nodeInfoRef.current,
+                confirmStatus: nextStatus,
+                rejectText: nextStatus === "REJECTED" ? rejectMessage?.trim() || null : null,
+              }
+            : {
+                confirmStatus: nextStatus,
+                rejectText: nextStatus === "REJECTED" ? rejectMessage?.trim() || null : null,
+              };
+        setNodeRejectText(nextStatus === "REJECTED" ? rejectMessage?.trim() || null : null);
+        toast.success(nextStatus === "APPROVED" ? "승인되었습니다." : "보류되었습니다.");
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : "승인 요청 처리에 실패했습니다.";
+        toast.error(message);
+      } finally {
+        setIsConfirmingFinalApproval(false);
+      }
+    },
+    [isConfirmingFinalApproval, isFetching, isSubmitting, nodeId, projectId],
+  );
+
   return (
+    <>
       <div className={`max-w-4xl mx-auto px-8 sm:px-6 py-6 ${isFormDisabled ? "no-disabled-opacity" : ""}`}>
         <Card2 className="px-6 sm:px-0">
           <CardHeader className="pb-6 px-2 sm:px-6">
@@ -819,6 +976,14 @@ export function ProjectChecklist2() {
             {existingChecklistId && (
               <div className="mb-4 rounded-md bg-muted/40 px-3 py-2 text-sm font-medium text-blue-600 text-center">
                 체크리스트가 이미 등록되어 있습니다. "수정" 버튼을 눌러 내용을 편집하고 다시 저장할 수 있습니다.
+              </div>
+            )}
+            {shouldShowRejectNotice && (
+              <div className="mb-4 rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+                <p className="font-semibold">이전에 보류된 요청입니다.</p>
+                <p className="whitespace-pre-line text-xs text-destructive/90">
+                  {nodeRejectText}
+                </p>
               </div>
             )}
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
@@ -1037,6 +1202,7 @@ export function ProjectChecklist2() {
                   onRemoteFileDownload={handleChecklistAttachmentDownload}
                   onItemStatusUpdate={checklistStatusUpdater}
                   showDecisionButtons={shouldShowDecisionButtons}
+                  showStatusBadges={shouldShowStatusBadges}
                   onSubmitComment={checklistCommentSubmitter}
                   onFetchComments={checklistCommentFetcher}
                   onUpdateComment={checklistCommentUpdater}
@@ -1046,6 +1212,30 @@ export function ProjectChecklist2() {
               {canEditChecklist && (
                 <div className="flex flex-col md:flex-row gap-2 pt-4 pb-4 border-t">
                   {roleLocksChecklist && isLocked ? (
+                    shouldShowFinalApprovalButton ? (
+                      <Button2
+                        type="button"
+                        className="flex-1"
+                        onClick={handleFinalApprovalRequest}
+                        disabled={
+                          isSubmitting ||
+                          isFetching ||
+                          isConfirmingFinalApproval ||
+                          isNodeApproved ||
+                          isNodePending
+                        }
+                      >
+                        {isNodeApproved
+                          ? "최종 승인 완료"
+                          : isNodePending
+                            ? "승인 대기중"
+                            : normalizedConfirmStatus === "REJECTED"
+                              ? "재승인 요청"
+                              : isConfirmingFinalApproval
+                                ? "요청 중..."
+                                : "최종 승인 요청"}
+                      </Button2>
+                    ) : (
                       <Button2
                         type="button"
                         className="flex-1"
@@ -1054,14 +1244,15 @@ export function ProjectChecklist2() {
                       >
                         수정
                       </Button2>
+                    )
                   ) : (
-                      <Button2
-                        type="submit"
-                        className="flex-1"
-                        disabled={isFormDisabled || !hasRouteContext}
-                      >
-                        {isSubmitting ? "저장 중..." : "저장"}
-                      </Button2>
+                    <Button2
+                      type="submit"
+                      className="flex-1"
+                      disabled={isFormDisabled || !hasRouteContext}
+                    >
+                      {isSubmitting ? "저장 중..." : "저장"}
+                    </Button2>
                   )}
 
                   <Button2
@@ -1075,9 +1266,114 @@ export function ProjectChecklist2() {
                   </Button2>
                 </div>
               )}
+
+              {shouldShowClientApprovalButtons && (
+                <div className="flex flex-col md:flex-row gap-2 pt-4 pb-4 border-t">
+                  <Button2
+                    type="button"
+                    className="flex-1"
+                    onClick={() => {
+                      const confirmed = window.confirm("해당 단계를 승인하시겠습니까?");
+                      if (!confirmed) return;
+                      void handleClientApproval("APPROVED", null);
+                    }}
+                    disabled={isSubmitting || isFetching || isConfirmingFinalApproval || !hasRouteContext}
+                  >
+                    {isConfirmingFinalApproval ? "요청 중..." : "승인"}
+                  </Button2>
+                  <Button2
+                    type="button"
+                    variant="outline"
+                    className="flex-1"
+                    onClick={() => {
+                      setRejectReason("");
+                      setRejectModalOpen(true);
+                    }}
+                    disabled={isSubmitting || isFetching || isConfirmingFinalApproval || !hasRouteContext}
+                  >
+                    보류
+                  </Button2>
+                </div>
+              )}
             </form>
           </CardContent>
         </Card2>
       </div>
+
+      {isRejectModalOpen &&
+        createPortal(
+          <div className="fixed inset-0 z-[1300] flex items-center justify-center">
+            <div
+              className="absolute inset-0"
+              onClick={() => setRejectModalOpen(false)}
+              aria-hidden="true"
+              style={{ backgroundColor: "rgba(0,0,0,0.5)" }}
+            />
+            <div
+              className="relative z-[1301] w-[50vw] max-w-3xl min-w-[280px] rounded-lg border p-6 shadow-xl"
+              style={{ backgroundColor: "#fff" }}
+            >
+              <div className="mb-2 flex items-center justify-between">
+                <div>
+                  <p className="text-lg font-semibold">보류 사유 입력</p>
+                  <p className="text-sm text-muted-foreground">
+                    보류 사유를 입력하면 상대방에게 전달됩니다.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  className="rounded-md p-1 text-muted-foreground hover:bg-muted"
+                  onClick={() => setRejectModalOpen(false)}
+                >
+                  ✕
+                </button>
+              </div>
+              <div className="space-y-2">
+                <Label2 htmlFor="rejectReason">보류 사유</Label2>
+                <Textarea2
+                  id="rejectReason"
+                  rows={4}
+                  value={rejectReason}
+                  onChange={(event) => setRejectReason(event.target.value)}
+                  disabled={isConfirmingFinalApproval}
+                  placeholder="예: 전달받은 자료가 누락되어 확인이 불가능합니다."
+                />
+              </div>
+              <div className="mt-4 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                <Button2
+                  type="button"
+                  variant="outline"
+                  onClick={() => setRejectModalOpen(false)}
+                  disabled={isConfirmingFinalApproval}
+                >
+                  취소
+                </Button2>
+                <Button2
+                  type="button"
+                  onClick={() => {
+                    const trimmed = rejectReason.trim();
+                    if (!trimmed) {
+                      toast.error("보류 사유를 입력해주세요.");
+                      return;
+                    }
+                    void handleClientApproval("REJECTED", trimmed);
+                    setRejectModalOpen(false);
+                  }}
+                  disabled={
+                    isConfirmingFinalApproval ||
+                    isSubmitting ||
+                    isFetching ||
+                    !hasRouteContext ||
+                    !rejectReason.trim().length
+                  }
+                >
+                  보류하기
+                </Button2>
+              </div>
+            </div>
+          </div>,
+          document.body,
+        )}
+    </>
   );
 }

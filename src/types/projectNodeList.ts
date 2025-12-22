@@ -8,6 +8,7 @@ export interface NodeApiItem {
     description: string;
     nodeStatus: NodeStatus;
     confirmStatus: ConfirmStatus;
+    rejectText?: string | null;
     nodeOrder: number;
     updatedAt: string;
     starDate: string;

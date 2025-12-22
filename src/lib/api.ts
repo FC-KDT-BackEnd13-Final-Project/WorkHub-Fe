@@ -9,7 +9,7 @@ import type {
   CheckListCommentResponse,
   CheckListCommentUpdateRequest,
 } from '@/types/checkList';
-import type { NodeListApiResponse, NodeApiItem } from '@/types/projectNodeList';
+import type { NodeListApiResponse, NodeApiItem, ConfirmStatus } from '@/types/projectNodeList';
 import { CreateNodePayload, UpdateNodePayload, type NodeStatusPayload, type UpdateNodeOrderPayload } from '@/types/projectNode';
 
 import type {
@@ -171,6 +171,49 @@ export const projectApi = {
 
     // success가 false일 때
     throw new Error(message || '노드 목록 조회에 실패했습니다.');
+  },
+
+  /**
+   * 프로젝트 노드 승인 상태 조회
+   * @param projectId 프로젝트 ID
+   * @param nodeId 노드 ID
+   */
+  getNode: async (
+    projectId: string | number,
+    nodeId: string | number,
+  ): Promise<NodeApiItem> => {
+    const response = await apiClient.get(`/api/v1/projects/${projectId}/nodes/${nodeId}`);
+
+    const { success, message, data } = response.data ?? {};
+
+    if (success === true && data) {
+      return data;
+    }
+
+    throw new Error(message || '노드 승인 상태 조회에 실패했습니다.');
+  },
+
+  /**
+   * 프로젝트 노드 최종 승인 요청
+   * @param projectId 프로젝트 ID
+   * @param nodeId 노드 ID
+   */
+  requestNodeFinalApproval: async (
+    projectId: string | number,
+    nodeId: string | number,
+    payload: { confirmStatus: ConfirmStatus; rejectMessage: string | null },
+  ): Promise<void> => {
+    const response = await apiClient.patch(
+      `/api/v1/projects/${projectId}/nodes/${nodeId}/confirm`,
+      payload,
+    );
+
+    const { success, message } = response.data ?? {};
+    if (success === true) {
+      return;
+    }
+
+    throw new Error(message || '최종 승인 요청에 실패했습니다.');
   },
 
 

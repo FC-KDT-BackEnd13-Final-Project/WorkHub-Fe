@@ -172,6 +172,7 @@ interface FormQuestionProps {
         status: CheckListItemStatus,
     ) => Promise<boolean>;
     showDecisionButtons?: boolean;
+    showStatusBadges?: boolean;
     onSubmitComment?: (payload: {
         checkListItemId: number;
         content: string;
@@ -244,6 +245,7 @@ export const FormQuestion2 = forwardRef<FormQuestionHandle, FormQuestionProps>(f
         onRemoteFileDownload,
         onItemStatusUpdate,
         showDecisionButtons = true,
+        showStatusBadges = false,
         onSubmitComment,
         onUpdateComment,
         onFetchComments,
@@ -349,13 +351,36 @@ export const FormQuestion2 = forwardRef<FormQuestionHandle, FormQuestionProps>(f
         [onItemStatusUpdate],
     );
 
-    const shouldDisableDecisionButtons = useCallback(
+    const shouldDisableDecisionActions = useCallback(
         (group: ChecklistGroup) =>
             !canDecide ||
             group.isStatusUpdating ||
             (Boolean(onItemStatusUpdate) && !group.checkListItemId),
         [canDecide, onItemStatusUpdate],
     );
+
+    const getStatusBadgeMeta = (status?: CheckListItemStatus | null) => {
+        const normalized = normalizeChecklistStatus(status);
+        switch (normalized) {
+            case "AGREED":
+                return {
+                    label: "AGREED",
+                    className:
+                        "border border-emerald-200 bg-emerald-100 text-emerald-800",
+                };
+            case "ON_HOLD":
+                return {
+                    label: "ON_HOLD",
+                    className: "border border-slate-300 bg-slate-200 text-slate-800",
+                };
+            case "PENDING":
+            default:
+                return {
+                    label: "PENDING",
+                    className: "border border-amber-200 bg-amber-100 text-amber-800",
+                };
+        }
+    };
 
     const buildChecklistSubmission = (
         sourceGroups: ChecklistGroup[],
@@ -3122,54 +3147,69 @@ export const FormQuestion2 = forwardRef<FormQuestionHandle, FormQuestionProps>(f
                                             {/* 동의 */}
                                             <button
                                                 type="button"
-                                                disabled={shouldDisableDecisionButtons(group)}
+                                                disabled={
+                                                    shouldDisableDecisionActions(group) ||
+                                                    normalizeChecklistStatus(group.status) ===
+                                                        "AGREED"
+                                                }
                                                 className={`h-9 rounded-md border px-4 text-sm ${
-                                                group.status === "AGREED"
-                                                    ? "border-primary bg-primary text-primary-foreground"
-                                                    : "border-border bg-background hover:bg-muted"
-                                            }`}
-                                            onClick={() => {
-                                                if (
-                                                    !confirm(
-                                                        "‘동의’로 확정하시겠습니까?",
+                                                    group.status === "AGREED"
+                                                        ? "border-primary bg-primary text-primary-foreground"
+                                                        : "border-border bg-background hover:bg-muted"
+                                                }`}
+                                                onClick={() => {
+                                                    if (
+                                                        !confirm("‘동의’로 확정하시겠습니까?")
                                                     )
-                                                )
-                                                    return;
+                                                        return;
 
-                                                void requestStatusChange(
-                                                    groupIndex,
-                                                    "AGREED",
-                                                );
-                                            }}
-                                        >
-                                            동의
-                                        </button>
+                                                    void requestStatusChange(groupIndex, "AGREED");
+                                                }}
+                                            >
+                                                동의
+                                            </button>
 
-                                        {/* 보류 */}
-                                        <button
-                                            type="button"
-                                            disabled={shouldDisableDecisionButtons(group)}
-                                            className={`h-9 rounded-md border px-4 text-sm ${
-                                                group.status === "ON_HOLD"
-                                                    ? "border-primary bg-primary text-primary-foreground"
-                                                    : "border-border bg-background hover:bg-muted"
-                                            }`}
-                                            onClick={() => {
-                                                if (
-                                                    !confirm(
-                                                        "‘보류’로 확정하시겠습니까?",
+                                            {/* 보류 */}
+                                            <button
+                                                type="button"
+                                                disabled={
+                                                    shouldDisableDecisionActions(group) ||
+                                                    normalizeChecklistStatus(group.status) ===
+                                                        "AGREED" ||
+                                                    normalizeChecklistStatus(group.status) ===
+                                                        "ON_HOLD"
+                                                }
+                                                className={`h-9 rounded-md border px-4 text-sm ${
+                                                    group.status === "ON_HOLD"
+                                                        ? "border-primary bg-primary text-primary-foreground"
+                                                        : "border-border bg-background hover:bg-muted"
+                                                }`}
+                                                onClick={() => {
+                                                    if (
+                                                        !confirm("‘보류’로 확정하시겠습니까?")
                                                     )
-                                                )
-                                                    return;
+                                                        return;
 
-                                                void requestStatusChange(
-                                                    groupIndex,
-                                                    "ON_HOLD",
-                                                );
-                                            }}
+                                                    void requestStatusChange(groupIndex, "ON_HOLD");
+                                                }}
                                             >
                                                 보류
                                             </button>
+                                        </div>
+                                    )}
+
+                                    {showStatusBadges && (
+                                        <div className={`flex w-full justify-end ${showDecisionButtons ? "mt-2" : "mt-2 mb-6"}`}>
+                                            {(() => {
+                                                const meta = getStatusBadgeMeta(group.status);
+                                                return (
+                                                    <span
+                                                        className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${meta.className}`}
+                                                    >
+                                                        {meta.label}
+                                                    </span>
+                                                );
+                                            })()}
                                         </div>
                                     )}
 
