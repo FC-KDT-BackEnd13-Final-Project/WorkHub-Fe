@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { format } from "date-fns";
 import { useNavigate } from "react-router-dom";
-import { LayoutDashboard, Users, CheckCircle, TrendingUp, CheckSquare } from "lucide-react";
+import { LayoutDashboard, Users, CheckCircle, TrendingUp, CheckSquare, Clock } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { companyUsers } from "../admin/userData";
@@ -99,6 +99,8 @@ export function Dashboard() {
   const [hoveredPoint, setHoveredPoint] = useState<{ x: number; y: number; value: number; month: string } | null>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const sentinelRef = useRef<HTMLDivElement>(null);
+  const [summary, setSummary] = useState<{ pendingApprovals: number; totalProjects: number } | null>(null);
+  const [summaryError, setSummaryError] = useState<string | null>(null);
   const todayHistoryEvents = historyEvents.filter((event) => event.timestamp.includes("오늘"));
   const getInitials = (value?: string) => {
     if (!value) return "NA";
@@ -175,6 +177,21 @@ export function Dashboard() {
     });
   }, [storedSettings, storedUser]);
 
+  useEffect(() => {
+    const loadSummary = async () => {
+      try {
+        const { fetchDashboardSummary } = await import("@/lib/dashboard");
+        const data = await fetchDashboardSummary();
+        setSummary(data);
+        setSummaryError(null);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "대시보드 요약 정보를 불러오지 못했습니다.";
+        setSummaryError(message);
+      }
+    };
+    loadSummary();
+  }, []);
+
   const relevantHistoryEvents = useMemo(() => {
     if (userRole !== "CLIENT" && userRole !== "DEVELOPER") {
       return todayHistoryEvents;
@@ -243,43 +260,58 @@ export function Dashboard() {
   const visibleHistoryEvents = relevantHistoryEvents.slice(0, visibleHistoryCount);
   const enableHistoryScroll = visibleHistoryEvents.length > 5;
 
-  const approvalProjectMetrics = useMemo<SummaryMetric[]>(() => {
-    if (userRole !== "DEVELOPER" && userRole !== "CLIENT") {
-      return [];
+  const metricsToRender: SummaryMetric[] = useMemo(() => {
+    if (summary) {
+      return [
+        {
+          title: "승인 대기",
+          value: summary.pendingApprovals.toLocaleString("ko-KR"),
+          change: "PENDING_REVIEW 상태",
+          icon: Clock,
+        },
+        {
+          title: "소속 프로젝트",
+          value: summary.totalProjects.toLocaleString("ko-KR"),
+          change: "내 프로젝트 수",
+          icon: CheckSquare,
+        },
+      ];
     }
 
-    const projects = currentUser?.projects ?? [];
-    const approvalKeywords = ["review", "검토", "승인"];
-    const progressKeywords = ["progress", "진행", "완료", "complete", "done"];
+    // API 실패 시 기존 더미 지표로 폴백
+    if (userRole === "DEVELOPER" || userRole === "CLIENT") {
+      const projects = currentUser?.projects ?? [];
+      const approvalKeywords = ["review", "검토", "승인"];
+      const progressKeywords = ["progress", "진행", "완료", "complete", "done"];
 
-    const approvalRequestCount = projects.filter((project) => {
-      const status = project.status?.toLowerCase() ?? "";
-      return approvalKeywords.some((keyword) => status.includes(keyword));
-    }).length;
+      const approvalRequestCount = projects.filter((project) => {
+        const status = project.status?.toLowerCase() ?? "";
+        return approvalKeywords.some((keyword) => status.includes(keyword));
+      }).length;
 
-    const projectCount = projects.filter((project) => {
-      const status = project.status?.toLowerCase() ?? "";
-      return progressKeywords.some((keyword) => status.includes(keyword));
-    }).length;
+      const projectCount = projects.filter((project) => {
+        const status = project.status?.toLowerCase() ?? "";
+        return progressKeywords.some((keyword) => status.includes(keyword));
+      }).length;
 
-    return [
-      {
-        title: "승인 요청",
-        value: approvalRequestCount.toLocaleString("ko-KR"),
-        change: "내가 포함된 승인 요청 건수",
-        icon: CheckSquare,
-      },
-      {
-        title: "총 프로젝트",
-        value: projectCount.toLocaleString("ko-KR"),
-        change: "진행/완료 포함 전체",
-        icon: CheckCircle,
-      },
-    ];
-  }, [currentUser, userRole]);
+      return [
+        {
+          title: "승인 요청",
+          value: approvalRequestCount.toLocaleString("ko-KR"),
+          change: "내가 포함된 승인 요청 건수",
+          icon: CheckSquare,
+        },
+        {
+          title: "총 프로젝트",
+          value: projectCount.toLocaleString("ko-KR"),
+          change: "진행/완료 포함 전체",
+          icon: CheckCircle,
+        },
+      ];
+    }
 
-  const metricsToRender: SummaryMetric[] =
-    userRole === "DEVELOPER" || userRole === "CLIENT" ? approvalProjectMetrics : summaryMetrics;
+    return summaryMetrics;
+  }, [currentUser, summary, userRole]);
 
   return (
     <div className="space-y-8 pb-12">
