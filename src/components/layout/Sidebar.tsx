@@ -60,6 +60,7 @@ export const buildNavigationItems = (userRole: UserRole): NavigationItem[] =>
             { label: "Settings", icon: Settings, path: "/settings" },
         ] satisfies NavigationItem[])
         : ([
+            { label: "Dashboard", icon: LayoutDashboard, path: "/dashboard" },
             { label: "Projects", icon: FolderOpen, path: "/projects" },
             { label: "Notifications", icon: Bell, path: "/notifications" },
             { label: "Settings", icon: Settings, path: "/settings" },
