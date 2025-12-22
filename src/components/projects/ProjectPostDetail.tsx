@@ -1371,7 +1371,10 @@ export function ProjectPostDetail({
             </button>
 
             {postMenuOpen && (
-                <div className="absolute right-0 mt-2 w-52 rounded-md border bg-background shadow-lg text-sm overflow-hidden z-20">
+                <div
+                    className="absolute right-0 mt-2 w-52 rounded-md border bg-background shadow-lg text-sm overflow-hidden z-20"
+                    style={{ transform: "translateX(-22%)" }}
+                >
                     {shouldShowStatusControls && (
                         <div className="border-b px-4 py-4 space-y-2">
                             <p className="text-xs font-medium text-muted-foreground">상태 변경</p>
