@@ -71,15 +71,55 @@ export function NotificationsPage() {
       />
 
       <FilterToolbar align="between">
-        <Input
-          placeholder="보고 싶은 알림을 키워드로 찾아보세요"
-          value={searchTerm}
-          onChange={(event) => setSearchTerm(event.target.value)}
-          className="md:flex-1"
-        />
-        <div className="flex flex-col gap-3 md:flex-row md:flex-none md:items-center md:gap-2">
+        <div className="flex flex-col gap-3 md:hidden">
+          <Input
+            placeholder="보고 싶은 알림을 키워드로 찾아보세요"
+            value={searchTerm}
+            onChange={(event) => setSearchTerm(event.target.value)}
+            className="file:text-foreground placeholder:text-muted-foreground selection:bg-primary selection:text-primary-foreground dark:bg-input/30 border-input flex h-9 w-full rounded-md border bg-input-background px-3 py-1 text-sm outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
+          />
+          <div className="flex flex-col gap-2">
+            <Select value={eventFilter} onValueChange={(value) => setEventFilter(value as typeof eventFilter)}>
+              <SelectTrigger className="border-input data-[placeholder]:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 h-9 w-full rounded-md border bg-input-background px-3 py-1 text-sm outline-none focus-visible:ring-[3px]">
+                <SelectValue placeholder="전체 유형" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">전체 유형</SelectItem>
+                <SelectItem value="REVIEW_REQUEST">검토 요청</SelectItem>
+                <SelectItem value="REVIEW_COMPLETED">검토 완료</SelectItem>
+                <SelectItem value="REVIEW_REJECTED">검토 반려</SelectItem>
+                <SelectItem value="STATUS_CHANGED">상태 변경 안내</SelectItem>
+                <SelectItem value="POST_CREATED">게시글 등록</SelectItem>
+                <SelectItem value="POST_COMMENT_CREATED">게시글 댓글 등록</SelectItem>
+                <SelectItem value="CS_QNA_CREATED">CS 질문 등록</SelectItem>
+                <SelectItem value="CS_QNA_ANSWERED">CS 답변 완료</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={readFilter} onValueChange={(value) => setReadFilter(value as typeof readFilter)}>
+              <SelectTrigger className="border-input data-[placeholder]:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 h-9 w-full rounded-md border bg-input-background px-3 py-1 text-sm outline-none focus-visible:ring-[3px]">
+                <SelectValue placeholder="읽지 않은 알림 조회" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">전체 알림 보기</SelectItem>
+                <SelectItem value="unread">읽지 않은 알림 조회</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <Button className="h-9 px-4 text-sm" variant="default" onClick={markAllRead}>
+            <CheckSquare className="h-4 w-4" />
+            전체 읽음 처리
+          </Button>
+        </div>
+
+        <div className="hidden w-full gap-4 md:flex md:flex-row md:items-center md:flex-nowrap">
+          <Input
+            placeholder="보고 싶은 알림을 키워드로 찾아보세요"
+            value={searchTerm}
+            onChange={(event) => setSearchTerm(event.target.value)}
+            className="file:text-foreground placeholder:text-muted-foreground selection:bg-primary selection:text-primary-foreground dark:bg-input/30 border-input flex h-9 w-full rounded-md border bg-input-background px-3 py-1 text-base transition-[color,box-shadow] outline-none md:w-[360px] md:flex-none md:text-sm focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
+          />
           <Select value={eventFilter} onValueChange={(value) => setEventFilter(value as typeof eventFilter)}>
-            <SelectTrigger className="md:w-52">
+            <SelectTrigger className="border-input data-[placeholder]:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 h-9 w-full rounded-md border bg-input-background px-3 py-1 text-sm outline-none md:w-52 md:flex-none focus-visible:ring-[3px]">
               <SelectValue placeholder="전체 유형" />
             </SelectTrigger>
             <SelectContent>
@@ -95,7 +135,7 @@ export function NotificationsPage() {
             </SelectContent>
           </Select>
           <Select value={readFilter} onValueChange={(value) => setReadFilter(value as typeof readFilter)}>
-            <SelectTrigger className="md:w-52">
+            <SelectTrigger className="border-input data-[placeholder]:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 h-9 w-full rounded-md border bg-input-background px-3 py-1 text-sm outline-none md:w-52 md:flex-none focus-visible:ring-[3px]">
               <SelectValue placeholder="읽지 않은 알림 조회" />
             </SelectTrigger>
             <SelectContent>
@@ -103,7 +143,7 @@ export function NotificationsPage() {
               <SelectItem value="unread">읽지 않은 알림 조회</SelectItem>
             </SelectContent>
           </Select>
-          <Button className="flex items-center gap-2 md:w-auto" variant="default" onClick={markAllRead}>
+          <Button className="h-9 px-4 text-sm md:w-auto" variant="default" onClick={markAllRead}>
             <CheckSquare className="h-4 w-4" />
             전체 읽음 처리
           </Button>
