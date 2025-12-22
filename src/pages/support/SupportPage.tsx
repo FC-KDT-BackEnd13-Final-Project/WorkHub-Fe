@@ -222,7 +222,11 @@ export function SupportPage() {
       [tickets, statusOverrides],
   );
 
-  const goToPage = (page: number) => setCurrentPage(clampPage(page - 1, totalPages - 1)); // UI는 1-based, API는 0-based
+  const goToPage = (page: number) => {
+    const safeTotalPages = Math.max(totalPages, 1);
+    const nextPage = clampPage(page, safeTotalPages);
+    setCurrentPage(nextPage - 1);
+  }; // UI는 1-based, API는 0-based
 
   const withStatusLabel = (ticket: Ticket) => {
     const statusLabel = ticket.status ? supportTicketStatusLabel[ticket.status] : "일반";
