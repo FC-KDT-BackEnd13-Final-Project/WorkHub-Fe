@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { format } from "date-fns";
 import { useNavigate } from "react-router-dom";
-import { LayoutDashboard, Users, CheckCircle, TrendingUp, CheckSquare, Clock } from "lucide-react";
+import { LayoutDashboard, Users, CheckCircle, CheckSquare, Clock } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { companyUsers } from "../admin/userData";
@@ -13,6 +13,14 @@ import {
   normalizeUserRole,
 } from "@/constants/profile";
 import { useLocalStorageValue } from "@/hooks/useLocalStorageValue";
+import {
+  fetchAdminCompanyCount,
+  fetchAdminMonthlyMetrics,
+  fetchAdminProjectCount,
+  fetchAdminUserCount,
+  fetchDashboardSummary,
+  type MonthlyMetricsResponse,
+} from "@/lib/dashboard";
 
 const statusSlices = [
   { label: "Planning", value: 12, color: "#0ea5e9" },
@@ -78,9 +86,9 @@ const summaryMetrics = [
   { title: "총 프로젝트", value: totalProjects.toLocaleString("ko-KR"), change: "진행/완료 포함", icon: CheckCircle },
 ] satisfies SummaryMetric[];
 
-const trendMonths = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const defaultTrendMonths = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
-const trendSeries = {
+const defaultTrendSeries = {
   users: [8, 12, 15, 18, 20, 22, 24, 26, 27, 28, 29, 30],
   projects: [6, 9, 8, 12, 14, 16, 18, 19, 21, 23, 25, 26],
 };
@@ -89,6 +97,54 @@ const trendColors = {
   users: { stroke: "#a855f7", gradient: "#22d3ee" },
   projects: { stroke: "#0ea5e9", gradient: "#f97316" },
 } as const;
+
+const monthAbbreviations = [
+  "Jan",
+  "Feb",
+  "Mar",
+  "Apr",
+  "May",
+  "Jun",
+  "Jul",
+  "Aug",
+  "Sep",
+  "Oct",
+  "Nov",
+  "Dec",
+];
+
+const formatMonthlyLabel = (value: string) => {
+  if (monthAbbreviations.includes(value)) {
+    return value;
+  }
+  const [, month] = value.split("-");
+  if (!month) {
+    return value;
+  }
+  const idx = Number(month) - 1;
+  return monthAbbreviations[idx] ?? value;
+};
+
+const buildMonthSequence = (start: string, length: number) => {
+  const [yearStr, monthStr] = start.split("-");
+  let year = Number(yearStr);
+  let month = Number(monthStr);
+  if (!Number.isFinite(year) || !Number.isFinite(month)) {
+    return [];
+  }
+
+  const items: string[] = [];
+  for (let i = 0; i < length; i += 1) {
+    const currentMonth = `${year}-${String(month).padStart(2, "0")}`;
+    items.push(currentMonth);
+    month += 1;
+    if (month > 12) {
+      month = 1;
+      year += 1;
+    }
+  }
+  return items;
+};
 
 export function Dashboard() {
   const navigate = useNavigate();
@@ -101,6 +157,9 @@ export function Dashboard() {
   const sentinelRef = useRef<HTMLDivElement>(null);
   const [summary, setSummary] = useState<{ pendingApprovals: number; totalProjects: number } | null>(null);
   const [summaryError, setSummaryError] = useState<string | null>(null);
+  const [adminCounts, setAdminCounts] = useState<{ users: number; companies: number; projects: number } | null>(null);
+  const [adminMonthlyMetrics, setAdminMonthlyMetrics] = useState<MonthlyMetricsResponse | null>(null);
+  const [adminMetricsError, setAdminMetricsError] = useState<string | null>(null);
   const todayHistoryEvents = historyEvents.filter((event) => event.timestamp.includes("오늘"));
   const getInitials = (value?: string) => {
     if (!value) return "NA";
@@ -118,27 +177,6 @@ export function Dashboard() {
     return ["시스템", "bot", "센터"].some((keyword) => normalized.includes(keyword.toLowerCase()));
   };
 
-  const activeTrend = trendSeries[trendTab];
-  const chartLeft = 35;
-  const chartRight = 380;
-  const chartTop = 20;
-  const chartBottom = 160;
-  const chartHeight = chartBottom - chartTop;
-  const axisMax = 30;
-  const axisLabels = [30, 20, 10, 0];
-  const yAxisLabel = trendTab === "users" ? "사용자 수" : "프로젝트 수";
-  const xAxisLabel = "월별 추세";
-  const linePoints = activeTrend.map((value, idx) => {
-    const x = chartLeft + (idx / Math.max(trendMonths.length - 1, 1)) * (chartRight - chartLeft);
-    const y = chartBottom - (Math.min(value, axisMax) / axisMax) * chartHeight;
-    return { x, y, value, month: trendMonths[idx] };
-  });
-  const pathPoints = linePoints.map((point) => `${point.x},${point.y}`).join(" ");
-  const areaPath =
-    pathPoints && linePoints.length >= 2
-      ? `${pathPoints} ${linePoints[linePoints.length - 1].x},${chartBottom} ${linePoints[0].x},${chartBottom}`
-      : "";
-  const trendPalette = trendColors[trendTab];
   const [storedSettings] = useLocalStorageValue<StoredSettings | null>(PROFILE_STORAGE_KEY, {
     defaultValue: null,
     parser: (value) => JSON.parse(value),
@@ -177,10 +215,73 @@ export function Dashboard() {
     });
   }, [storedSettings, storedUser]);
 
+  const trendData = useMemo(() => {
+    if (userRole === "ADMIN" && adminMonthlyMetrics) {
+      const metadataMonths = (() => {
+        const start = adminMonthlyMetrics.metadata?.startMonth;
+        const months = adminMonthlyMetrics.metadata?.months;
+        if (start && typeof months === "number" && months > 0) {
+          return buildMonthSequence(start, months);
+        }
+        return null;
+      })();
+
+      const monthSet = new Set<string>();
+      adminMonthlyMetrics.users.forEach((point) => point.month && monthSet.add(point.month));
+      adminMonthlyMetrics.projects.forEach((point) => point.month && monthSet.add(point.month));
+
+      const monthKeys = metadataMonths ?? Array.from(monthSet).sort();
+
+      if (monthKeys.length === 0) {
+        return { months: defaultTrendMonths, series: defaultTrendSeries } as const;
+      }
+
+      const userMap = new Map(adminMonthlyMetrics.users.map((point) => [point.month, point.value]));
+      const projectMap = new Map(adminMonthlyMetrics.projects.map((point) => [point.month, point.value]));
+      const formattedMonths = monthKeys.map((month) => formatMonthlyLabel(month));
+
+      return {
+        months: formattedMonths,
+        series: {
+          users: monthKeys.map((month) => userMap.get(month) ?? 0),
+          projects: monthKeys.map((month) => projectMap.get(month) ?? 0),
+        },
+      } as const;
+    }
+
+    return { months: defaultTrendMonths, series: defaultTrendSeries } as const;
+  }, [adminMonthlyMetrics, userRole]);
+
+  const trendMonths = trendData.months;
+  const trendSeries = trendData.series;
+  const activeTrend = trendSeries[trendTab];
+  const chartLeft = 35;
+  const chartRight = 380;
+  const chartTop = 20;
+  const chartBottom = 160;
+  const chartHeight = chartBottom - chartTop;
+  const combinedTrendValues = [...trendSeries.users, ...trendSeries.projects];
+  const observedMax = combinedTrendValues.length ? Math.max(...combinedTrendValues) : 0;
+  const axisTopLabel = Math.max(10, Math.ceil((observedMax || 0) / 5) * 5);
+  const axisMax = axisTopLabel || 10;
+  const axisLabels = [axisMax, Math.floor((axisMax * 2) / 3), Math.floor(axisMax / 3), 0];
+  const yAxisLabel = trendTab === "users" ? "사용자 수" : "프로젝트 수";
+  const xAxisLabel = "월별 추세";
+  const linePoints = activeTrend.map((value, idx) => {
+    const x = chartLeft + (idx / Math.max(trendMonths.length - 1, 1)) * (chartRight - chartLeft);
+    const y = chartBottom - (Math.min(value, axisMax) / axisMax) * chartHeight;
+    return { x, y, value, month: trendMonths[idx] };
+  });
+  const pathPoints = linePoints.map((point) => `${point.x},${point.y}`).join(" ");
+  const areaPath =
+    pathPoints && linePoints.length >= 2
+      ? `${pathPoints} ${linePoints[linePoints.length - 1].x},${chartBottom} ${linePoints[0].x},${chartBottom}`
+      : "";
+  const trendPalette = trendColors[trendTab];
+
   useEffect(() => {
     const loadSummary = async () => {
       try {
-        const { fetchDashboardSummary } = await import("@/lib/dashboard");
         const data = await fetchDashboardSummary();
         setSummary(data);
         setSummaryError(null);
@@ -191,6 +292,45 @@ export function Dashboard() {
     };
     loadSummary();
   }, []);
+
+  useEffect(() => {
+    if (userRole !== "ADMIN") {
+      setAdminCounts(null);
+      setAdminMonthlyMetrics(null);
+      setAdminMetricsError(null);
+      return;
+    }
+
+    let cancelled = false;
+
+    const loadAdminMetrics = async () => {
+      try {
+        const [usersCount, companiesCount, projectsCount, monthlyMetrics] = await Promise.all([
+          fetchAdminUserCount(),
+          fetchAdminCompanyCount(),
+          fetchAdminProjectCount(),
+          fetchAdminMonthlyMetrics(),
+        ]);
+
+        if (cancelled) return;
+
+        setAdminCounts({ users: usersCount, companies: companiesCount, projects: projectsCount });
+        setAdminMonthlyMetrics(monthlyMetrics);
+        setAdminMetricsError(null);
+      } catch (error) {
+        if (cancelled) return;
+        const message =
+          error instanceof Error ? error.message : "관리자 대시보드 지표를 불러오지 못했습니다.";
+        setAdminMetricsError(message);
+      }
+    };
+
+    loadAdminMetrics();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [userRole]);
 
   const relevantHistoryEvents = useMemo(() => {
     if (userRole !== "CLIENT" && userRole !== "DEVELOPER") {
@@ -261,6 +401,32 @@ export function Dashboard() {
   const enableHistoryScroll = visibleHistoryEvents.length > 5;
 
   const metricsToRender: SummaryMetric[] = useMemo(() => {
+    if (userRole === "ADMIN") {
+      if (adminCounts) {
+        return [
+          {
+            title: "총 유저",
+            value: adminCounts.users.toLocaleString("ko-KR"),
+            change: "등록된 전체 사용자",
+            icon: Users,
+          },
+          {
+            title: "총 회사",
+            value: adminCounts.companies.toLocaleString("ko-KR"),
+            change: "등록된 고객사 수",
+            icon: LayoutDashboard,
+          },
+          {
+            title: "총 프로젝트",
+            value: adminCounts.projects.toLocaleString("ko-KR"),
+            change: "진행/완료 포함",
+            icon: CheckCircle,
+          },
+        ];
+      }
+      return summaryMetrics;
+    }
+
     if (summary) {
       return [
         {
@@ -311,7 +477,7 @@ export function Dashboard() {
     }
 
     return summaryMetrics;
-  }, [currentUser, summary, userRole]);
+  }, [adminCounts, currentUser, summary, userRole]);
 
   return (
     <div className="space-y-8 pb-12">
@@ -340,6 +506,9 @@ export function Dashboard() {
               </Card>
             ))}
           </div>
+        {userRole === "ADMIN" && adminMetricsError ? (
+          <p className="text-sm text-destructive">{adminMetricsError}</p>
+        ) : null}
         {userRole === "ADMIN" && (
           <div className="grid gap-4 lg:grid-cols-2 py-6">
             <Card className="rounded-xl border border-white/70 bg-white/90 shadow-sm backdrop-blur">
