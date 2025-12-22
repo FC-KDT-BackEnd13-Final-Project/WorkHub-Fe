@@ -33,9 +33,19 @@ export function EvidenceUpload2({
     // 파일 목록
     const [fileList, setFileList] = useState<File[]>(files || []);
     const fileInputRef = useRef<HTMLInputElement | null>(null);
+    const prevFilesRef = useRef<File[]>(files || []);
 
     useEffect(() => {
-        setFileList(files || []);
+        // files 배열의 내용이 실제로 변경되었을 때만 업데이트
+        const currentFiles = files || [];
+        const hasChanged =
+            currentFiles.length !== prevFilesRef.current.length ||
+            currentFiles.some((file, index) => file !== prevFilesRef.current[index]);
+
+        if (hasChanged) {
+            setFileList(currentFiles);
+            prevFilesRef.current = currentFiles;
+        }
     }, [files]);
 
     const hasLinks = links?.length > 0;

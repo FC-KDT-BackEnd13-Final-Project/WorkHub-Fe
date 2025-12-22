@@ -29,12 +29,13 @@ export function useLocalStorageValue<T>(
     listen = true,
   }: UseLocalStorageValueOptions<T>,
 ) {
-  const resolveDefault = useCallback(() => {
-    return typeof defaultValue === "function" ? (defaultValue as () => T)() : defaultValue;
-  }, [defaultValue]);
-
+  const defaultValueRef = useRef(defaultValue);
   const parserRef = useRef(parser);
   const serializerRef = useRef(serializer);
+
+  useEffect(() => {
+    defaultValueRef.current = defaultValue;
+  }, [defaultValue]);
 
   useEffect(() => {
     parserRef.current = parser;
@@ -43,6 +44,11 @@ export function useLocalStorageValue<T>(
   useEffect(() => {
     serializerRef.current = serializer;
   }, [serializer]);
+
+  const resolveDefault = useCallback(() => {
+    const current = defaultValueRef.current;
+    return typeof current === "function" ? (current as () => T)() : current;
+  }, []);
 
   const readValue = useCallback(() => {
     if (typeof window === "undefined") return resolveDefault();
@@ -87,23 +93,27 @@ export function useLocalStorageValue<T>(
         }
       }
     },
-    [broadcastChange, key, serializerRef, sync],
+    [broadcastChange, key, sync],
   );
 
   const removeValue = useCallback(() => {
+    const defaultVal = resolveDefault();
     if (typeof window !== "undefined") {
       window.localStorage.removeItem(key);
-      broadcastChange(resolveDefault());
+      broadcastChange(defaultVal);
     }
-    valueRef.current = resolveDefault();
-    setValue(resolveDefault());
+    valueRef.current = defaultVal;
+    setValue(defaultVal);
   }, [broadcastChange, key, resolveDefault]);
 
   useEffect(() => {
     const nextValue = readValue();
-    valueRef.current = nextValue;
-    setValue(nextValue);
-  }, [key, readValue, resolveDefault]);
+    // 값이 실제로 변경되었을 때만 setState 호출 (무한 루프 방지)
+    if (JSON.stringify(valueRef.current) !== JSON.stringify(nextValue)) {
+      valueRef.current = nextValue;
+      setValue(nextValue);
+    }
+  }, [key, readValue]);
 
   useEffect(() => {
     valueRef.current = value;
