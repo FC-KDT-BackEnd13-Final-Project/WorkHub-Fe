@@ -1,7 +1,9 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Checkbox2 } from "./checkbox2";
 import { Textarea2 } from "./textarea2";
 import { EvidenceUpload2 } from "./EvidenceUpload2";
+import { Button2 } from "./button2";
+import { Paperclip } from "lucide-react";
 
 interface EvidenceData {
     files: File[];
@@ -51,6 +53,7 @@ export function CheckboxQuestion2({
                                   }: CheckboxQuestionProps) {
     const textareaRefs = useRef<(HTMLTextAreaElement | null)[]>([]);
     const canSelect = selectionEnabled ?? !disabled;
+    const [evidenceVisibility, setEvidenceVisibility] = useState<Record<string, boolean>>({});
 
     const autoResize = (index: number) => {
         const el = textareaRefs.current[index];
@@ -82,8 +85,11 @@ export function CheckboxQuestion2({
                     const isChecked = selectedIndexes.includes(idx);
                     const evidenceId = `${fieldName}-${idx}`;
                     const evidenceItem = evidences[evidenceId];
-                    const hasEvidence =
-                        (evidenceItem?.files?.length ?? 0) > 0 || (evidenceItem?.links?.length ?? 0) > 0;
+                    const hasFiles = (evidenceItem?.files?.length ?? 0) > 0;
+                    const hasLinks = (evidenceItem?.links?.length ?? 0) > 0;
+                    const hasRemoteFiles = (evidenceItem?.remoteFiles?.length ?? 0) > 0;
+                    const hasEvidence = hasFiles || hasLinks || hasRemoteFiles;
+                    const isEvidenceOpen = evidenceVisibility[evidenceId] ?? hasEvidence;
                     const isLast = idx === options.length - 1;
 
                     return (
@@ -117,42 +123,68 @@ export function CheckboxQuestion2({
                                     />
                                 </div>
 
-                                {/* 마지막 항목에만 + / - 표시 */}
-                                {isLast && !disabled && (
-                                    <div className="flex flex-col items-center justify-center ml-1 select-none text-sm text-muted-foreground">
-                                        <span
-                                            role="button"
-                                            onClick={onAddOption}
-                                            className="leading-none cursor-pointer hover:text-foreground"
+                                <div className="flex items-center gap-2">
+                                    <div className="relative">
+                                        <Button2
+                                            type="button"
+                                            size="icon"
+                                            variant={isEvidenceOpen ? "default" : "outline"}
+                                            className="h-7 w-7 shrink-0"
+                                            aria-pressed={isEvidenceOpen}
+                                            title="증빙 첨부 토글"
+                                            onClick={() =>
+                                                setEvidenceVisibility((prev) => ({
+                                                    ...prev,
+                                                    [evidenceId]: !(prev[evidenceId] ?? hasEvidence),
+                                                }))
+                                            }
                                         >
-                                            +
-                                        </span>
-                                        <span
-                                            role="button"
-                                            onClick={() => {
-                                                if (options.length <= 1) return;
-                                                onRemoveOption(idx);
-                                            }}
-                                            className="mt-1 leading-none cursor-pointer hover:text-foreground"
-                                        >
-                                            -
-                                        </span>
+                                            <Paperclip className="h-3.5 w-3.5" />
+                                        </Button2>
+                                        {hasEvidence && (
+                                            <span className="absolute -top-1 -right-1 inline-flex h-2 w-2 rounded-full bg-primary" />
+                                        )}
                                     </div>
-                                )}
+
+                                    {/* 마지막 항목에만 + / - 표시 */}
+                                    {isLast && !disabled && (
+                                        <div className="flex flex-col items-center justify-center ml-1 select-none text-sm text-muted-foreground">
+                                            <span
+                                                role="button"
+                                                onClick={onAddOption}
+                                                className="leading-none cursor-pointer hover:text-foreground"
+                                            >
+                                                +
+                                            </span>
+                                            <span
+                                                role="button"
+                                                onClick={() => {
+                                                    if (options.length <= 1) return;
+                                                    onRemoveOption(idx);
+                                                }}
+                                                className="mt-1 leading-none cursor-pointer hover:text-foreground"
+                                            >
+                                                -
+                                            </span>
+                                        </div>
+                                    )}
+                                </div>
                             </div>
 
-                            {/* 체크된 항목만 EvidenceUpload2 노출 */}
-                            <EvidenceUpload2
-                                id={evidenceId}
-                                isChecked={isChecked}
-                                onImageUpload={onEvidenceUpload}
-                                onLinksChange={onEvidenceLinksChange}
-                                files={evidenceItem?.files ?? []}
-                                links={evidenceItem?.links ?? []}
-                                remoteFiles={evidenceItem?.remoteFiles ?? []}
-                                onRemoteFileDownload={onRemoteFileDownload}
-                                disabled={disabled}
-                            />
+                            {isEvidenceOpen && (
+                                <EvidenceUpload2
+                                    id={evidenceId}
+                                    isChecked={isChecked}
+                                    forceVisible
+                                    onImageUpload={onEvidenceUpload}
+                                    onLinksChange={onEvidenceLinksChange}
+                                    files={evidenceItem?.files ?? []}
+                                    links={evidenceItem?.links ?? []}
+                                    remoteFiles={evidenceItem?.remoteFiles ?? []}
+                                    onRemoteFileDownload={onRemoteFileDownload}
+                                    disabled={disabled}
+                                />
+                            )}
                         </div>
                     );
                 })}

@@ -547,6 +547,29 @@ export const projectApi = {
   },
 
   /**
+   * 체크리스트 옵션 선택 토글
+   */
+  toggleCheckListOptionSelection: async (
+    projectId: string,
+    nodeId: string,
+    checkListId: number | string,
+    checkListItemId: number | string,
+    optionId: number | string,
+  ): Promise<boolean> => {
+    const response = await apiClient.patch(
+      `/api/v1/projects/${projectId}/nodes/${nodeId}/checkLists/${checkListId}/items/${checkListItemId}/options/${optionId}/toggle`,
+    );
+
+    const { success, message, data } = response.data;
+
+    if (success === true) {
+      return data;
+    }
+
+    throw new Error(message || '체크리스트 옵션 선택 상태 변경에 실패했습니다.');
+  },
+
+  /**
    * 체크리스트 항목에 댓글을 작성한다.
    */
   createCheckListComment: async (

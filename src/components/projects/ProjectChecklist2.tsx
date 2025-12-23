@@ -678,6 +678,59 @@ export function ProjectChecklist2({ initialNodeInfo = null, nodeInfoLoading = fa
     ? handleChecklistItemStatusChange
     : undefined;
 
+  const handleChecklistOptionToggle = useCallback(
+    async ({
+      checkListItemId,
+      optionId,
+    }: {
+      checkListItemId: number;
+      optionId: number;
+      checked: boolean;
+    }): Promise<boolean> => {
+      if (!projectId || !nodeId || !existingChecklistId) {
+        toast.error("체크리스트 정보를 찾을 수 없습니다.");
+        throw new Error("체크리스트 정보를 찾을 수 없습니다.");
+      }
+
+      try {
+        const isSelected = await projectApi.toggleCheckListOptionSelection(
+          projectId,
+          nodeId,
+          existingChecklistId,
+          checkListItemId,
+          optionId,
+        );
+        setServerChecklistItems((prev) =>
+          prev.map((item) => {
+            if (item.checkListItemId !== checkListItemId) {
+              return item;
+            }
+            const nextOptions = (item.options ?? []).map((option) =>
+              option.checkListOptionId === optionId
+                ? { ...option, isSelected }
+                : option,
+            );
+            return {
+              ...item,
+              options: nextOptions,
+            };
+          }),
+        );
+        return isSelected;
+      } catch (error) {
+        const message =
+          error instanceof Error
+            ? error.message
+            : "체크리스트 옵션 상태 변경에 실패했습니다.";
+        toast.error(message);
+        throw (error instanceof Error ? error : new Error(message));
+      }
+    },
+    [existingChecklistId, nodeId, projectId, setServerChecklistItems],
+  );
+  const checklistOptionToggler =
+    existingChecklistId && !canEditChecklist ? handleChecklistOptionToggle : undefined;
+
   const handleChecklistCommentSubmit = useCallback(
     async (
       params: {
@@ -1072,7 +1125,7 @@ export function ProjectChecklist2({ initialNodeInfo = null, nodeInfoLoading = fa
     Boolean(existingChecklistId) && isFormDisabled && !canEditChecklist;
   const shouldShowStatusBadges = Boolean(existingChecklistId);
   const allowCommentsWhileLocked = Boolean(existingChecklistId);
-  const allowClientReview = false;
+  const allowClientReview = Boolean(existingChecklistId) && !canEditChecklist;
   const isCreatingChecklist = !existingChecklistId;
   const templateTitleError =
     isCreatingChecklist && saveAsTemplate && shouldValidateTemplate && !templateName.trim().length;
@@ -1430,6 +1483,7 @@ export function ProjectChecklist2({ initialNodeInfo = null, nodeInfoLoading = fa
                   saveSignal={checklistSaveSignal}
                   onRemoteFileDownload={handleChecklistAttachmentDownload}
                   onItemStatusUpdate={checklistStatusUpdater}
+                  onOptionToggle={checklistOptionToggler}
                   showDecisionButtons={shouldShowDecisionButtons}
                   showStatusBadges={shouldShowStatusBadges}
                   onSubmitComment={checklistCommentSubmitter}

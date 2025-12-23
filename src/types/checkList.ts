@@ -23,6 +23,7 @@ export interface CheckListOptionResponse {
   checkListOptionId: number;
   optionContent: string;
   optionOrder: number;
+  isSelected: boolean;
   files: CheckListOptionFileResponse[];
 }
 

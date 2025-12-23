@@ -134,6 +134,7 @@ interface ChecklistGroup {
     id: number;
     title: string;
     rules: string[];
+    optionIds: number[];
     selectedIndexes: number[];
     evidences: Record<string, EvidenceItem>;
     comments: ChecklistComment[];
@@ -173,6 +174,11 @@ interface FormQuestionProps {
     ) => Promise<boolean>;
     showDecisionButtons?: boolean;
     showStatusBadges?: boolean;
+    onOptionToggle?: (payload: {
+        checkListItemId: number;
+        optionId: number;
+        checked: boolean;
+    }) => Promise<boolean | void>;
     onSubmitComment?: (payload: {
         checkListItemId: number;
         content: string;
@@ -200,6 +206,7 @@ const createChecklistGroup = (id: number): ChecklistGroup => ({
     id,
     title: "",
     rules: Array(6).fill(""),
+    optionIds: [],
     selectedIndexes: [],
     evidences: {},
     comments: [],
@@ -246,6 +253,7 @@ export const FormQuestion2 = forwardRef<FormQuestionHandle, FormQuestionProps>(f
         onItemStatusUpdate,
         showDecisionButtons = true,
         showStatusBadges = false,
+        onOptionToggle,
         onSubmitComment,
         onUpdateComment,
         onFetchComments,
@@ -273,8 +281,6 @@ export const FormQuestion2 = forwardRef<FormQuestionHandle, FormQuestionProps>(f
     const canDecide =
         (!disabled || allowSelectionWhenDisabled || Boolean(onItemStatusUpdate)) &&
         showDecisionButtons;
-    const shouldClearSelectionsForReview = disabled && allowSelectionWhenDisabled;
-    const [hasClearedForReview, setHasClearedForReview] = useState(false);
     const isCommentInteractionLocked = (group: ChecklistGroup) =>
         group.locked && !allowCommentWhenDisabled;
 
@@ -290,6 +296,100 @@ export const FormQuestion2 = forwardRef<FormQuestionHandle, FormQuestionProps>(f
     useEffect(() => {
         groupsRef.current = groups;
     }, [groups]);
+
+    const handleOptionSelectionChange = useCallback(
+        ({
+             groupIndex,
+             optionIndex,
+             checked,
+         }: {
+            groupIndex: number;
+            optionIndex: number;
+            checked: boolean;
+        }) => {
+            if (!canSelect) {
+                return;
+            }
+
+            const targetGroup = groupsRef.current[groupIndex];
+            const isGroupLocked = targetGroup?.locked && !allowSelectionWhenDisabled;
+            if (!targetGroup || isGroupLocked) {
+                return;
+            }
+
+            const previousSelected = [...targetGroup.selectedIndexes];
+            const alreadySelected = previousSelected.includes(optionIndex);
+            if ((checked && alreadySelected) || (!checked && !alreadySelected)) {
+                return;
+            }
+
+            const appendSelection = (values: number[]) =>
+                values.includes(optionIndex)
+                    ? values
+                    : [...values, optionIndex];
+            const removeSelection = (values: number[]) =>
+                values.filter((value) => value !== optionIndex);
+
+            setGroups((prev) =>
+                prev.map((group, idx) => {
+                    if (idx !== groupIndex || (group.locked && !allowSelectionWhenDisabled)) {
+                        return group;
+                    }
+                    const nextSelected = checked
+                        ? appendSelection(group.selectedIndexes)
+                        : removeSelection(group.selectedIndexes);
+                    return {
+                        ...group,
+                        selectedIndexes: nextSelected,
+                    };
+                }),
+            );
+
+            const optionId = targetGroup.optionIds[optionIndex];
+            const itemId = targetGroup.checkListItemId;
+            if (!onOptionToggle || !itemId || typeof optionId !== "number") {
+                return;
+            }
+
+            void (async () => {
+                try {
+                    const serverState = await onOptionToggle({
+                        checkListItemId: itemId,
+                        optionId,
+                        checked,
+                    });
+                    if (typeof serverState === "boolean" && serverState !== checked) {
+                        setGroups((prev) =>
+                            prev.map((group, idx) => {
+                                if (idx !== groupIndex) {
+                                    return group;
+                                }
+                                const nextSelected = serverState
+                                    ? appendSelection(group.selectedIndexes)
+                                    : removeSelection(group.selectedIndexes);
+                                return {
+                                    ...group,
+                                    selectedIndexes: nextSelected,
+                                };
+                            }),
+                        );
+                    }
+                } catch {
+                    setGroups((prev) =>
+                        prev.map((group, idx) =>
+                            idx === groupIndex
+                                ? {
+                                      ...group,
+                                      selectedIndexes: previousSelected,
+                                  }
+                                : group,
+                        ),
+                    );
+                }
+            })();
+        },
+        [canSelect, onOptionToggle],
+    );
 
     const requestStatusChange = useCallback(
         async (groupIndex: number, nextStatus: CheckListItemStatus) => {
@@ -470,8 +570,16 @@ export const FormQuestion2 = forwardRef<FormQuestionHandle, FormQuestionProps>(f
                 const nextRules = sortedOptions.length
                     ? sortedOptions.map((option) => option.optionContent ?? "")
                     : [""];
+                const nextOptionIds = sortedOptions.length
+                    ? sortedOptions.map((option) => option.checkListOptionId)
+                    : [];
                 const normalizedStatus = normalizeChecklistStatus(item.status ?? null);
                 const statusLocked = normalizedStatus !== "PENDING";
+
+                // isSelected가 true인 옵션의 인덱스를 selectedIndexes로 변환
+                const nextSelectedIndexes = sortedOptions
+                    .map((option, idx) => (option.isSelected ? idx : -1))
+                    .filter((idx) => idx !== -1);
 
                 const evidences: Record<string, EvidenceItem> = {};
                 sortedOptions.forEach((option, optionIndex) => {
@@ -510,6 +618,8 @@ export const FormQuestion2 = forwardRef<FormQuestionHandle, FormQuestionProps>(f
                     ...baseGroup,
                     title: item.itemTitle ?? "",
                     rules: nextRules.length ? nextRules : [""],
+                    optionIds: nextOptionIds,
+                    selectedIndexes: nextSelectedIndexes,
                     evidences,
                     status: normalizedStatus,
                     locked: statusLocked,
@@ -1350,24 +1460,6 @@ export const FormQuestion2 = forwardRef<FormQuestionHandle, FormQuestionProps>(f
             prev.map((group) => ({ ...group, locked: false })),
         );
     }, [unlockSignal]);
-
-    // Client 리뷰 모드에서는 기존 체크 상태를 초기화한다.
-    useEffect(() => {
-        if (shouldClearSelectionsForReview && !hasClearedForReview) {
-            setGroups((prev) =>
-                prev.map((group) =>
-                    group.selectedIndexes.length
-                        ? { ...group, selectedIndexes: [] }
-                        : group,
-                ),
-            );
-            setHasClearedForReview(true);
-        }
-
-        if (!shouldClearSelectionsForReview && hasClearedForReview) {
-            setHasClearedForReview(false);
-        }
-    }, [shouldClearSelectionsForReview, hasClearedForReview]);
 
     // 체크리스트 카드 추가
     const handleAddGroup = () => {
@@ -2950,25 +3042,11 @@ export const FormQuestion2 = forwardRef<FormQuestionHandle, FormQuestionProps>(f
                                     options={group.rules}
                                     selectedIndexes={group.selectedIndexes}
                                     onSelectionChange={(itemIndex, checked) => {
-                                        if (!canSelect) return;
-
-                                        setGroups((prev) =>
-                                            prev.map((g, i) => {
-                                                if (i !== groupIndex || g.locked)
-                                                    return g;
-
-                                                const selected = checked
-                                                    ? [...g.selectedIndexes, itemIndex]
-                                                    : g.selectedIndexes.filter(
-                                                        (v) => v !== itemIndex,
-                                                    );
-
-                                                return {
-                                                    ...g,
-                                                    selectedIndexes: selected,
-                                                };
-                                            }),
-                                        );
+                                        handleOptionSelectionChange({
+                                            groupIndex,
+                                            optionIndex: itemIndex,
+                                            checked: Boolean(checked),
+                                        });
                                     }}
                                     evidences={group.evidences}
                                     onEvidenceUpload={(evidenceId, files) => {
@@ -3135,7 +3213,9 @@ export const FormQuestion2 = forwardRef<FormQuestionHandle, FormQuestionProps>(f
                                         );
                                     }}
                                     disabled={disabled}
-                                    selectionEnabled={canSelect}
+                                    selectionEnabled={
+                                        canSelect && (!group.locked || allowSelectionWhenDisabled)
+                                    }
                                     onRemoteFileDownload={onRemoteFileDownload}
                                 />
 
