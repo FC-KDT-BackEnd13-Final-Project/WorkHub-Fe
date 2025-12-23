@@ -17,62 +17,13 @@ import { Users, FileText, LayoutDashboard, CheckSquare } from "lucide-react";
 import { PaginationControls } from "../../components/common/PaginationControls";
 import { PageHeader } from "../../components/common/PageHeader";
 import { historyApi } from "@/lib/history";
-import type { AdminActionType, AdminHistoryItem, AdminHistoryType } from "@/types/history";
+import { mapHistoryItemToEvent } from "@/lib/historyMapper";
+import type { AdminHistoryType } from "@/types/history";
 
 type CategoryFilter = "user" | "post" | "project" | "checklist" | "all";
 type PostFilter = "all" | "post" | "postComment" | "csPost" | "csQna";
 type ProjectFilter = "all" | "projectAgency" | "projectClient" | "project" | "projectPhase";
 type ChecklistFilter = "all" | "checklist" | "checklistComment";
-const actionTypeLabels: Record<AdminActionType, string> = {
-  CREATE: "생성",
-  UPDATE: "수정",
-  DELETE: "삭제",
-};
-
-const actionPaletteMap: Record<AdminActionType, HistoryEvent["type"]> = {
-  CREATE: "create",
-  UPDATE: "update",
-  DELETE: "delete",
-};
-
-const historyTypeLabels: Record<AdminHistoryType, string> = {
-  PROJECT: "프로젝트",
-  PROJECT_NODE: "프로젝트 노드",
-  CS_POST: "CS게시글",
-  CS_QNA: "CSQNA",
-  PROJECT_CLIENT_MEMBER: "프로젝트 고객사 멤버",
-  PROJECT_DEV_MEMBER: "프로젝트 개발사 멤버",
-  POST: "게시글",
-  POST_COMMENT: "게시글 댓글",
-  CHECK_LIST_ITEM: "체크리스트 아이템",
-  CHECK_LIST_ITEM_COMMENT: "체크리스트 아이템 댓글",
-};
-
-const historyCategoryMap: Record<AdminHistoryType, CategoryFilter> = {
-  PROJECT: "project",
-  PROJECT_NODE: "project",
-  CS_POST: "post",
-  CS_QNA: "post",
-  PROJECT_CLIENT_MEMBER: "project",
-  PROJECT_DEV_MEMBER: "project",
-  POST: "post",
-  POST_COMMENT: "post",
-  CHECK_LIST_ITEM: "checklist",
-  CHECK_LIST_ITEM_COMMENT: "checklist",
-};
-
-const historySubCategoryMap: Partial<Record<AdminHistoryType, HistoryEvent["subCategory"]>> = {
-  PROJECT: "project",
-  PROJECT_NODE: "projectPhase",
-  CS_POST: "csPost",
-  CS_QNA: "csQna",
-  PROJECT_CLIENT_MEMBER: "projectClient",
-  PROJECT_DEV_MEMBER: "projectAgency",
-  POST: "post",
-  POST_COMMENT: "postComment",
-  CHECK_LIST_ITEM: "checklist",
-  CHECK_LIST_ITEM_COMMENT: "checklistComment",
-};
 
 const eventActionLabels: Record<HistoryEvent["type"], string> = {
   create: "생성",
@@ -83,28 +34,6 @@ const eventActionLabels: Record<HistoryEvent["type"], string> = {
 };
 
 const formatDateTime = (value: string) => format(new Date(value), "yyyy.MM.dd HH:mm");
-
-const mapHistoryItemToEvent = (item: AdminHistoryItem): HistoryEvent => {
-  const historyLabel = historyTypeLabels[item.historyType] ?? item.historyType;
-  const actionLabel = actionTypeLabels[item.actionType] ?? item.actionType;
-  const paletteKey = actionPaletteMap[item.actionType] ?? "update";
-
-  return {
-    id: item.changeLogId,
-    type: paletteKey,
-    message: `${historyLabel}(이)가 ${actionLabel}되었습니다`,
-    timestamp: formatDateTime(item.updatedAt),
-    updatedAt: item.updatedAt,
-    updatedBy: item.updatedBy?.userName ?? "시스템",
-    createdBy: item.updatedBy?.userName ?? "",
-    updatedByProfileImg: item.updatedBy?.profileImg,
-    target: historyLabel,
-    ipAddress: item.ipAddress,
-    userAgent: item.userAgent,
-    category: historyCategoryMap[item.historyType],
-    subCategory: historySubCategoryMap[item.historyType],
-  };
-};
 
 export function UserHistoryPage() {
   const [activeTab, setActiveTab] = useState<"user" | "post" | "project" | "checklist">("user");
