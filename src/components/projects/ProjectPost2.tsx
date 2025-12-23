@@ -424,10 +424,11 @@ export function ProjectPost2() {
 
         {/* 게시판 목록 - 데스크톱 */}
         <div className="hidden md:block">
-          <Card2 className="text-card-foreground flex flex-col gap-6 rounded-2xl border border-white/70 bg-white/90 shadow-sm backdrop-blur overflow-hidden">
-            <CardContent className="p-0">
-              <div className="w-full">
-                <Table2 className="table-fixed w-full">
+          <div className="mx-auto w-full max-w-5xl">
+            <Card2 className="text-card-foreground flex flex-col gap-6 rounded-2xl border border-white/70 bg-white/90 shadow-sm backdrop-blur overflow-hidden">
+              <CardContent className="p-0">
+                <div className="w-full">
+                  <Table2 className="table-fixed w-full">
                   <colgroup>
                     <col style={{ width: "8%" }} />
                     <col style={{ width: "14%" }} />
@@ -442,22 +443,22 @@ export function ProjectPost2() {
                       <TableHead className="text-foreground h-10 align-middle font-medium whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] px-2 w-[56px] text-center">
                         No
                       </TableHead>
-                      <TableHead className="text-foreground h-10 px-2 text-left align-middle font-medium whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]">
+                      <TableHead className="text-foreground h-10 px-2 text-center align-middle font-medium whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]">
                         작성자
                       </TableHead>
-                      <TableHead className="text-foreground h-10 px-2 text-left align-middle font-medium whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]">
+                      <TableHead className="text-foreground h-10 px-2 text-center align-middle font-medium whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]">
                         타입
                       </TableHead>
-                      <TableHead className="text-foreground h-10 px-2 text-left align-middle font-medium whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]">
+                      <TableHead className="text-foreground h-10 px-2 text-center align-middle font-medium whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]">
                         제목
                       </TableHead>
-                      <TableHead className="text-foreground h-10 px-2 text-left align-middle font-medium whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]">
+                      <TableHead className="text-foreground h-10 px-2 text-center align-middle font-medium whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]">
                         내용
                       </TableHead>
-                      <TableHead className="text-foreground h-10 px-2 text-left align-middle font-medium whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]">
+                      <TableHead className="text-foreground h-10 px-2 text-center align-middle font-medium whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]">
                         생성일
                       </TableHead>
-                      <TableHead className="text-foreground h-10 px-2 text-left align-middle font-medium whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]">
+                      <TableHead className="text-foreground h-10 px-2 text-center align-middle font-medium whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]">
                         수정일
                       </TableHead>
                     </TableRow>
@@ -620,6 +621,7 @@ export function ProjectPost2() {
               </div>
             </CardContent>
           </Card2>
+          </div>
         </div>
 
         {/* 페이징 영역 */}

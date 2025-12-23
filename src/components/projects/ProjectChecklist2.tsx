@@ -900,7 +900,7 @@ export function ProjectChecklist2() {
               {isCreatingChecklist && (
                 <>
                 <div className="rounded-lg border border-dashed border-slate-200 bg-muted/40 p-4 space-y-4">
-                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="flex flex-col gap-2">
                     <div className="flex items-center gap-2">
                       <div className="rounded-full bg-amber-100 p-1 text-amber-600">
                         <Sparkles className="size-4" aria-hidden="true" />
@@ -912,32 +912,34 @@ export function ProjectChecklist2() {
                         </p>
                       </div>
                     </div>
+                  </div>
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                    <div className="flex flex-1 items-start gap-3">
+                      <Checkbox2
+                          id="registerAsTemplate"
+                          checked={saveAsTemplate}
+                          onCheckedChange={(checked) => handleTemplateToggle(checked === true)}
+                          disabled={isFormDisabled}
+                      />
+                      <div className="space-y-1">
+                        <Label2 htmlFor="registerAsTemplate" className="font-medium text-sm">
+                          현재 작성 중인 체크리스트를 템플릿으로 저장
+                        </Label2>
+                        <p className="text-xs text-muted-foreground">
+                          전달사항과 체크리스트 항목 구성이 그대로 복사되어 다음 작성 시 바로 사용할 수 있습니다.
+                        </p>
+                      </div>
+                    </div>
                     <Button2
                         type="button"
                         variant="outline"
                         size="sm"
-                        className="whitespace-nowrap"
+                        className="whitespace-nowrap self-start"
                         onClick={() => setTemplateListOpen((prev) => !prev)}
                         disabled={templateButtonDisabled}
                     >
                       <Archive className="mr-1 size-4" /> {templateButtonLabel}
                     </Button2>
-                  </div>
-                  <div className="flex items-start gap-3">
-                    <Checkbox2
-                        id="registerAsTemplate"
-                        checked={saveAsTemplate}
-                        onCheckedChange={(checked) => handleTemplateToggle(checked === true)}
-                        disabled={isFormDisabled}
-                    />
-                    <div className="space-y-1">
-                      <Label2 htmlFor="registerAsTemplate" className="font-medium text-sm">
-                        현재 작성 중인 체크리스트를 템플릿으로 저장
-                      </Label2>
-                      <p className="text-xs text-muted-foreground">
-                        전달사항과 체크리스트 항목 구성이 그대로 복사되어 다음 작성 시 바로 사용할 수 있습니다.
-                      </p>
-                    </div>
                   </div>
                   {saveAsTemplate && (
                     <div className="grid gap-4 md:grid-cols-2">
