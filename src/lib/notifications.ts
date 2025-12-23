@@ -14,6 +14,9 @@ export type NotificationDto = Partial<Notification> & {
   content?: string;
   body?: string;
   type?: NotificationEventType | Notification["type"];
+  senderUserId?: string | number | null;
+  senderName?: string | null;
+  senderProfileImg?: string | null;
   projectNodeId?: string | number;
   commentId?: string | number;
   csQnaId?: string | number;
@@ -174,9 +177,13 @@ export function normalizeNotification(dto: NotificationDto): Notification {
   const eventType = (dto.eventType ?? dto.type ?? "STATUS_CHANGED") as NotificationEventType;
   const projectNodeId = dto.projectNodeId ?? dto.nodeId;
   const postId = dto.postId ?? dto.csPostId;
+  const senderId = dto.senderUserId ?? dto.userId;
+  const userId = senderId != null ? String(senderId) : dto.userId ? String(dto.userId) : "";
   const csPostId = dto.csPostId ? String(dto.csPostId) : undefined;
   const csQnaId = dto.csQnaId ? String(dto.csQnaId) : undefined;
   const commentId = dto.commentId ? String(dto.commentId) : undefined;
+  const actorName = dto.actorName ?? dto.senderName ?? undefined;
+  const avatarUrl = dto.avatarUrl ?? dto.senderProfileImg ?? undefined;
   let linkCandidate = dto.link ?? dto.relatedUrl ?? dto.externalUrl;
   if (linkCandidate && linkCandidate.startsWith("/api/")) {
     const checklistMatch = linkCandidate.match(/\/api\/v1\/projects\/([^/]+)\/nodes\/([^/]+)\/checkLists/i);
@@ -203,12 +210,13 @@ export function normalizeNotification(dto: NotificationDto): Notification {
     description: dto.description ?? dto.body ?? dto.content ?? "새로운 알림이 도착했습니다.",
     eventType,
     read: dto.read ?? Boolean(dto.readAt),
-    userId: dto.userId ? String(dto.userId) : "",
+    userId,
+    senderUserId: senderId != null ? String(senderId) : undefined,
     createdAt,
     timeAgo: dto.timeAgo ?? formatRelativeTime(createdAt),
-    initials: dto.initials,
-    avatarUrl: dto.avatarUrl,
-    actorName: dto.actorName,
+    initials: dto.initials ?? (actorName ? actorName.slice(0, 2).toUpperCase() : undefined),
+    avatarUrl,
+    actorName,
     actorType: dto.actorType,
     link,
     projectId: dto.projectId ? String(dto.projectId) : undefined,
