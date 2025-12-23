@@ -41,6 +41,28 @@ export interface MonthlyMetricsResponse {
   metadata?: MonthlyMetricsMetadata;
 }
 
+export type ProjectDistributionCategory =
+  | "PLANNING"
+  | "DESIGN"
+  | "DEVELOPMENT"
+  | "QA"
+  | "RELEASE"
+  | "MAINTENANCE"
+  | "ETC"
+  | (string & {});
+
+export interface ProjectDistributionItem {
+  nodeCategory: ProjectDistributionCategory;
+  totalNodes: number;
+  completedNodes: number;
+  completionRate: number;
+}
+
+export interface ProjectDistributionResponse {
+  totalInProgressProjectCount: number;
+  distributions: ProjectDistributionItem[];
+}
+
 const ADMIN_DASHBOARD_BASE_PATH = "/api/v1/admin/dashboard";
 
 function assertSuccess<T>(payload: ApiResponse<T>, fallbackMessage: string): T {
@@ -122,4 +144,11 @@ export async function fetchAdminMonthlyMetrics(months = 12): Promise<MonthlyMetr
     },
   );
   return assertSuccess(response.data, "월별 지표를 불러오지 못했습니다.");
+}
+
+export async function fetchAdminProjectDistribution(): Promise<ProjectDistributionResponse> {
+  const response = await apiClient.get<ApiResponse<ProjectDistributionResponse>>(
+    `${ADMIN_DASHBOARD_BASE_PATH}/project-distribution`,
+  );
+  return assertSuccess(response.data, "프로젝트 단계별 비율을 불러오지 못했습니다.");
 }
