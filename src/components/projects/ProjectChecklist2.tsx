@@ -27,6 +27,11 @@ import type {
 
 const CHECKLIST_TEMPLATE_STORAGE_KEY = "workhub:checklistTemplates:v1";
 
+type ProjectChecklist2Props = {
+  initialNodeInfo?: Partial<NodeApiItem> | null;
+  nodeInfoLoading?: boolean;
+};
+
 type ChecklistTemplateDraft = {
   id: string;
   name: string;
@@ -171,7 +176,7 @@ type StoredProfileSettings = {
   } | null;
 };
 
-export function ProjectChecklist2() {
+export function ProjectChecklist2({ initialNodeInfo = null, nodeInfoLoading = false }: ProjectChecklist2Props) {
   const { projectId, nodeId } = useParams<{ projectId?: string; nodeId?: string }>();
   const {
     register,
@@ -965,6 +970,29 @@ export function ProjectChecklist2() {
       return;
     }
 
+    if (initialNodeInfo) {
+      const normalizedRejectText =
+        typeof initialNodeInfo.rejectText === "string"
+          ? initialNodeInfo.rejectText.trim() || null
+          : initialNodeInfo.rejectText ?? null;
+      nodeInfoRef.current = {
+        ...nodeInfoRef.current,
+        ...initialNodeInfo,
+        rejectText: normalizedRejectText,
+      };
+      setNodeRejectText(normalizedRejectText ?? null);
+      const fetchedStatus =
+        typeof initialNodeInfo === "string"
+          ? (initialNodeInfo as unknown as ConfirmStatus)
+          : (initialNodeInfo as any)?.confirmStatus ?? null;
+      setNodeConfirmStatus(fetchedStatus);
+      return;
+    }
+
+    if (nodeInfoLoading) {
+      return;
+    }
+
     let cancelled = false;
 
     const fetchNodeInfo = async () => {
@@ -996,7 +1024,7 @@ export function ProjectChecklist2() {
     return () => {
       cancelled = true;
     };
-  }, [hasRouteContext, projectId, nodeId]);
+  }, [hasRouteContext, initialNodeInfo, nodeInfoLoading, projectId, nodeId]);
 
   useEffect(() => {
     if (existingChecklistId) {

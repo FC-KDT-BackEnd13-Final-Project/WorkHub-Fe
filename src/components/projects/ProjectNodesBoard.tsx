@@ -239,6 +239,8 @@ export function ProjectNodesBoard() {
     developers?: { id: string; name: string; email?: string; avatarUrl?: string }[];
   } | null;
   const projectNameFromState = locationState?.projectName;
+  const [projectName, setProjectName] = useState<string | null>(projectNameFromState ?? null);
+  const projectNameFetchedRef = useRef(false);
   const developerOptions = locationState?.developers ?? [];
   console.log("ProjectNodesBoard - 현재 projectId:", projectId);
   const [search, setSearch] = useState("");
@@ -455,6 +457,44 @@ export function ProjectNodesBoard() {
   useEffect(() => {
     fetchNodes();
   }, [fetchNodes]);
+
+  useEffect(() => {
+    const loadProjectName = async () => {
+      if (!projectId) return;
+      if (projectNameFromState) {
+        setProjectName(projectNameFromState);
+        return;
+      }
+      if (projectNameFetchedRef.current) return;
+
+      const storageKey = `workhub:projectName:${projectId}`;
+      const cached = sessionStorage.getItem(storageKey);
+      if (cached) {
+        setProjectName(cached);
+        projectNameFetchedRef.current = true;
+        return;
+      }
+
+      projectNameFetchedRef.current = true;
+      try {
+        const data = await projectApi.getProject(projectId);
+        const name = (data as any)?.projectTitle || (data as any)?.projectName || (data as any)?.name || (data as any)?.title;
+        if (name) {
+          setProjectName(name);
+          sessionStorage.setItem(storageKey, name);
+        } else if (projectNameFromState) {
+          setProjectName(projectNameFromState);
+        }
+      } catch (error) {
+        console.error("프로젝트명을 불러오지 못했습니다.", error);
+        if (projectNameFromState) {
+          setProjectName(projectNameFromState);
+        }
+        projectNameFetchedRef.current = false;
+      }
+    };
+    loadProjectName();
+  }, [projectId, projectNameFromState]);
 
   useEffect(() => {
     if (editingNode) return;
@@ -1041,7 +1081,7 @@ useEffect(() => {
 
       <div className="rounded-2xl bg-white p-6 shadow-sm">
         <h1 className="text-3xl font-semibold tracking-tight">
-          {projectNameFromState ?? "노드 전체 상태"}
+          {projectName ?? projectNameFromState ?? "노드 전체 상태"}
         </h1>
         <p className="mt-2 text-muted-foreground">
           각 워크플로 단계의 진행 상황을 확인하고 필요한 세부 정보를 확인하세요.
