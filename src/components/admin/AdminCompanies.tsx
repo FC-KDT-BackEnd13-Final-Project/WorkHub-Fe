@@ -13,14 +13,16 @@ import {
 } from "../ui/select";
 import { PaginationControls } from "../common/PaginationControls";
 import { calculateTotalPages, clampPage, paginate } from "../../utils/pagination";
-import { useAdminUsersList } from "../../hooks/useAdminUsers";
-
-type CompanyStatus = "ACTIVE" | "INACTIVE" | "SUSPENDED";
+import { useAdminCompanyList } from "@/hooks/useAdminCompanies";
+import type { CompanyStatus } from "@/types/company";
 
 type CompanySummary = {
   id: string;
   name: string;
   status: CompanyStatus;
+  companyNumber?: string;
+  tel?: string;
+  address?: string;
   totalProjectCount: number;
   activeProjectCount: number;
   clientCount: number;
@@ -54,20 +56,6 @@ const statusStyles: Record<
 
 const PAGE_SIZE = 10;
 
-const STATUS_PRIORITY: Record<CompanyStatus, number> = {
-  ACTIVE: 1,
-  INACTIVE: 2,
-  SUSPENDED: 3,
-};
-
-const INACTIVE_PROJECT_KEYWORDS = ["완료", "complete", "done", "hold", "pause", "종료"];
-
-function isActiveProject(status?: string) {
-  if (!status) return false;
-  const normalized = status.toLowerCase();
-  return !INACTIVE_PROJECT_KEYWORDS.some((keyword) => normalized.includes(keyword));
-}
-
 function formatDate(date?: string) {
   if (!date) return "-";
   const parsed = new Date(date);
@@ -75,17 +63,6 @@ function formatDate(date?: string) {
     return date;
   }
   return parsed.toLocaleDateString("ko-KR");
-}
-
-function getCompanyInitials(name: string) {
-  const trimmed = name.trim();
-  if (!trimmed) return "-";
-  return trimmed
-    .split(/\s+/)
-    .map((part) => part[0])
-    .join("")
-    .slice(0, 2)
-    .toUpperCase();
 }
 
 function normalizeCompanyStatus(status?: string): CompanyStatus {
@@ -105,46 +82,28 @@ export function AdminCompanies() {
   const [joinEndDate, setJoinEndDate] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
 
-  const { users: adminUsers, isLoading, error } = useAdminUsersList();
+  const { companies: adminCompanies, isLoading, error } = useAdminCompanyList();
 
   const companySummaries = useMemo<CompanySummary[]>(() => {
-    const map = new Map<string, CompanySummary>();
-    adminUsers.forEach((user) => {
-      if (!user.company) {
-        return;
-      }
-      const companyId = user.company;
-      const existing = map.get(companyId);
-      const normalizedStatus = normalizeCompanyStatus(user.status);
-      const totalProjects = (user.projects ?? []).length;
-      const activeProjects = (user.projects ?? []).filter((project) =>
-        isActiveProject(project.status),
-      ).length;
-      const joined = user.joined ?? "";
-      if (!existing) {
-        map.set(companyId, {
-          id: companyId,
-          name: companyId,
+    return adminCompanies
+      .map((company) => {
+        const normalizedStatus = normalizeCompanyStatus(company.status);
+        const fallbackName = company.companyName?.trim() || (company.companyId ? `Company #${company.companyId}` : "이름 미지정");
+        return {
+          id: company.companyId ? company.companyId.toString() : fallbackName,
+          name: fallbackName,
           status: normalizedStatus,
-          totalProjectCount: totalProjects,
-          activeProjectCount: activeProjects,
-          clientCount: 1,
-          joined,
-        });
-      } else {
-        existing.clientCount += 1;
-        existing.totalProjectCount += totalProjects;
-        existing.activeProjectCount += activeProjects;
-        if (STATUS_PRIORITY[normalizedStatus] > STATUS_PRIORITY[existing.status]) {
-          existing.status = normalizedStatus;
-        }
-        if (!existing.joined || (joined && new Date(joined) < new Date(existing.joined))) {
-          existing.joined = joined;
-        }
-      }
-    });
-    return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name, "ko"));
-  }, [adminUsers]);
+          companyNumber: company.companyNumber ?? "",
+          tel: company.tel ?? "",
+          address: company.address ?? "",
+          totalProjectCount: company.totalProjectCount ?? 0,
+          activeProjectCount: company.activeProjectCount ?? 0,
+          clientCount: company.clientCount ?? 0,
+          joined: company.createdAt ?? company.joinedAt ?? "",
+        } as CompanySummary;
+      })
+      .sort((a, b) => a.name.localeCompare(b.name, "ko"));
+  }, [adminCompanies]);
 
   const filteredCompanies = useMemo(() => {
     const term = searchTerm.toLowerCase();
