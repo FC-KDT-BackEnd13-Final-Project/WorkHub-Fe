@@ -2282,71 +2282,149 @@ export const FormQuestion2 = forwardRef<FormQuestionHandle, FormQuestionProps>(f
         }));
     };
 
-    const submitReply = (groupIndex: number, commentId: number) => {
+    const submitReply = async (groupIndex: number, commentId: number) => {
         if (!canComment) return;
 
-        setGroups((prev) =>
-            prev.map((group, index) => {
-                if (index !== groupIndex) return group;
+        const targetGroup = groupsRef.current[groupIndex];
+        if (!targetGroup || isCommentInteractionLocked(targetGroup)) {
+            return;
+        }
 
-                let historyEntry: ChecklistHistoryEntry | null = null;
-
-                const updatedComments = group.comments.map((comment) => {
-                    if (comment.id !== commentId || isCommentInteractionLocked(group))
-                        return comment;
-
-                    const draft = (comment.replyDraft ?? "").trim();
-                    const attachments = comment.replyAttachmentDraft ?? [];
-                    if (!draft && attachments.length === 0) return comment;
-
-                    const newReply: ChecklistReply = {
-                        id: Date.now(),
-                        text: draft,
-                        author: commentAuthor,
-                        createdAt: new Date().toISOString(),
-                        updatedAt: null,
-                        menuOpen: false,
-                        isEditing: false,
-                        editDraft: draft,
-                        parentReplyId: comment.replyingToReplyId ?? null,
-                        parentAuthor: comment.replyingToAuthor ?? null,
-                        attachments: attachments.map((attachment) => ({
-                            ...attachment,
-                        })),
-                        editAttachmentDraft: [],
-                    };
-
-                    historyEntry = createHistoryEntry({
-                        targetId: newReply.id,
-                        type: "reply",
-                        action: "created",
-                        author: newReply.author,
-                        content: newReply.text,
-                        parentCommentId: comment.id,
-                    });
-
-                    return {
-                        ...comment,
-                        replies: [...comment.replies, newReply],
-                        showReplyBox: false,
-                        replyDraft: "",
-                        replyingToReplyId: null,
-                        replyingToAuthor: null,
-                        replyAttachmentDraft: [],
-                    };
-                });
-
-                if (!historyEntry) return group;
-
-                return {
-                    ...group,
-                    comments: updatedComments,
-                    historyEntries: [...group.historyEntries, historyEntry],
-                    historySelectedTargetId:
-                        group.historySelectedTargetId ?? historyEntry.targetId,
-                };
-            }),
+        const targetComment = targetGroup.comments.find(
+            (comment) => comment.id === commentId,
         );
+        if (!targetComment) {
+            return;
+        }
+
+        const draft = (targetComment.replyDraft ?? "").trim();
+        const attachments = cloneCommentAttachments(
+            targetComment.replyAttachmentDraft ?? [],
+        );
+        const hasAttachments = attachments.length > 0;
+        if (!draft && !hasAttachments) {
+            return;
+        }
+
+        const parentCommentServerId = targetComment.id;
+        const parentReplyId = targetComment.replyingToReplyId ?? null;
+        const parentAuthor = targetComment.replyingToAuthor ?? null;
+
+        const finalizeReplyAppend = (serverReply?: CheckListCommentResponse | void) => {
+            const replyRecord: ChecklistReply = serverReply
+                ? {
+                      id: resolveCommentId(serverReply),
+                      text: serverReply.content ?? draft,
+                      author: resolveAuthorName(serverReply),
+                      createdAt: serverReply.createdAt ?? new Date().toISOString(),
+                      updatedAt: serverReply.updatedAt ?? null,
+                      menuOpen: false,
+                      isEditing: false,
+                      editDraft: serverReply.content ?? draft,
+                      parentReplyId:
+                          resolveParentCommentId(serverReply) ?? parentReplyId,
+                      parentAuthor,
+                      attachments: resolveResponseFiles(serverReply),
+                      editAttachmentDraft: [],
+                  }
+                : {
+                      id: Date.now() + Math.floor(Math.random() * 1000),
+                      text: draft,
+                      author: commentAuthor,
+                      createdAt: new Date().toISOString(),
+                      updatedAt: null,
+                      menuOpen: false,
+                      isEditing: false,
+                      editDraft: draft,
+                      parentReplyId,
+                      parentAuthor,
+                      attachments: attachments,
+                      editAttachmentDraft: [],
+                  };
+
+            const historyEntry = createHistoryEntry({
+                targetId: replyRecord.id,
+                type: "reply",
+                action: "created",
+                author: replyRecord.author,
+                content: replyRecord.text,
+                parentCommentId: commentId,
+            });
+
+            setGroups((prev) =>
+                prev.map((group, index) => {
+                    if (index !== groupIndex) return group;
+                    return {
+                        ...group,
+                        comments: group.comments.map((comment) =>
+                            comment.id === commentId
+                                ? {
+                                      ...comment,
+                                      replies: [...comment.replies, replyRecord],
+                                      showReplyBox: false,
+                                      replyDraft: "",
+                                      replyingToReplyId: null,
+                                      replyingToAuthor: null,
+                                      replyAttachmentDraft: [],
+                                  }
+                                : comment,
+                        ),
+                        historyEntries: [...group.historyEntries, historyEntry],
+                        historySelectedTargetId:
+                            group.historySelectedTargetId ?? historyEntry.targetId,
+                        isCommentSubmitting: false,
+                    };
+                }),
+            );
+        };
+
+        const shouldSyncWithServer = Boolean(
+            onSubmitComment && targetGroup.checkListItemId,
+        );
+
+        if (shouldSyncWithServer) {
+            setGroups((prev) =>
+                prev.map((group, index) =>
+                    index === groupIndex
+                        ? { ...group, isCommentSubmitting: true }
+                        : group,
+                ),
+            );
+
+            try {
+                const files = attachments
+                    .map((attachment) => attachment.file)
+                    .filter((file): file is File => Boolean(file));
+                const fileMeta = attachments.map((attachment, index) => ({
+                    fileName:
+                        attachment.file?.name ||
+                        attachment.fileName ||
+                        `attachment-${index + 1}`,
+                    fileOrder: index,
+                }));
+                const response = await onSubmitComment?.({
+                    checkListItemId: targetGroup.checkListItemId!,
+                    content: draft,
+                    attachments: files,
+                    fileMeta,
+                    parentCommentId: parentCommentServerId,
+                });
+                finalizeReplyAppend(response);
+            } catch (error) {
+                setGroups((prev) =>
+                    prev.map((group, index) =>
+                        index === groupIndex
+                            ? { ...group, isCommentSubmitting: false }
+                            : group,
+                    ),
+                );
+                return;
+            }
+
+            return;
+        }
+
+        finalizeReplyAppend();
     };
 
     const toggleReplyMenu = (
@@ -4048,7 +4126,7 @@ export const FormQuestion2 = forwardRef<FormQuestionHandle, FormQuestionProps>(f
                                                             type="button"
                                                             size="sm"
                                                             onClick={() =>
-                                                                submitReply(
+                                                                void submitReply(
                                                                     groupIndex,
                                                                     comment.id,
                                                                 )

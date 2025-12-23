@@ -45,6 +45,7 @@ export interface CheckListCommentFilePayload {
 export interface CheckListCommentRequest {
   content: string;
   parentCommentId?: number | null;
+  parentClCommentId?: number | null;
   files?: CheckListCommentFilePayload[];
 }
 
