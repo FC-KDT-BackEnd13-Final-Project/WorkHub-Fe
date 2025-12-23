@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import {
     LayoutDashboard,
@@ -22,6 +22,7 @@ import {
     normalizeUserRole,
 } from "../../constants/profile";
 import { useLocalStorageValue } from "../../hooks/useLocalStorageValue";
+import { fetchDashboardSummary } from "@/lib/dashboard";
 
 // 로그인 이후 레이아웃에서 좌측 프로젝트 내비게이션과 상태를 담당
 export type NavigationItem = {
@@ -109,10 +110,25 @@ export function Sidebar() {
         listen: false,
     });
 
-    const activeProjectCount = useMemo(() => {
-        return companyUsers
-            .flatMap((u) => u.projects ?? [])
-            .filter((p) => p.status === "In Progress").length;
+    const [projectCount, setProjectCount] = useState<number | null>(null);
+
+    useEffect(() => {
+        let cancelled = false;
+        const loadProjectCount = async () => {
+            try {
+                const summary = await fetchDashboardSummary();
+                if (cancelled) return;
+                setProjectCount(summary.totalProjects ?? 0);
+            } catch (error) {
+                if (cancelled) return;
+                console.error("프로젝트 개수 조회 실패", error);
+                setProjectCount(null);
+            }
+        };
+        loadProjectCount();
+        return () => {
+            cancelled = true;
+        };
     }, []);
 
     // profile/user 어디에 role이 저장됐든 우선순위를 정해 단일 역할로 매핑한다.
@@ -153,8 +169,8 @@ export function Sidebar() {
     const getBadgeValue = (label: string) => {
         if (label === "Notifications" && notificationCount > 0)
             return String(notificationCount);
-        if (label === "Projects" && activeProjectCount > 0)
-            return String(activeProjectCount);
+        if (label === "Projects" && projectCount !== null)
+            return String(projectCount);
         return undefined;
     };
 
