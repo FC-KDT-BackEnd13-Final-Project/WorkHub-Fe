@@ -120,7 +120,8 @@ apiClient.interceptors.request.use(
 apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401) {
+    const skipRedirect = error.config?.headers?.["X-Skip-Auth-Redirect"];
+    if (error.response?.status === 401 && !skipRedirect) {
       localStorage.removeItem('authToken'); // 인증 만료 시 토큰 삭제하여 재로그인 유도
       localStorage.removeItem('user');
       localStorage.setItem('workhub:auth', 'false');
@@ -822,10 +823,16 @@ export const userApi = {
    * @param code 인증 코드
    */
   confirmEmailVerification: async (email: string, code: string) => {
-    const response = await apiClient.post("/api/v1/users/confirm", {
-      email,
-      code,
-    });
+    const response = await apiClient.post(
+      "/api/v1/users/confirm",
+      {
+        email,
+        code,
+      },
+      {
+        headers: { "X-Skip-Auth-Redirect": "true" },
+      },
+    );
 
     const { success, message, data } = response.data;
     if (success === true) {
