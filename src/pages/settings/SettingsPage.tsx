@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import type { ChangeEvent } from "react";
+import type { ChangeEvent, FormEvent } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "../../components/ui/avatar";
 import { Button } from "../../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
@@ -13,7 +13,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "../../components/ui/select";
-import { LoginScreen } from "../../components/Login";
 import { toast } from "sonner";
 import { ModalShell } from "../../components/common/ModalShell";
 import {
@@ -50,6 +49,12 @@ export function SettingsPage() {
 
   const [twoFactorEnabled, setTwoFactorEnabled] = useState(true);
   const [showResetPassword, setShowResetPassword] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [confirmMismatch, setConfirmMismatch] = useState(false);
+  const [passwordError, setPasswordError] = useState<string | null>(null);
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
   const [isEmailVerificationOpen, setIsEmailVerificationOpen] = useState(false);
   const [isEmailVerified, setIsEmailVerified] = useState(false);
   const [emailForVerification, setEmailForVerification] = useState(profile.email);
@@ -298,20 +303,77 @@ export function SettingsPage() {
     }
   }, [storedSettings]);
 
+  const handleChangePasswordClick = () => {
+    setShowResetPassword(true);
+  };
+
+  const resetPasswordModalState = () => {
+    setCurrentPassword("");
+    setNewPassword("");
+    setConfirmPassword("");
+    setConfirmMismatch(false);
+    setPasswordError(null);
+    setIsChangingPassword(false);
+  };
+
+  const handleClosePasswordModal = () => {
+    setShowResetPassword(false);
+    resetPasswordModalState();
+  };
+
+  const handleSubmitPasswordChange = async (event: FormEvent) => {
+    event.preventDefault();
+    setPasswordError(null);
+
+    if (!currentPassword || !newPassword || !confirmPassword) {
+      setPasswordError("모든 비밀번호 입력란을 채워주세요.");
+      return;
+    }
+    if (newPassword.length < 6) {
+      setPasswordError("새 비밀번호는 6자 이상이어야 합니다.");
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setPasswordError("새 비밀번호가 일치하지 않습니다.");
+      return;
+    }
+
+    setIsChangingPassword(true);
+    try {
+      const response = await userApi.changePassword(currentPassword, newPassword);
+      toast.success(response?.message || "비밀번호가 변경되었습니다.");
+      handleClosePasswordModal();
+    } catch (error: any) {
+      console.error("비밀번호 변경 실패", error);
+      const message =
+        error?.response?.data?.message ||
+        error?.message ||
+        "비밀번호 변경에 실패했습니다. 다시 시도해주세요.";
+      setPasswordError(message);
+      toast.error(message);
+    } finally {
+      setIsChangingPassword(false);
+    }
+  };
+
+  useEffect(() => {
+    const mismatch = Boolean(confirmPassword) && newPassword !== confirmPassword;
+    setConfirmMismatch(mismatch);
+    if (!mismatch && passwordError === "새 비밀번호가 일치하지 않습니다.") {
+      setPasswordError(null);
+    }
+  }, [confirmPassword, newPassword, passwordError]);
+
   useEffect(() => {
     if (!showResetPassword) return;
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
-        setShowResetPassword(false);
+        handleClosePasswordModal();
       }
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [showResetPassword]);
-
-  const handleChangePasswordClick = () => {
-    setShowResetPassword(true);
-  };
+  }, [handleClosePasswordModal, showResetPassword]);
 
   // 변경 사항을 저장하고 결과를 사용자에게 알림
   const handleSaveProfile = () => {
@@ -579,22 +641,82 @@ export function SettingsPage() {
 
       <ModalShell
         open={showResetPassword}
-        onClose={() => setShowResetPassword(false)}
-        maxWidth="var(--login-card-max-width, 42rem)"
+        onClose={handleClosePasswordModal}
+        maxWidth="28rem"
         className="login-theme"
       >
-        <div className="w-full max-w-lg overflow-y-auto bg-card text-card-foreground shadow-2xl rounded-2xl border border-border">
-          <LoginScreen
-            initialResetStage="request"
-            defaultResetId={getStoredLoginId()}
-            defaultResetEmail={profile.email}
-            variant="modal"
-            allowLoginNavigation={false}
-            onCancel={() => setShowResetPassword(false)}
-            onSuccess={() => setShowResetPassword(false)}
-            cancelLabel="취소하기"
-          />
-        </div>
+        <Card variant="modal" className="border border-border shadow-2xl">
+          <form onSubmit={handleSubmitPasswordChange}>
+            <CardHeader className="space-y-2 pb-2 text-center">
+              <h2 className="text-xl font-semibold">비밀번호 변경</h2>
+              <p className="text-sm text-muted-foreground">
+                현재 비밀번호를 확인하고 새 비밀번호를 설정하세요.
+              </p>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {passwordError ? <p className="text-sm text-destructive">{passwordError}</p> : null}
+              <div className="space-y-2">
+                <Label htmlFor="current-password" className="text-gray-700 mt-2 block">
+                  현재 비밀번호
+                </Label>
+                <Input
+                  id="current-password"
+                  type="password"
+                  value={currentPassword}
+                  onChange={(event) => setCurrentPassword(event.target.value)}
+                  placeholder="현재 비밀번호를 입력하세요"
+                  autoComplete="current-password"
+                  className="h-10"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="new-password" className="text-gray-700">
+                  새 비밀번호
+                </Label>
+                <Input
+                  id="new-password"
+                  type="password"
+                  value={newPassword}
+                  onChange={(event) => {
+                    setNewPassword(event.target.value);
+                    if (passwordError) setPasswordError(null);
+                  }}
+                  placeholder="변경할 비밀번호를 입력하세요"
+                  autoComplete="new-password"
+                  className="h-10"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="confirm-password" className="text-gray-700">
+                  새 비밀번호 확인
+                </Label>
+                <Input
+                  id="confirm-password"
+                  type="password"
+                  value={confirmPassword}
+                  onChange={(event) => {
+                    setConfirmPassword(event.target.value);
+                    if (passwordError) setPasswordError(null);
+                  }}
+                  placeholder="새 비밀번호를 다시 입력하세요"
+                  autoComplete="new-password"
+                  className="h-10"
+                />
+                {confirmMismatch ? (
+                  <p className="text-sm text-destructive">새 비밀번호와 일치하지 않습니다.</p>
+                ) : null}
+              </div>
+              <div className="flex justify-end gap-2 pt-2">
+                <Button type="submit" className="w-32" disabled={isChangingPassword}>
+                  {isChangingPassword ? "변경 중..." : "비밀번호 변경"}
+                </Button>
+                <Button type="button" variant="secondary" onClick={handleClosePasswordModal} className="w-28">
+                  취소
+                </Button>
+              </div>
+            </CardContent>
+          </form>
+        </Card>
       </ModalShell>
     </>
   );
