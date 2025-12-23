@@ -475,10 +475,11 @@ export function SupportPage() {
                   </div>
               )}
               {/* 데스크톱 테이블 */}
-              <div className="hidden md:flex md:justify-center">
-                <Card2 className="overflow-hidden w-full md:max-w-6xl">
-                  <CardContent className="p-0">
-                    <Table2 className="table-fixed w-full">
+              <div className="hidden md:block">
+                <div className="mx-auto w-full max-w-5xl">
+                  <Card2 className="overflow-hidden">
+                    <CardContent className="p-0">
+                      <Table2 className="table-fixed w-full">
                       <colgroup>
                         <col style={{ width: "8%" }} />
                         <col style={{ width: "8%" }} />
@@ -582,6 +583,7 @@ export function SupportPage() {
                     </Table2>
                   </CardContent>
                 </Card2>
+                </div>
               </div>
             </div>
         )}
