@@ -1,5 +1,5 @@
 import { cn } from "../ui/utils";
-import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 
 interface PaginationControlsProps {
   currentPage: number;
@@ -38,15 +38,6 @@ export function PaginationControls({ currentPage, totalPages, onPageChange, clas
       <button
         type="button"
         className={cn(buttonBaseClass, navButtonClass)}
-        onClick={() => goToPage(startPage - windowSize)}
-        disabled={startPage === 1}
-        aria-label="이전 5페이지"
-      >
-        <ChevronsLeft className="h-4 w-4" aria-hidden />
-      </button>
-      <button
-        type="button"
-        className={cn(buttonBaseClass, navButtonClass)}
         onClick={() => goToPage(currentPage - 1)}
         disabled={currentPage === 1}
         aria-label="이전 페이지"
@@ -75,15 +66,6 @@ export function PaginationControls({ currentPage, totalPages, onPageChange, clas
         aria-label="다음 페이지"
       >
         <ChevronRight className="h-4 w-4" aria-hidden />
-      </button>
-      <button
-        type="button"
-        className={cn(buttonBaseClass, navButtonClass)}
-        onClick={() => goToPage(startPage + windowSize)}
-        disabled={endPage === totalPages}
-        aria-label="다음 5페이지"
-      >
-        <ChevronsRight className="h-4 w-4" aria-hidden />
       </button>
     </div>
   );
