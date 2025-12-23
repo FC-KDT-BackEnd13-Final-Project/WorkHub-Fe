@@ -6,7 +6,8 @@ import type { LucideIcon } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { companyUsers } from "../admin/userData";
 import logoImage from "../../../image/logo.png";
-import { historyEvents, historyPalette } from "../../data/historyData";
+import placeholderImage from "../../../image/photo.png";
+import { historyPalette, type HistoryEvent } from "../../data/historyData";
 import {
   PROFILE_STORAGE_KEY,
   type UserRole,
@@ -21,6 +22,8 @@ import {
   fetchDashboardSummary,
   type MonthlyMetricsResponse,
 } from "@/lib/dashboard";
+import { historyApi } from "@/lib/history";
+import { mapHistoryItemToEvent } from "@/lib/historyMapper";
 
 const statusSlices = [
   { label: "Planning", value: 12, color: "#0ea5e9" },
@@ -160,21 +163,21 @@ export function Dashboard() {
   const [adminCounts, setAdminCounts] = useState<{ users: number; companies: number; projects: number } | null>(null);
   const [adminMonthlyMetrics, setAdminMonthlyMetrics] = useState<MonthlyMetricsResponse | null>(null);
   const [adminMetricsError, setAdminMetricsError] = useState<string | null>(null);
-  const todayHistoryEvents = historyEvents.filter((event) => event.timestamp.includes("오늘"));
-  const getInitials = (value?: string) => {
-    if (!value) return "NA";
-    const cleaned = value.trim();
-    if (!cleaned) return "NA";
-    const parts = cleaned.split(/\s+/);
-    const first = parts[0]?.[0] ?? "";
-    const second = parts[1]?.[0] ?? cleaned[1] ?? "";
-    return (first + (second ?? "")).slice(0, 2).toUpperCase();
-  };
-  const getAvatarUrl = (seed?: string) => (seed ? `https://i.pravatar.cc/80?u=${encodeURIComponent(seed)}` : undefined);
+  const [historyApiEvents, setHistoryApiEvents] = useState<HistoryEvent[]>([]);
+  const [historyError, setHistoryError] = useState<string | null>(null);
   const isSystemActor = (name?: string) => {
     if (!name) return true;
     const normalized = name.toLowerCase();
     return ["시스템", "bot", "센터"].some((keyword) => normalized.includes(keyword.toLowerCase()));
+  };
+  const getActorAvatar = (name?: string, profileImg?: string | null) => {
+    if (isSystemActor(name)) {
+      return { src: logoImage, alt: "WorkHub 로고" };
+    }
+    if (profileImg) {
+      return { src: profileImg, alt: name ?? "사용자" };
+    }
+    return { src: placeholderImage, alt: name ?? "기본 아바타" };
   };
 
   const [storedSettings] = useLocalStorageValue<StoredSettings | null>(PROFILE_STORAGE_KEY, {
@@ -332,9 +335,41 @@ export function Dashboard() {
     };
   }, [userRole]);
 
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadHistories = async () => {
+      try {
+        const params = { page: 0, size: 30, sort: "updatedAt,desc" } as const;
+        const page =
+          userRole === "ADMIN"
+            ? await historyApi.getAllAdminHistories(params)
+            : await historyApi.getAllHistories(params);
+
+        if (cancelled) return;
+
+        setHistoryApiEvents(page.content.map(mapHistoryItemToEvent));
+        setHistoryError(null);
+      } catch (error) {
+        if (cancelled) return;
+        const message = error instanceof Error ? error.message : "히스토리를 불러오지 못했습니다.";
+        setHistoryApiEvents([]);
+        setHistoryError(message);
+      }
+    };
+
+    loadHistories();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [userRole]);
+
   const relevantHistoryEvents = useMemo(() => {
+    const historySourceEvents = historyApiEvents;
+
     if (userRole !== "CLIENT" && userRole !== "DEVELOPER") {
-      return todayHistoryEvents;
+      return historySourceEvents;
     }
 
     const candidates = [
@@ -348,16 +383,16 @@ export function Dashboard() {
       .map((value) => value?.toLowerCase())
       .filter(Boolean) as string[];
 
-    if (candidates.length === 0) return todayHistoryEvents;
+    if (candidates.length === 0) return historySourceEvents;
 
     const matchesCurrentUser = (value?: string | null) => Boolean(value && candidates.includes(value.toLowerCase()));
 
-    const filtered = todayHistoryEvents.filter(
+    const filtered = historySourceEvents.filter(
       (event) => matchesCurrentUser(event.updatedBy) || matchesCurrentUser(event.createdBy)
     );
 
-    return filtered.length > 0 ? filtered : todayHistoryEvents;
-  }, [currentUser, storedSettings, storedUser, todayHistoryEvents, userRole]);
+    return filtered.length > 0 ? filtered : historySourceEvents;
+  }, [currentUser, historyApiEvents, storedSettings, storedUser, userRole]);
 
   useEffect(() => {
     const scrollContainer = scrollContainerRef.current;
@@ -687,11 +722,12 @@ export function Dashboard() {
                     );
                   })}
                 </div>
-              </CardContent>
+            </CardContent>
             </Card>
           </div>
         )}
 
+        {historyError ? <p className="text-sm text-destructive">{historyError}</p> : null}
         <Card className="rounded-xl border border-white/70 bg-white/90 shadow-sm backdrop-blur">
           <CardHeader className="flex flex-row items-center justify-between gap-4 pb-2">
             <div>
@@ -710,23 +746,12 @@ export function Dashboard() {
               <div className="space-y-4 md:hidden">
                 {visibleHistoryEvents.map((event) => {
                   const palette = historyPalette[event.type] ?? historyPalette.create;
+                  const actorAvatar = getActorAvatar(event.updatedBy, event.updatedByProfileImg);
                   return (
                     <div key={event.id} className="rounded-xl border border-white/70 bg-white/90 p-4 shadow-sm">
                       <div className="flex items-center gap-3">
                         <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-xl border border-white/70 shadow-sm">
-                          {isSystemActor(event.updatedBy) ? (
-                            <img src={logoImage} alt="WorkHub 로고" className="h-full w-full object-cover" />
-                          ) : event.updatedBy ? (
-                            <img
-                              src={getAvatarUrl(event.updatedBy)}
-                              alt={event.updatedBy}
-                              className="h-full w-full object-cover"
-                            />
-                          ) : (
-                            <div className="flex h-full w-full items-center justify-center bg-slate-100 text-sm font-semibold text-foreground">
-                              {getInitials(event.updatedBy)}
-                            </div>
-                          )}
+                          <img src={actorAvatar.src} alt={actorAvatar.alt} className="h-full w-full object-cover" />
                         </div>
                         <div className="flex-1 space-y-1">
                           <p className="text-sm font-medium text-foreground">{event.message}</p>
@@ -786,24 +811,13 @@ export function Dashboard() {
                   <tbody className="[&_tr:last-child]:border-0">
                     {visibleHistoryEvents.map((event) => {
                       const palette = historyPalette[event.type] ?? historyPalette.create;
+                      const actorAvatar = getActorAvatar(event.updatedBy, event.updatedByProfileImg);
                       return (
                         <tr key={event.id} className="hover:bg-muted/50 border-b transition-colors">
                           <td className="p-2 align-middle whitespace-normal">
                             <div className="flex items-center gap-3">
                               <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-xl border border-white/70 shadow-sm">
-                                {isSystemActor(event.updatedBy) ? (
-                                  <img src={logoImage} alt="WorkHub 로고" className="h-full w-full object-cover" />
-                                ) : event.updatedBy ? (
-                                  <img
-                                    src={getAvatarUrl(event.updatedBy)}
-                                    alt={event.updatedBy}
-                                    className="h-full w-full object-cover"
-                                  />
-                                ) : (
-                                  <div className="flex h-full w-full items-center justify-center bg-slate-100 text-sm font-semibold text-foreground">
-                                    {getInitials(event.updatedBy)}
-                                  </div>
-                                )}
+                                <img src={actorAvatar.src} alt={actorAvatar.alt} className="h-full w-full object-cover" />
                               </div>
                               <div className="space-y-1">
                                 <p className="text-sm font-medium text-foreground">{event.message}</p>
