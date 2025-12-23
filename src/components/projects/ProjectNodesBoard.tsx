@@ -1413,6 +1413,7 @@ function NodeCardBase({
   cardRef,
   style,
 }: NodeCardBaseProps) {
+  const nodeCategoryLabel = node.nodeCategory ? nodeCategoryLabels[node.nodeCategory] ?? node.nodeCategory : "미지정";
   const handleCardClick = (event: MouseEvent<HTMLDivElement>) => {
     if (rightActions) {
       const target = event.target as HTMLElement;
@@ -1498,6 +1499,10 @@ function NodeCardBase({
           <div className="flex justify-between">
             <span className="text-muted-foreground">개발 담당자</span>
             <span className="font-medium">{node.developer || "-"}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-muted-foreground">카테고리</span>
+            <span className="font-medium">{nodeCategoryLabel}</span>
           </div>
         </div>
       </CardContent>
