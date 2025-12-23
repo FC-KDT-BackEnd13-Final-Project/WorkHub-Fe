@@ -49,7 +49,7 @@ export function LoginScreen({
     const [resetId, setResetId] = useState(defaultResetId)
     const [resetEmail, setResetEmail] = useState(defaultResetEmail)
     const [resetCode, setResetCode] = useState('')
-    const [resetErrors, setResetErrors] = useState<{ userId?: string; email?: string; code?: string; newPassword?: string; confirmPassword?: string }>({})
+    const [resetErrors, setResetErrors] = useState<{ userId?: string; email?: string; code?: string; newPassword?: string; confirmPassword?: string; form?: string }>({})
     const [newPassword, setNewPassword] = useState('')
     const [confirmPassword, setConfirmPassword] = useState('')
     const [isResetSubmitting, setIsResetSubmitting] = useState(false)
@@ -178,9 +178,16 @@ export function LoginScreen({
         setIsResetSubmitting(true)
 
         try {
-            await new Promise((resolve) => setTimeout(resolve, 1000))
+            await authApi.requestPasswordReset(resetEmail)
             setResetStage('verify')
             setResetErrors({})
+        } catch (error: any) {
+            console.error("비밀번호 재설정 코드 전송 실패", error)
+            const message =
+              error?.response?.data?.message ||
+              error?.message ||
+              "인증 코드 전송에 실패했습니다. 다시 시도해주세요."
+            setResetErrors({ email: message })
         } finally {
             setIsResetSubmitting(false)
         }
@@ -197,9 +204,16 @@ export function LoginScreen({
 
         setIsResetSubmitting(true)
         try {
-            await new Promise((resolve) => setTimeout(resolve, 1000))
+            await authApi.verifyPasswordResetCode(resetEmail, resetCode)
             setResetStage('newPassword')
             setResetErrors({})
+        } catch (error: any) {
+            console.error("비밀번호 재설정 코드 검증 실패", error)
+            const message =
+              error?.response?.data?.message ||
+              error?.message ||
+              "인증 코드 확인에 실패했습니다. 다시 시도해주세요."
+            setResetErrors({ code: message })
         } finally {
             setIsResetSubmitting(false)
         }
@@ -208,6 +222,11 @@ export function LoginScreen({
     const handleNewPasswordSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
         const newErrors: { newPassword?: string; confirmPassword?: string } = {}
+
+        if (!resetEmail) {
+            setResetErrors({ form: "비밀번호 재설정 이메일 정보가 없습니다. 처음부터 다시 진행해주세요." })
+            return
+        }
 
         if (!newPassword) {
             newErrors.newPassword = '새 비밀번호를 입력해주세요'
@@ -226,7 +245,7 @@ export function LoginScreen({
 
         setIsResetSubmitting(true)
         try {
-            await new Promise((resolve) => setTimeout(resolve, 1000))
+            await authApi.confirmPasswordReset(resetEmail, newPassword)
             setResetId('')
             setResetEmail('')
             setResetCode('')
@@ -238,13 +257,17 @@ export function LoginScreen({
             } else {
                 onCancel?.()
             }
+        } catch (error: any) {
+            console.error("비밀번호 재설정 완료 실패", error)
+            const message =
+              error?.response?.data?.message ||
+              error?.message ||
+              "비밀번호 변경에 실패했습니다. 다시 시도해주세요."
+            setResetErrors({ form: message, newPassword: message })
         } finally {
             setIsResetSubmitting(false)
         }
     }
-
-    const isModalVariant = variant === "modal";
-    const isResetFieldsReadOnly = isModalVariant;
 
     const handleReturnToLoginOrCancel = (options?: { resetNewPassword?: boolean }) => {
         setResetErrors({});
@@ -258,6 +281,8 @@ export function LoginScreen({
             onCancel?.();
         }
     };
+
+    const isModalVariant = variant === "modal";
 
     return (
         <div
@@ -378,8 +403,6 @@ export function LoginScreen({
                                     placeholder="아이디를 입력하세요"
                                     value={resetId}
                                     onChange={(e) => setResetId(e.target.value)}
-                                    readOnly={isResetFieldsReadOnly}
-                                    aria-readonly={isResetFieldsReadOnly}
                                     className={`h-12 rounded-xl border-gray-200 bg-gray-50 px-4 focus:bg-white focus:border-primary transition-colors ${
                                         resetErrors.userId ? 'border-red-300 focus:border-red-500' : ''
                                     }`}
@@ -399,8 +422,6 @@ export function LoginScreen({
                                     placeholder="이메일을 입력하세요"
                                     value={resetEmail}
                                     onChange={(e) => setResetEmail(e.target.value)}
-                                    readOnly={isResetFieldsReadOnly}
-                                    aria-readonly={isResetFieldsReadOnly}
                                     className={`h-12 rounded-xl border-gray-200 bg-gray-50 px-4 focus:bg-white focus:border-primary transition-colors ${
                                         resetErrors.email ? 'border-red-300 focus:border-red-500' : ''
                                     }`}
@@ -531,6 +552,9 @@ export function LoginScreen({
                                     {isResetSubmitting ? '저장 중...' : '비밀번호 변경'}
                                 </Button>
                             </div>
+                            {resetErrors.form && (
+                              <p className="text-sm text-destructive">{resetErrors.form}</p>
+                            )}
                         </form>
                         )}
                     </CardContent>

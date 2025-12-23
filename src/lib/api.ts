@@ -131,6 +131,41 @@ export const authApi = {
     });
     return response.data; // axios 응답 객체 중 data만 반환해 UI가 쉽게 사용하도록 함
   },
+
+  /**
+   * 비밀번호 재설정: 인증 코드 전송
+   * @param email 대상 이메일
+   */
+  requestPasswordReset: async (email: string) => {
+    const response = await apiClient.post("/api/v1/password-reset/send", { email });
+    return response.data;
+  },
+
+  /**
+   * 비밀번호 재설정: 인증 코드 검증
+   * @param email 대상 이메일 (코드 전송 시 사용한 이메일)
+   * @param verificationCode 이메일로 수신한 코드
+   */
+  verifyPasswordResetCode: async (email: string, verificationCode: string) => {
+    const response = await apiClient.post("/api/v1/password-reset/verify", {
+      email,
+      verificationCode,
+    });
+    return response.data;
+  },
+
+  /**
+   * 비밀번호 재설정: 새 비밀번호 확정
+   * @param email 대상 이메일 (코드 전송 시 사용한 이메일)
+   * @param newPassword 새 비밀번호
+   */
+  confirmPasswordReset: async (email: string, newPassword: string) => {
+    const response = await apiClient.post("/api/v1/password-reset/confirm", {
+      email,
+      newPassword,
+    });
+    return response.data;
+  },
 };
 
 // 프로젝트 API
@@ -762,6 +797,23 @@ export const userApi = {
       return { message, data };
     }
     throw new Error(message || "전화번호 변경에 실패했습니다.");
+  },
+
+  /**
+   * 비밀번호 변경 (현재 비밀번호 확인 후 새 비밀번호 설정)
+   */
+  changePassword: async (currentPassword: string, newPassword: string) => {
+    const response = await apiClient.patch("/api/v1/users/auth/passwordReset/confirm", {
+      currentPassword,
+      newPassword,
+    });
+
+    const { success, message, data } = response.data ?? {};
+    if (success === true) {
+      return { message, data };
+    }
+
+    throw new Error(message || "비밀번호 변경에 실패했습니다.");
   },
 };
 
