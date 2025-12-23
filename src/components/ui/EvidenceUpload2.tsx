@@ -6,6 +6,7 @@ import { X, Upload, Link as LinkIcon } from "lucide-react";
 interface EvidenceUploadProps {
     id: string;
     isChecked: boolean;
+    forceVisible?: boolean;
     onImageUpload: (id: string, files: File[]) => void;
     files: File[];
     links: string[];
@@ -22,6 +23,7 @@ interface EvidenceUploadProps {
 export function EvidenceUpload2({
                                    id,
                                    isChecked,
+                                   forceVisible = false,
                                    onImageUpload,
                                    files,
                                    links = [],
@@ -52,7 +54,8 @@ export function EvidenceUpload2({
     const hasRemoteFiles = remoteFiles.length > 0;
     const [isAddingLink, setIsAddingLink] = useState(false);
     const [linkInput, setLinkInput] = useState("");
-    const shouldRender = isChecked || fileList.length > 0 || hasLinks || hasRemoteFiles;
+    const shouldRender =
+        forceVisible || isChecked || fileList.length > 0 || hasLinks || hasRemoteFiles;
     if (!shouldRender) return null;
 
     // 파일 선택 시
