@@ -174,6 +174,18 @@ export const projectApi = {
   },
 
   /**
+   * 프로젝트 단일 조회
+   * @param projectId 프로젝트 ID
+   * @returns 프로젝트 정보
+   */
+  getProject: async (projectId: string | number) => {
+    const response = await apiClient.get(`/api/v1/projects/${projectId}`);
+    const { success, message, data } = response.data ?? {};
+    if (success === true && data) return data;
+    throw new Error(message || "프로젝트 정보를 불러오지 못했습니다.");
+  },
+
+  /**
    * 프로젝트 노드 승인 상태 조회
    * @param projectId 프로젝트 ID
    * @param nodeId 노드 ID
