@@ -89,6 +89,7 @@ export function AdminCompanies() {
       .map((company) => {
         const normalizedStatus = normalizeCompanyStatus(company.status);
         const fallbackName = company.companyName?.trim() || (company.companyId ? `Company #${company.companyId}` : "이름 미지정");
+        const overview = company.projectOverview ?? {};
         return {
           id: company.companyId ? company.companyId.toString() : fallbackName,
           name: fallbackName,
@@ -96,9 +97,9 @@ export function AdminCompanies() {
           companyNumber: company.companyNumber ?? "",
           tel: company.tel ?? "",
           address: company.address ?? "",
-          totalProjectCount: company.totalProjectCount ?? 0,
-          activeProjectCount: company.activeProjectCount ?? 0,
-          clientCount: company.clientCount ?? 0,
+          totalProjectCount: overview.totalProject ?? company.totalProjectCount ?? 0,
+          activeProjectCount: overview.inProgressProject ?? company.activeProjectCount ?? 0,
+          clientCount: overview.clientMember ?? company.clientCount ?? 0,
           joined: company.createdAt ?? company.joinedAt ?? "",
         } as CompanySummary;
       })

@@ -721,6 +721,18 @@ export const companyApi = {
   },
 
   /**
+   * 회사 등록
+   */
+  addCompany: async (payload: { companyName: string; companyNumber: string; tel: string; address: string }) => {
+    const response = await apiClient.post("/api/v1/company/add", payload);
+    const { success, message, data } = response.data ?? {};
+    if (success === true) {
+      return data;
+    }
+    throw new Error(message || "회사 등록에 실패했습니다.");
+  },
+
+  /**
    * 회사 목록 페이지 조회 (페이지네이션)
    */
   getCompanyPage: async (params?: CompanyPageParams): Promise<AdminCompanyPage> => {

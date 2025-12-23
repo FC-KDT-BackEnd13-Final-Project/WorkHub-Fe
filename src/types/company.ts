@@ -10,6 +10,11 @@ export interface AdminCompanyResponse {
   totalProjectCount?: number;
   activeProjectCount?: number;
   clientCount?: number;
+  projectOverview?: {
+    inProgressProject?: number;
+    totalProject?: number;
+    clientMember?: number;
+  };
   createdAt?: string;
   joinedAt?: string;
 }
