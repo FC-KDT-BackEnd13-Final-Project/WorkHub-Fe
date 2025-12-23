@@ -557,6 +557,7 @@ useEffect(() => {
             developerUserId,
             startDate: newWorkflow.startDate,
             endDate: newWorkflow.endDate,
+            ...(newWorkflow.nodeCategory ? { nodeCategory: newWorkflow.nodeCategory } : {}),
           },
         );
 
@@ -601,6 +602,7 @@ useEffect(() => {
         developerUserId: newWorkflow.developerUserId,
         startDate: newWorkflow.startDate,
         endDate: newWorkflow.endDate,
+        ...(newWorkflow.nodeCategory ? { nodeCategory: newWorkflow.nodeCategory } : {}),
       });
 
       await fetchNodes();
