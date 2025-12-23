@@ -25,6 +25,7 @@ import type {
   CsQnaResponse,
   CsQnaUpdateRequest,
 } from '@/types/csPost';
+import type { AdminCompanyPage, AdminCompanyPageResponse } from '@/types/company';
 
 type CreateProjectPayload = {
   projectName: string;
@@ -63,6 +64,16 @@ type CompanyMemberListResponse = {
     userName: string;
     profileImg?: string | null;
   }>;
+};
+
+export type CompanyPageParams = {
+  page?: number;
+  size?: number;
+  sort?: string | string[];
+  keyword?: string;
+  status?: string;
+  startDate?: string;
+  endDate?: string;
 };
 
 const buildChecklistFormData = (
@@ -645,6 +656,20 @@ export const companyApi = {
     const response = await apiClient.get<CompanyListResponse>('/api/v1/company/list');
     const { success, message, data } = response.data;
     if (success === true) {
+      return data;
+    }
+    throw new Error(message || '회사 목록 조회에 실패했습니다.');
+  },
+
+  /**
+   * 회사 목록 페이지 조회 (페이지네이션)
+   */
+  getCompanyPage: async (params?: CompanyPageParams): Promise<AdminCompanyPage> => {
+    const response = await apiClient.get<AdminCompanyPageResponse>('/api/v1/company', {
+      params,
+    });
+    const { success, message, data } = response.data;
+    if (success === true && data) {
       return data;
     }
     throw new Error(message || '회사 목록 조회에 실패했습니다.');
