@@ -110,26 +110,7 @@ export function Sidebar() {
         listen: false,
     });
 
-    const [projectCount, setProjectCount] = useState<number | null>(null);
-
-    useEffect(() => {
-        let cancelled = false;
-        const loadProjectCount = async () => {
-            try {
-                const summary = await fetchDashboardSummary();
-                if (cancelled) return;
-                setProjectCount(summary.totalProjects ?? 0);
-            } catch (error) {
-                if (cancelled) return;
-                console.error("프로젝트 개수 조회 실패", error);
-                setProjectCount(null);
-            }
-        };
-        loadProjectCount();
-        return () => {
-            cancelled = true;
-        };
-    }, []);
+    const [projectCount] = useState<number | null>(null);
 
     // profile/user 어디에 role이 저장됐든 우선순위를 정해 단일 역할로 매핑한다.
     const userRole = useMemo<UserRole>(() => {
@@ -169,8 +150,7 @@ export function Sidebar() {
     const getBadgeValue = (label: string) => {
         if (label === "Notifications" && notificationCount > 0)
             return String(notificationCount);
-        if (label === "Projects" && projectCount !== null)
-            return String(projectCount);
+        if (label === "Projects") return undefined;
         return undefined;
     };
 
