@@ -953,9 +953,11 @@ export function Dashboard() {
               <CardTitle className="text-xl font-semibold text-foreground">최근 히스토리</CardTitle>
               <p className="text-xs text-muted-foreground">워크스페이스 전반의 활동 로그입니다.</p>
             </div>
-            <button className="text-xs font-medium text-primary hover:underline" onClick={() => navigate("/history")}>
-              전체 보기
-            </button>
+            {userRole === "ADMIN" && (
+              <button className="text-xs font-medium text-primary hover:underline" onClick={() => navigate("/history")}>
+                전체 보기
+              </button>
+            )}
           </CardHeader>
           <CardContent className="pt-2 pb-4">
             <div
