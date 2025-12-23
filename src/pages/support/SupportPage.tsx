@@ -475,8 +475,8 @@ export function SupportPage() {
                   </div>
               )}
               {/* 데스크톱 테이블 */}
-              <div className="hidden md:block">
-                <Card2 className="overflow-hidden">
+              <div className="hidden md:flex md:justify-center">
+                <Card2 className="overflow-hidden w-full md:max-w-6xl">
                   <CardContent className="p-0">
                     <Table2 className="table-fixed w-full">
                       <colgroup>
