@@ -50,6 +50,8 @@ export interface Notification {
   csPostId?: string;
   projectNodeId?: string;
   externalUrl?: string;
+  senderUserId?: string;
+  senderProfileImg?: string;
 }
 
 interface NotificationItemProps {
@@ -124,12 +126,9 @@ export function NotificationItem({ notification, onMarkRead, onOpen, variant = "
           <div className="flex items-start gap-3">
             {avatarElement}
             <div className="flex-1 space-y-1">
-              {actorName && (
-                <p className="text-xs text-muted-foreground">
-                  보낸 사람 · {actorName}
-                  {userId ? ` · ${userId}` : null}
-                </p>
-              )}
+      {actorName && (
+        <p className="text-xs text-muted-foreground">보낸 사람 · {actorName}</p>
+      )}
               <p className="text-base font-semibold leading-tight text-foreground">{title}</p>
               <p className="mt-1 text-sm leading-snug text-muted-foreground">{description}</p>
               
@@ -169,12 +168,11 @@ export function NotificationItem({ notification, onMarkRead, onOpen, variant = "
             <p className="text-xs text-muted-foreground truncate w-full" title={description}>
               {description}
             </p>
-            {actorName && (
-              <p className="mt-1 text-[11px] text-muted-foreground truncate w-full" title={actorName}>
-                {actorName}
-                {userId ? ` · ${userId}` : null}
-              </p>
-            )}
+      {actorName && (
+        <p className="mt-1 text-[11px] text-muted-foreground truncate w-full" title={actorName}>
+          {actorName}
+        </p>
+      )}
           </div>
         </div>
       </TableCell>
