@@ -3,6 +3,7 @@ import { format } from "date-fns";
 import { useNavigate } from "react-router-dom";
 import { LayoutDashboard, Users, CheckCircle, CheckSquare, Clock } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import type { CSSProperties } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { companyUsers } from "../admin/userData";
 import logoImage from "../../../image/logo.png";
@@ -18,33 +19,129 @@ import {
   fetchAdminCompanyCount,
   fetchAdminMonthlyMetrics,
   fetchAdminProjectCount,
+  fetchAdminProjectDistribution,
   fetchAdminUserCount,
   fetchDashboardSummary,
   type MonthlyMetricsResponse,
+  type ProjectDistributionResponse,
 } from "@/lib/dashboard";
 import { historyApi } from "@/lib/history";
 import { mapHistoryItemToEvent } from "@/lib/historyMapper";
 
-const statusSlices = [
-  { label: "Planning", value: 12, color: "#0ea5e9" },
-  { label: "Design", value: 16, color: "#6366f1" },
-  { label: "Development", value: 28, color: "#10b981" },
-  { label: "QA", value: 10, color: "#f97316" },
-  { label: "Release", value: 6, color: "#ec4899" },
-  { label: "Maintenance", value: 8, color: "#22d3ee" },
-];
+const projectStatusCategoryMeta = [
+  { category: "PLANNING", label: "Planning", color: "#0ea5e9", fallbackValue: 12 },
+  { category: "DESIGN", label: "Design", color: "#6366f1", fallbackValue: 16 },
+  { category: "DEVELOPMENT", label: "Development", color: "#10b981", fallbackValue: 28 },
+  { category: "QA", label: "QA", color: "#f97316", fallbackValue: 10 },
+  { category: "RELEASE", label: "Release", color: "#ec4899", fallbackValue: 6 },
+  { category: "MAINTENANCE", label: "Maintenance", color: "#22d3ee", fallbackValue: 8 },
+  { category: "ETC", label: "Etc", color: "#94a3b8", fallbackValue: 0 },
+] as const;
 
-const donutTotal = statusSlices.reduce((sum, slice) => sum + slice.value, 0);
-const donutSegments = (() => {
+const projectStatusCategoryAliases: Record<string, (typeof projectStatusCategoryMeta)[number]["category"]> = {
+  PLANNING: "PLANNING",
+  PLAN: "PLANNING",
+  기획: "PLANNING",
+  DESIGN: "DESIGN",
+  DESIGNING: "DESIGN",
+  디자인: "DESIGN",
+  DEVELOPMENT: "DEVELOPMENT",
+  DEVELOP: "DEVELOPMENT",
+  개발: "DEVELOPMENT",
+  QA: "QA",
+  TEST: "QA",
+  테스트: "QA",
+  RELEASE: "RELEASE",
+  릴리즈: "RELEASE",
+  배포: "RELEASE",
+  MAINTENANCE: "MAINTENANCE",
+  MAINTAIN: "MAINTENANCE",
+  유지보수: "MAINTENANCE",
+  ETC: "ETC",
+  기타: "ETC",
+};
+
+const projectStatusMetaMap = projectStatusCategoryMeta.reduce(
+  (acc, entry) => {
+    acc[entry.category] = { label: entry.label, color: entry.color };
+    return acc;
+  },
+  {} as Record<string, { label: string; color: string }>,
+);
+
+const DEFAULT_CATEGORY_KEY = "ETC";
+const normalizeCategoryKey = (value?: string | null) => {
+  if (!value) {
+    return DEFAULT_CATEGORY_KEY;
+  }
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return DEFAULT_CATEGORY_KEY;
+  }
+  const upper = trimmed.toUpperCase();
+  const compact = upper.replace(/[^\p{L}\p{N}]/gu, "");
+
+  return (
+    projectStatusCategoryAliases[trimmed] ||
+    projectStatusCategoryAliases[upper] ||
+    projectStatusCategoryAliases[compact] ||
+    (upper as (typeof projectStatusCategoryMeta)[number]["category"])
+  );
+};
+const FALLBACK_PROJECT_DISTRIBUTION: ProjectDistributionResponse = (() => {
+  const totalNodes = projectStatusCategoryMeta.reduce((sum, entry) => sum + entry.fallbackValue, 0);
+  return {
+    totalInProgressProjectCount: totalNodes,
+    distributions: projectStatusCategoryMeta.map((entry) => ({
+      nodeCategory: entry.category,
+      totalNodes: entry.fallbackValue,
+      completedNodes: entry.fallbackValue,
+      completionRate: totalNodes > 0 ? (entry.fallbackValue / totalNodes) * 100 : 0,
+    })),
+  } satisfies ProjectDistributionResponse;
+})();
+
+type CSSVariableStyle = CSSProperties & {
+  [key: `--${string}`]: string | number | undefined;
+};
+
+const clampPercentage = (value: number) => {
+  if (!Number.isFinite(value)) {
+    return 0;
+  }
+  return Math.min(100, Math.max(0, value));
+};
+
+const roundPercentage = (value: number) => Math.round(clampPercentage(value));
+
+const buildColorStyle = (color: string, extra?: CSSProperties): CSSVariableStyle => ({
+  backgroundColor: color,
+  "--ring": color,
+  ...extra,
+});
+
+const buildDonutSegments = (
+  slices: Array<{ label: string; value: number; color: string }>,
+  totalOverride?: number,
+) => {
+  const total = typeof totalOverride === "number" ? totalOverride : slices.reduce((sum, slice) => sum + slice.value, 0);
+  if (total <= 0) {
+    return [] as Array<{
+      slice: { label: string; value: number; color: string };
+      dasharray: string;
+      dashoffset: number;
+    }>;
+  }
+
   let cumulative = 0;
-  return statusSlices.map((slice) => {
-    const percentage = (slice.value / donutTotal) * 100;
+  return slices.map((slice) => {
+    const percentage = (slice.value / total) * 100;
     const dasharray = `${percentage} ${100 - percentage}`;
     const dashoffset = 25 - cumulative;
     cumulative += percentage;
     return { slice, dasharray, dashoffset };
   });
-})();
+};
 
 const totalUsers = companyUsers.length;
 const totalCompanies = Array.from(new Set(companyUsers.map((user) => user.company).filter(Boolean))).length;
@@ -163,6 +260,8 @@ export function Dashboard() {
   const [adminCounts, setAdminCounts] = useState<{ users: number; companies: number; projects: number } | null>(null);
   const [adminMonthlyMetrics, setAdminMonthlyMetrics] = useState<MonthlyMetricsResponse | null>(null);
   const [adminMetricsError, setAdminMetricsError] = useState<string | null>(null);
+  const [projectDistribution, setProjectDistribution] = useState<ProjectDistributionResponse | null>(null);
+  const [projectDistributionError, setProjectDistributionError] = useState<string | null>(null);
   const [historyApiEvents, setHistoryApiEvents] = useState<HistoryEvent[]>([]);
   const [historyError, setHistoryError] = useState<string | null>(null);
   const isSystemActor = (name?: string) => {
@@ -329,6 +428,37 @@ export function Dashboard() {
     };
 
     loadAdminMetrics();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [userRole]);
+
+  useEffect(() => {
+    if (userRole !== "ADMIN") {
+      setProjectDistribution(null);
+      setProjectDistributionError(null);
+      return;
+    }
+
+    let cancelled = false;
+
+    const loadProjectDistribution = async () => {
+      try {
+        const data = await fetchAdminProjectDistribution();
+        if (cancelled) return;
+        setProjectDistribution(data);
+        setProjectDistributionError(null);
+      } catch (error) {
+        if (cancelled) return;
+        const message =
+          error instanceof Error ? error.message : "프로젝트 단계별 비율을 불러오지 못했습니다.";
+        setProjectDistribution(null);
+        setProjectDistributionError(message);
+      }
+    };
+
+    loadProjectDistribution();
 
     return () => {
       cancelled = true;
@@ -514,6 +644,82 @@ export function Dashboard() {
     return summaryMetrics;
   }, [adminCounts, currentUser, summary, userRole]);
 
+  const projectDistributionData = useMemo(() => {
+    const baseDistribution = userRole === "ADMIN" && projectDistribution ? projectDistribution : FALLBACK_PROJECT_DISTRIBUTION;
+    const distributionMap = new Map<
+      string,
+      {
+        originalCategory?: string;
+        totalNodes: number;
+        completionRate: number;
+      }
+    >();
+
+    (baseDistribution?.distributions ?? []).forEach((item) => {
+      const normalizedCategory = normalizeCategoryKey(item.nodeCategory?.toString());
+      const totalNodes = typeof item.totalNodes === "number" ? item.totalNodes : 0;
+      const completionRate = typeof item.completionRate === "number" ? item.completionRate : 0;
+      const existing = distributionMap.get(normalizedCategory);
+
+      if (existing) {
+        distributionMap.set(normalizedCategory, {
+          originalCategory: existing.originalCategory,
+          totalNodes: existing.totalNodes + totalNodes,
+          completionRate: completionRate || existing.completionRate,
+        });
+      } else {
+        distributionMap.set(normalizedCategory, {
+          originalCategory: item.nodeCategory ?? normalizedCategory,
+          totalNodes,
+          completionRate,
+        });
+      }
+    });
+
+    const slices: Array<{ key: string; label: string; color: string; totalNodes: number; completionRate: number }> = [];
+
+    projectStatusCategoryMeta.forEach((entry) => {
+      const matched = distributionMap.get(entry.category);
+      const totalNodes = matched ? matched.totalNodes : 0;
+      const completionRate = matched ? matched.completionRate : 0;
+
+      slices.push({
+        key: entry.category,
+        label: entry.label,
+        color: entry.color,
+        totalNodes,
+        completionRate,
+      });
+
+      if (matched) {
+        distributionMap.delete(entry.category);
+      }
+    });
+
+    const fallbackColor = projectStatusMetaMap[DEFAULT_CATEGORY_KEY]?.color ?? "#94a3b8";
+    distributionMap.forEach((value, normalizedCategory) => {
+      slices.push({
+        key: normalizedCategory,
+        label: value.originalCategory ?? normalizedCategory,
+        color: fallbackColor,
+        totalNodes: value.totalNodes,
+        completionRate: value.completionRate,
+      });
+    });
+
+    const donutTotal = slices.reduce((sum, slice) => sum + slice.totalNodes, 0);
+    const donutSegments = buildDonutSegments(
+      slices.map((slice) => ({ label: slice.label, value: slice.totalNodes, color: slice.color })),
+      donutTotal,
+    );
+    const rawProjectCount = baseDistribution?.totalInProgressProjectCount;
+    const displayProjectCount = typeof rawProjectCount === "number" && rawProjectCount > 0 ? rawProjectCount : donutTotal;
+
+    return { slices, donutSegments, displayProjectCount };
+  }, [projectDistribution, userRole]);
+
+  const { slices: projectStatusSlices, donutSegments, displayProjectCount } = projectDistributionData;
+
   return (
     <div className="space-y-8 pb-12">
       <div className="rounded-2xl bg-white p-6 shadow-sm">
@@ -682,12 +888,17 @@ export function Dashboard() {
                 </div>
               </CardHeader>
               <CardContent className="pt-6 flex flex-col gap-4">
+                {projectDistributionError ? (
+                  <p className="text-xs text-destructive px-4">
+                    {projectDistributionError} (샘플 데이터 표시 중)
+                  </p>
+                ) : null}
                 <div className="relative mx-auto h-32 w-32">
                   <svg viewBox="0 0 36 36" className="h-full w-full">
                     <circle cx="18" cy="18" r="14.5" fill="none" stroke="#e2e8f0" strokeWidth="4" />
-                    {donutSegments.map(({ slice, dasharray, dashoffset }) => (
+                    {donutSegments.map(({ slice, dasharray, dashoffset }, idx) => (
                       <circle
-                        key={slice.label}
+                        key={`${slice.label}-${idx}`}
                         cx="18"
                         cy="18"
                         r="15.915"
@@ -703,21 +914,25 @@ export function Dashboard() {
                   <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
                     <div className="rounded-full bg-white px-4 py-3 text-center shadow-sm">
                       <p className="text-xs text-muted-foreground">총 프로젝트</p>
-                      <p className="text-xl font-semibold text-foreground">{donutTotal}</p>
+                      <p className="text-xl font-semibold text-foreground">
+                        {displayProjectCount.toLocaleString("ko-KR")}
+                      </p>
                     </div>
                   </div>
                 </div>
                 <div className="space-y-3">
-                  {statusSlices.map((slice) => {
-                    const percent = Math.round((slice.value / donutTotal) * 100);
+                  {projectStatusSlices.map((slice) => {
+                    const roundedPercent = roundPercentage(slice.completionRate);
+                    const bulletStyle = buildColorStyle(slice.color);
+                    const fillStyle = buildColorStyle(slice.color, { width: `${roundedPercent}%` });
                     return (
-                      <div key={slice.label} className="flex items-center gap-3 px-4 py-3 rounded-xl bg-white/90 shadow-sm text-sm">
-                        <span className="h-2 w-2 rounded-full" style={{ backgroundColor: slice.color }} />
+                      <div key={slice.key} className="flex items-center gap-3 px-4 py-3 rounded-xl bg-white/90 shadow-sm text-sm">
+                        <span className="h-2 w-2 rounded-full" style={bulletStyle} />
                         <span className="w-28">{slice.label}</span>
                         <div className="flex-1 h-2 rounded-full bg-muted overflow-hidden">
-                          <div className="h-full rounded-full" style={{ backgroundColor: slice.color, width: `${percent}%` }} />
+                          <div className="h-full rounded-full" style={fillStyle} />
                         </div>
-                        <span className="w-12 text-right text-xs text-muted-foreground">{percent}%</span>
+                        <span className="w-12 text-right text-xs text-muted-foreground">{roundedPercent}%</span>
                       </div>
                     );
                   })}
