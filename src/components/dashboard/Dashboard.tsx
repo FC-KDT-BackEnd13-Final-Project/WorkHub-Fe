@@ -714,11 +714,13 @@ export function Dashboard() {
     );
     const rawProjectCount = baseDistribution?.totalInProgressProjectCount;
     const displayProjectCount = typeof rawProjectCount === "number" && rawProjectCount > 0 ? rawProjectCount : donutTotal;
+    const longestLabelLength = slices.reduce((max, slice) => Math.max(max, slice.label.length), 0);
+    const labelColumnWidthCh = `${Math.max(6, longestLabelLength + 2)}ch`;
 
-    return { slices, donutSegments, displayProjectCount };
+    return { slices, donutSegments, displayProjectCount, labelColumnWidthCh };
   }, [projectDistribution, userRole]);
 
-  const { slices: projectStatusSlices, donutSegments, displayProjectCount } = projectDistributionData;
+  const { slices: projectStatusSlices, donutSegments, displayProjectCount, labelColumnWidthCh } = projectDistributionData;
 
   return (
     <div className="space-y-8 pb-12">
@@ -928,7 +930,9 @@ export function Dashboard() {
                     return (
                       <div key={slice.key} className="flex items-center gap-3 px-4 py-3 rounded-xl bg-white/90 shadow-sm text-sm">
                         <span className="h-2 w-2 rounded-full" style={bulletStyle} />
-                        <span className="w-28">{slice.label}</span>
+                        <span className="flex-none" style={{ width: labelColumnWidthCh, minWidth: labelColumnWidthCh }}>
+                          {slice.label}
+                        </span>
                         <div className="flex-1 h-2 rounded-full bg-muted overflow-hidden">
                           <div className="h-full rounded-full" style={fillStyle} />
                         </div>
