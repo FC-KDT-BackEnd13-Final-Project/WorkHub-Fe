@@ -757,6 +757,7 @@ export function ProjectChecklist2({ initialNodeInfo = null, nodeInfoLoading = fa
           {
             content,
             parentCommentId,
+            parentClCommentId: parentCommentId,
             files: fileMeta,
           },
           attachments,
